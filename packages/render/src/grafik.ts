@@ -13,13 +13,18 @@ export const LICHTKARTE = new Uint8Array(LK * LK);
 export const lichtTex = new THREE.DataTexture(LICHTKARTE, LK, LK, THREE.RedFormat, THREE.UnsignedByteType);
 lichtTex.magFilter = THREE.LinearFilter; lichtTex.minFilter = THREE.LinearFilter; lichtTex.needsUpdate = true;
 export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') } };
-export function lichtkarteSetzen(lichter: { x: number; z: number; r: number }[]): void {
+export function lichtkarteSetzen(lichter: { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } }[]): void {
   LICHTKARTE.fill(0);
   for (const l of lichter) {
     const r = Math.ceil(l.r);
     for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
       const x = Math.floor(l.x + dx) + WR, z = Math.floor(l.z + dz) + WR; if (x < 0 || z < 0 || x >= LK || z >= LK) continue;
-      const d = Math.hypot(dx, dz) / l.r; if (d >= 1) continue;
+      const e = Math.hypot(dx, dz); let d = e / l.r; if (d >= 1) continue;
+      if (l.kegel && l.geb) { // Scheinwerfer: kleiner Kreis plus Kegel in Blickrichtung
+        let da = Math.atan2(dx, dz) - l.geb.zielen; da = Math.atan2(Math.sin(da), Math.cos(da));
+        const kreis = e < 6 ? 1 - e / 6 : 0, kegel = Math.abs(da) < l.kegel ? Math.max(0, 1 - d) * (1 - Math.abs(da) / l.kegel * 0.5) : 0;
+        d = 1 - Math.max(kreis, kegel); if (d >= 1) continue;
+      }
       const v = Math.round((1 - d) * 255), i = z * LK + x; if (v > LICHTKARTE[i]) LICHTKARTE[i] = v;
     }
   }

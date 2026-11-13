@@ -92,6 +92,17 @@
   .rezept .zutaten { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--mono); font-size: 12px; }
   .rezept .zutaten span { display: inline-flex; align-items: center; gap: 5px; }
   .rezept .zutaten span.fehlt { color: var(--rot); }
+  .rezept.schluessel { border-color: #6b5530; }
+  .rezept.geheim { border-style: dashed; opacity: .8; }
+  .rezept .zeitalter { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ember); }
+  .panel .grund { color: var(--rot); font-size: 13px; }
+  .panel h3.buch { margin: 6px 0 0; font-family: var(--display); font-size: 16px; color: var(--ember); }
+  .zweige { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .zweige button.aktion { text-align: left; line-height: 1.25; }
+  .zweige small { color: var(--muted); font-size: 12px; }
+  .zeitalter-anz { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ember); }
+  .uhr .faehig { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .uhr .faehig button { border-color: var(--ember); }
   .rezept .zutaten i { width: 8px; height: 8px; display: inline-block; transform: rotate(45deg); border-radius: 2px; }
 
   .einfuehrung { position: absolute; left: max(12px, env(safe-area-inset-left)); top: 120px; width: 280px; padding: 12px 14px; display: grid; gap: 8px; border-left: 3px solid var(--rune); }
@@ -137,6 +148,7 @@
 <div id="hud" hidden>
   <div class="oben-links tafel">
     <div class="marke">rune<b>BOOM</b></div>
+    <div class="zeitalter-anz" id="zeitalter" title="Zeitalter"></div>
     <div class="res" id="res"></div>
     <div class="bst" id="bausteine"></div>
   </div>

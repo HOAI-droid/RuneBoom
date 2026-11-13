@@ -4,22 +4,39 @@ import { Grid, meshVoxels } from './voxel.ts';
 import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT } from './grafik.ts';
 import {
   hauptgebaeude, werkstatt, turmHolz, turmAlchemie, leuchtFackel, leuchtFeuer, haus, holzstapel, steinbruch, kristallmine, mauerStueck,
-  moorwicht, wolf, troll, drachling, nebelrochen, figur8
+  moorwicht, wolf, troll, drachling, nebelrochen, figur8, turmUhrwerk, turmKristall,
+  turmSchuetzen, turmKanone, turmBlitz, lichtFeuerKlein, lichtSpiegelKlein, lichtKristallKlein, turmFusion, ruine, trollPanzer, drachenFeuer
 } from './modelle.ts';
+import { rng, type Ruine } from '@runeboom/core';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
-function gebModell(typ: GebTyp, stahl: boolean): THREE.Group {
-  const key = typ + (stahl ? '+' : '');
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1): THREE.Group {
+  const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe;
   let m = modellCache.get(key);
   if (!m) {
     const g = new Grid();
-    if (typ === 'haupt') hauptgebaeude(g, 0, 0, 0);
+    if (typ === 'haupt') {
+      hauptgebaeude(g, 0, 0, 0);
+      // Ausbaustufen: Goldring, Banner, großer Kristall
+      if (stufe >= 2) g.cyl(0, 0, 36, 36, 3, '#d4a640', 0, 0.05, true);
+      if (stufe >= 3) for (const s of [-1, 1]) { g.box(s * 10, 18, 10, s * 10, 26, 10, '#3f5f9a'); g.set(s * 10, 27, 10, '#d4a640'); }
+      if (stufe >= 4) { g.ell(0, 44, 0, 2.6, 4.6, 2.6, '#c8fbff', 2.2); g.cyl(0, 0, 40, 40, 4.4, '#d4a640', 0, 0.05, true); }
+    }
+    if (typ === 'schuetzenturm') turmSchuetzen(g, 0, 0, 0, zw);
+    if (typ === 'repetierer') turmUhrwerk(g, 0, 0, 0);
+    if (typ === 'laser') turmKristall(g, 0, 0, 0);
+    if (typ === 'kanone') turmKanone(g, 0, 0, 0, zw);
+    if (typ === 'blitzspule') turmBlitz(g, 0, 0, 0, zw);
+    if (typ === 'scheinwerfer') lichtSpiegelKlein(g, 0, 0, 0);
+    if (typ === 'kristallfeuer') lichtKristallKlein(g, 0, 0, 0);
+    if (GEBAEUDE[typ].fusion) turmFusion(g, typ);
     if (typ === 'werkstatt') werkstatt(g, 0, 0, 0, 0);
     if (typ === 'wachturm') turmHolz(g, 0, 0, 0);
     if (typ === 'feuertopf') turmAlchemie(g, 0, 0, 0);
     if (typ === 'fackel') leuchtFackel(g, 0, 0, 0);
-    if (typ === 'leuchtfeuer') leuchtFeuer(g, 0, 0, 0);
+    if (typ === 'leuchtfeuer') lichtFeuerKlein(g, 0, 0, 0);
     if (typ === 'holz') { haus(g, 0, 0, -0.5, 0, '#cdb894', '#7a3426'); holzstapel(g, -4, 0, -6); }
     if (typ === 'stein') steinbruch(g, 0, 0, 0);
     if (typ === 'kristall') kristallmine(g, 0, 0, 0);
@@ -30,7 +47,10 @@ function gebModell(typ: GebTyp, stahl: boolean): THREE.Group {
   return m;
 }
 export function gebMitte(g: { x: number; z: number; w: number; d: number }): [number, number] { return [g.x + g.w / 2, g.z + g.d / 2]; }
-const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 13, mauer: 6.5, holz: 8, stein: 7, kristall: 6 };
+const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
+  schuetzenturm: 16, repetierer: 18, laser: 20, kanone: 12, blitzspule: 15, brandturm: 19, leuchtpfeil: 21, doppelturm: 18, glutmoerser: 13 };
+/** Höhe, aus der Strahlen und Blitze kommen */
+function spitze(g: Geb): number { return g.y + (GEB_HOEHE[g.typ] || 10) - 1; }
 const WESEN_HOEHE: Record<GegTyp, number> = { moorwicht: 2.8, wolf: 3.1, troll: 5.6, drachling: 2.2, rochen: 1.6 };
 
 // ---------- Instanzen für viele gleiche Dinge ----------
@@ -172,6 +192,10 @@ export class Objekte {
   private ring: THREE.Mesh; private lichtRing: THREE.Mesh; private auswahl: THREE.Mesh;
   private wackeln = new Map<number, number>(); private rueckstoss = new Map<number, number>();
   private zeit = 0; private gewaehlt: Geb | null = null;
+  private ruinen = new Map<number, THREE.Group>();
+  private feuer: Schar; private panzer: Schar;
+  private strahlen: THREE.InstancedMesh; private blitze: { a: THREE.Vector3; b: THREE.Vector3; t: number }[] = []; private blitzMesh: THREE.InstancedMesh;
+  private schild: THREE.Mesh; private kegel: THREE.Mesh[] = [];
 
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
@@ -204,10 +228,39 @@ export class Objekte {
     this.auswahl = new THREE.Mesh(sel, new THREE.MeshBasicMaterial({ color: '#ffe2a0', transparent: true, opacity: 0.22, depthWrite: false }));
     for (const m of [this.ring, this.lichtRing, this.auswahl]) { m.visible = false; m.renderOrder = 30; scene.add(m); }
     for (const g of spiel.gebaeude) this.neuesGeb(g);
+    // v0.3: Drachenfeuer nur beim Angriff, Panzer der späten Trolle, Strahlen, Blitze, Schild, Ruinen
+    this.feuer = new Schar(mk((g) => drachenFeuer(g)), 0.3, 60, scene, false);
+    this.panzer = new Schar(mk((g) => trollPanzer(g)), 0.3, 60, scene, false);
+    const strahlGeo = new THREE.BoxGeometry(0.16, 0.16, 1); strahlGeo.translate(0, 0, 0.5);
+    this.strahlen = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff4ff').multiplyScalar(1.5), toneMapped: false }), 120);
+    this.blitzMesh = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#c9c0ff').multiplyScalar(1.7), toneMapped: false }), 400);
+    for (const m of [this.strahlen, this.blitzMesh]) { m.count = 0; m.frustumCulled = false; scene.add(m); }
+    this.schild = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#8fd8ff', transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    this.schild.visible = false; this.schild.renderOrder = 25; scene.add(this.schild);
+    for (const ru of spiel.ruinen) this.neueRuine(ru);
+  }
+  private neueRuine(ru: Ruine): void {
+    const g = new Grid(); ruine(g, ru.w, ru.d, rng(ru.id * 7 + 3));
+    const m = gridZuGruppe(g, 0.5); m.position.set(ru.x + ru.w / 2, ru.y, ru.z + ru.d / 2);
+    this.scene.add(m); this.ruinen.set(ru.id, m);
+  }
+  /** feiner Lichtkegel eines Scheinwerfers (nur ein Hauch) */
+  private kegelMesh(i: number): THREE.Mesh {
+    if (!this.kegel[i]) {
+      const geo = new THREE.ConeGeometry(1, 1, 24, 1, true); geo.translate(0, -0.5, 0); geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+        vertexShader: 'varying float vZ; void main(){ vZ = position.z; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'varying float vZ; void main(){ float a = (1.0 - clamp(vZ, 0.0, 1.0)) * 0.05; gl_FragColor = vec4(1.0, 0.9, 0.65, a); }'
+      }));
+      m.renderOrder = 22; this.scene.add(m); this.kegel[i] = m;
+    }
+    return this.kegel[i];
   }
 
   private neuesGeb(g: Geb): void {
-    const m = gebModell(g.typ, g.typ === 'mauer' && this.spiel.erfindungen.has('stahlguss')).clone();
+    const alt = this.gebaeude.get(g.id); if (alt) this.scene.remove(alt);
+    const m = gebModell(g.typ, g.typ === 'mauer' && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe).clone();
     const [cx, cz] = gebMitte(g); m.position.set(cx, g.y, cz);
     m.userData.y = g.y; this.scene.add(m); this.gebaeude.set(g.id, m);
   }
@@ -232,6 +285,24 @@ export class Objekte {
       if (e.art === 'hieb') T.wurf(e.x, e.y + 0.6, e.z, 4, SPAENE[e.res], 2.4, 0, 0.14);
       if (e.art === 'abwurf') T.wurf(e.x, e.y, e.z, 20, ['#9fe7ff', '#3b4f6b'], 3, 1, 0.2);
       if (e.art === 'schuss') this.rueckstoss.set(e.geb.id, 0.25);
+      if (e.art === 'umgebaut') { this.neuesGeb(e.geb); const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 3, z, 24, ['#ffe2a0', '#d4a640', '#ffffff'], 4, 1, 0.16); T.wurf(x, e.geb.y, z, 10, ['#d8cfc0'], 1, 2, 0.9); }
+      if (e.art === 'ruine') {
+        if (e.neu) this.neueRuine(e.ruine);
+        else { const m = this.ruinen.get(e.ruine.id); if (m) { this.scene.remove(m); this.ruinen.delete(e.ruine.id); } const x = e.ruine.x + e.ruine.w / 2, z = e.ruine.z + e.ruine.d / 2; T.wurf(x, e.ruine.y + 1, z, 8, ['#8a837b', '#d8cfc0'], 1, 2, 1); }
+      }
+      if (e.art === 'blitz') for (let i = 1; i < e.punkte.length; i++) {
+        const [ax, ay, az] = e.punkte[i - 1], [bx, by, bz] = e.punkte[i];
+        // Zickzack: drei Zwischenpunkte
+        let p = new THREE.Vector3(ax, ay, az);
+        for (let k = 1; k <= 4; k++) {
+          const f = k / 4, q = new THREE.Vector3(ax + (bx - ax) * f, ay + (by - ay) * f, az + (bz - az) * f);
+          if (k < 4) q.add(new THREE.Vector3((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6));
+          this.blitze.push({ a: p, b: q, t: 0 }); p = q;
+        }
+        T.wurf(bx, by, bz, 5, ['#e6e0ff', '#ffffff'], 2.5, 1, 0.12);
+      }
+      if (e.art === 'feuer') for (let i = 0; i < 10; i++) { const f = 0.3 + i * 0.07; T.wurf(e.x + (e.tx - e.x) * f, e.y + (e.ty - e.y) * f, e.z + (e.tz - e.z) * f, 2, ['#ffb347', '#ff6a1a', '#ffe9a8'], 1.6, 1, 0.22); }
+      if (e.art === 'faehigkeit') { const h = this.spiel.haupt; if (h && e.name === 'notreparatur') { const [x, z] = gebMitte(h); T.wurf(x, h.y + 4, z, 30, ['#ffe2a0', '#ffffff'], 4, 1, 0.16); } }
       if (e.art === 'reparatur' && e.fertig) { const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 2, z, 16, ['#ffe2a0', '#ffffff'], 3, 1, 0.16); }
     }
   }
@@ -242,15 +313,20 @@ export class Objekte {
     this.balken.beginn(kamera);
     // ---- Wesen ----
     for (const s of Object.values(this.wesen)) s.beginn();
+    this.feuer.beginn(); this.panzer.beginn();
     for (const e of S.gegner) {
       if (!S.erkundetAn(e.x, e.z)) continue;
       const lauf = Math.abs(Math.sin(t * e.tempo * 3 + e.id)) * 0.18;
       let schar = this.wesen[e.typ], dunkel = false;
       if (e.typ === 'wolf' && nacht) { const l = licht(e.x, e.z); if (l.wert < 0.3 && !l.enthuellt) { schar = this.wesen.wolfDunkel; dunkel = true; } }
       schar.setze(e.x, e.y + (e.flug ? 0 : lauf), e.z, e.richtung, e.flug ? Math.sin(t * 2 + e.id) * 0.08 : 0, e.typ === 'rochen' ? Math.sin(t * 1.6 + e.id) * 0.1 : 0);
+      if (e.feuer > 0 && e.typ === 'drachling') this.feuer.setze(e.x, e.y, e.z, e.richtung, Math.sin(t * 2 + e.id) * 0.08, 0, 0.7 + Math.min(1, e.feuer) * 0.4);
+      if (e.panzer && !dunkel) this.panzer.setze(e.x, e.y + lauf, e.z, e.richtung);
+      if (e.brand > 0 && Math.random() < dt * 8) this.teilchen.wurf(e.x, e.y + WESEN_HOEHE[e.typ] * 0.6, e.z, 1, ['#ff8a2a', '#ffb347'], 0.8, 1, 0.16);
       if (e.hp < e.max && !dunkel) this.balken.setze(e.x, e.y + WESEN_HOEHE[e.typ] + 0.4, e.z, e.typ === 'troll' ? 2.4 : 1.4, e.hp / e.max, '#e5735f');
     }
     for (const s of Object.values(this.wesen)) s.ende();
+    this.feuer.ende(); this.panzer.ende();
     // ---- Arbeiter (Tag) und Baumeister bei Reparaturen ----
     for (const s of Object.values(this.arbeiter)) s.beginn();
     for (const m of Object.values(this.traglast)) m.count = 0;
@@ -271,31 +347,61 @@ export class Objekte {
     for (const s of Object.values(this.arbeiter)) s.ende();
     for (const m of Object.values(this.traglast)) m.instanceMatrix.needsUpdate = true;
     this.baumeister.beginn(); this.schuetzen.beginn();
+    let ns = 0; const fw0 = new THREE.Vector3(0, 0, 1);
     for (const g of S.gebaeude) {
       const [cx, cz] = gebMitte(g);
-      if (g.rep) {
-        for (let i = 0; i < 2; i++) {
+      if (g.rep || g.umbau) {
+        for (let i = 0; i < (g.umbau ? 3 : 2); i++) {
           const a = i * Math.PI + g.id, x = cx + Math.cos(a) * (g.w / 2 + 0.8), z = cz + Math.sin(a) * (g.d / 2 + 0.8);
           this.baumeister.setze(x, hoehe(x, z), z, Math.atan2(cx - x, cz - z), 0, Math.max(0, Math.sin(t * 8 + i * 2)) * 0.4);
           if (Math.random() < dt * 5) this.teilchen.wurf(x + (cx - x) * 0.3, g.y + 1.5, z + (cz - z) * 0.3, 2, ['#ffe2a0'], 2, 1, 0.1);
         }
-        this.balken.setze(cx, g.y + (GEB_HOEHE[g.typ] || 8) + 1, cz, Math.min(4, 1.5 + g.w * 0.3), g.rep.t / g.rep.dauer, '#84d8e8');
+        const fort = g.umbau ? g.umbau.t / g.umbau.dauer : g.rep!.t / g.rep!.dauer;
+        this.balken.setze(cx, g.y + (GEB_HOEHE[g.typ] || 8) + 1, cz, Math.min(4, 1.5 + g.w * 0.3), fort, g.umbau ? '#e8c46a' : '#84d8e8');
       } else if (g.hp < g.max - 0.5 || g === this.gewaehlt) {
         const f = g.hp / g.max;
         this.balken.setze(cx, g.y + (GEB_HOEHE[g.typ] || 8) + 1, cz, Math.min(4, 1.5 + g.w * 0.3), f, f > 0.6 ? '#9fd99a' : f > 0.3 ? '#e3a54e' : '#e5735f');
         if (f < 0.5 && Math.random() < dt * (1 - f) * 6) this.teilchen.wurf(cx + (Math.random() - 0.5) * g.w * 0.6, g.y + (GEB_HOEHE[g.typ] || 8) * 0.7, cz + (Math.random() - 0.5) * g.d * 0.6, 1, ['#4a4440', '#3a3634'], 0.5, 2, 1.1);
       }
-      if (g.typ === 'wachturm') {
-        const r = this.rueckstoss.get(g.id) || 0;
-        this.schuetzen.setze(cx + Math.sin(g.zielen) * 1.6, g.y + 10.5, cz + Math.cos(g.zielen) * 1.6, g.zielen, 0, -r * 0.8);
+      if (g.typ === 'wachturm' || g.typ === 'schuetzenturm' || g.typ === 'brandturm' || g.typ === 'leuchtpfeil' || g.typ === 'doppelturm') {
+        const r = this.rueckstoss.get(g.id) || 0, oben = g.typ === 'schuetzenturm' ? 10.5 : 10.5;
+        this.schuetzen.setze(cx + Math.sin(g.zielen) * 1.6, g.y + oben, cz + Math.cos(g.zielen) * 1.6, g.zielen, 0, -r * 0.8);
+      }
+      if (GEBAEUDE[g.typ].kegel) { const o = this.gebaeude.get(g.id); if (o) o.rotation.y = g.zielen; }
+      for (const id of g.strahlen) {
+        const e = S.gegner.find((o) => o.id === id); if (!e || e.tot || ns >= 120) continue;
+        const a = new THREE.Vector3(cx, spitze(g), cz), b = new THREE.Vector3(e.x, e.y + 1, e.z), l = a.distanceTo(b);
+        q.setFromUnitVectors(fw0, b.clone().sub(a).normalize()); const dick = 0.8 + Math.sin(t * 40 + id) * 0.25;
+        mtx.compose(a, q, new THREE.Vector3(dick, dick, l)); this.strahlen.setMatrixAt(ns++, mtx);
+        if (Math.random() < dt * 10) this.teilchen.wurf(b.x, b.y, b.z, 1, ['#c8fbff', '#ffffff'], 1.5, 1, 0.12);
       }
     }
     this.baumeister.ende(); this.schuetzen.ende();
+    this.strahlen.count = ns; this.strahlen.instanceMatrix.needsUpdate = true;
+    // Blitze: kurz aufflackernde Zickzack-Linien
+    this.blitze = this.blitze.filter((b) => (b.t += dt) < 0.16);
+    let nb = 0;
+    for (const b of this.blitze) { if (nb >= 400) break; const l = b.a.distanceTo(b.b); q.setFromUnitVectors(fw0, b.b.clone().sub(b.a).normalize()); const d = 1.2 * (1 - b.t / 0.16) + 0.3; mtx.compose(b.a, q, new THREE.Vector3(d, d, l)); this.blitzMesh.setMatrixAt(nb++, mtx); }
+    this.blitzMesh.count = nb; this.blitzMesh.instanceMatrix.needsUpdate = true;
+    // Schild der Feste
+    const h = S.haupt;
+    if (h && h.schild > 0) { const [hx, hz] = gebMitte(h); this.schild.visible = true; this.schild.position.set(hx, h.y, hz); this.schild.scale.setScalar(Math.max(h.w, h.d) * 0.85 + Math.sin(t * 3) * 0.1); (this.schild.material as THREE.MeshBasicMaterial).opacity = 0.1 * Math.min(1, h.schild); }
+    else this.schild.visible = false;
+    // Kegel der Scheinwerfer (nur nachts, nur ein Hauch)
+    let nk = 0;
+    if (nacht) for (const g of S.gebaeude) {
+      if (!GEBAEUDE[g.typ].kegel || g.umbau || nk >= 6) continue;
+      const k = this.kegelMesh(nk++), [cx, cz] = gebMitte(g), r = GEBAEUDE[g.typ].licht, y = g.y + 10;
+      k.visible = true; k.position.set(cx, y, cz);
+      k.scale.set(Math.tan(GEBAEUDE[g.typ].kegel!) * r, Math.tan(GEBAEUDE[g.typ].kegel!) * r, r);
+      k.lookAt(cx + Math.sin(g.zielen) * r, hoehe(cx + Math.sin(g.zielen) * r, cz + Math.cos(g.zielen) * r), cz + Math.cos(g.zielen) * r);
+    }
+    for (let i = nk; i < this.kegel.length; i++) this.kegel[i].visible = false;
     for (const [id, r] of this.rueckstoss) { const n = r - dt; if (n <= 0) this.rueckstoss.delete(id); else this.rueckstoss.set(id, n); }
     // ---- Geschosse ----
     let np = 0, nt = 0; const fw = new THREE.Vector3(0, 0, 1);
     for (const p of S.geschosse) {
-      if (p.art === 'pfeil') {
+      if (p.art !== 'topf') {
         const f = Math.min(1, p.t / p.dauer), dy = (p.ty - p.sy) + Math.cos(Math.PI * f) * Math.PI * p.bogen;
         v.set(p.tx - p.sx, dy, p.tz - p.sz).normalize(); q.setFromUnitVectors(fw, v);
         mtx.compose(new THREE.Vector3(p.x, p.y, p.z), q, eins); this.pfeile.setMatrixAt(np++, mtx);
@@ -358,6 +464,8 @@ export class Objekte {
   }
   ende(): void {
     for (const m of this.gebaeude.values()) this.scene.remove(m);
+    for (const m of this.ruinen.values()) this.scene.remove(m);
+    for (const k of this.kegel) weg(k); weg(this.schild);
     const alle: THREE.Object3D[] = [];
     this.scene.traverse((o) => { if ((o as THREE.InstancedMesh).isInstancedMesh) alle.push(o); });
     for (const o of alle) weg(o);

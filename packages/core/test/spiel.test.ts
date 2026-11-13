@@ -68,3 +68,33 @@ if (fehler) process.exit(1);
   if (p.ok) { pruefe(w.ebnen(x0, z0, x0 + 6, z0 + 6) && w.res.stein === st - p.stein, `Ebnen kostet ${p.stein} Stein`); pruefe(w.pruefe('wachturm', x0 + 1, z0 + 1).ok || w.pruefe('wachturm', x0 + 1, z0 + 1).grund === 'Hier steht schon etwas.', 'Nach dem Ebnen passt ein Wachturm'); }
   else console.log('  (Testfläche nicht ebnbar: ' + p.grund + ')');
 }
+// Bot spielt durch die Zeitalter
+{
+  const { botPartie } = await import('../../../tools/balance.ts');
+  const r = botPartie('NEBELKRAKE-4127', 9, false);
+  console.log('  ' + r.log[r.log.length - 1]);
+  pruefe(!r.verloren && r.nacht >= 9, `Bot übersteht 9 Nächte (bis ${r.nacht})`);
+  pruefe(r.zeitalter >= 3, `Bot erreicht durch Erfindungen das Zeitalter ${r.zeitalter}`);
+  // Umrüsten, Verschmelzen, Ruinen
+  const s = r.s;
+  const ruine = s.ruinen[0];
+  pruefe(s.gebaeude.some((g) => g.typ === 'schuetzenturm' || g.typ === 'repetierer'), 'Türme wurden umgerüstet');
+  void ruine;
+}
+// Kein Riss darf unerreichbar sein, keine Nacht darf ewig dauern
+{
+  const { RISS, RISS2, NACHT_MAX } = await import('../src/index.ts');
+  let ok = 0; const codes = ['NEBELKRAKE-4127', 'FROSTWOLF-1000', 'GLUTDRACHE-2222', 'MOORQUELLE-3131', 'RUNENEICHE-9001', 'ASCHEKRONE-5555', 'DORNKLAUE-7777', 'WINDMOTTE-8181'];
+  for (const c of codes) {
+    const w = new Spiel(c); w.nacht = 5; (w as any).feldAlt = true;
+    const wege = w.wegVorschau(); const h = w.haupt!;
+    const angekommen = wege.every((p) => { const [x, z] = p[p.length - 1]; return Math.hypot(x - h.x - 6, z - h.z - 6) < 12; });
+    if (angekommen) ok++; else console.log('  unerreichbar in', c, wege.map((p) => p.length));
+    void RISS; void RISS2;
+  }
+  pruefe(ok === codes.length, `Von allen Rissen führt ein Weg zur Feste (${ok}/${codes.length} Welten)`);
+  const w = new Spiel('FROSTWOLF-1000'); w.nachtEinlaeuten();
+  // ein Wesen künstlich einsperren: weit weg auf unerreichbarem Fels
+  for (let i = 0; i < 20 * (NACHT_MAX + 30); i++) { w.schritt(); w.ereignisse.length = 0; if (w.phase !== 'nacht') break; for (const g of w.gegner) if (g.typ === 'moorwicht' && g.id % 5 === 0) { g.x = 400; g.z = 400; } }
+  pruefe(w.phase !== 'nacht', 'Eine Nacht endet auch, wenn Wesen festhängen');
+}

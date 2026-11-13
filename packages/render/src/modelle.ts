@@ -136,8 +136,6 @@ export function drachling(g) {
     for (let k = 1; k <= len; k++) g.set(x, y, 2 - k, (i % 5 === 0) ? '#4a1414' : '#7a2420', 0, 0.12);
   }
   for (let i = 0; i < 14; i++) { const r2 = Math.max(0.6, 2.2 - i * 0.14); g.ell(0, -Math.round(i * 0.3), -7 - i, r2, r2, 0.6, i > 11 ? '#e8dcc0' : '#9e2b25'); if (i % 3 === 0) g.set(0, 2 - Math.round(i * 0.3), -7 - i, '#e8dcc0'); }
-  const fr = rng(31);
-  for (let i = 0; i < 16; i++) { const sp = i / 4; for (let k = 0; k <= i / 2; k++) g.set(Math.round((fr() - 0.5) * 2 * sp), 2 - Math.round(i * 0.7) + Math.round((fr() - 0.5) * sp), 16 + i, i < 5 ? '#ffe9a8' : (i < 10 ? '#ffb347' : '#ff6a1f'), 2.4 - i * 0.08); }
 }
 export function nebelrochen(g) {
   for (let x = -13; x <= 13; x++) for (let z = -9; z <= 9; z++) {
@@ -378,4 +376,112 @@ export function setzling(g: Grid, X: number, Y: number, Z: number, r: () => numb
     g.box(0, 0, 0, 0, 3, 0, '#5e4128');
     if (typ !== 'tot') g.ell(0, 4, 0, 1.6 + r() * 0.4, 1.4, 1.6, blatt, 0, 0.12);
   });
+}
+
+// ================= v0.3: Türme der Zeitalter, Verschmelzungen, Ruinen =================
+const ZWEIG_FARBE = ['#3f5f9a', '#9c2f2f'];
+/** Banner an der Turmseite: zeigt den gewählten Zweig */
+export function banner(g: Grid, x: number, y: number, z: number, zweig: number) {
+  if (zweig < 0) return;
+  g.box(x, y, z, x, y + 5, z, ZWEIG_FARBE[zweig]); g.set(x, y + 2, z + 1, '#d4a640'); g.set(x, y + 6, z, '#6b4a2f');
+}
+export function turmSchuetzen(g: Grid, X: number, Y: number, Z: number, zweig = -1) {
+  g.at(X, Y, Z, 0, () => {
+    sockel(g);
+    g.box(-4, 4, -4, 4, 12, 4, mauerwerk('#a59f95', '#9a948a'), 0, 0.06);
+    for (const [x, z] of [[0, 4], [4, 0], [-4, 0], [0, -4]]) g.box(x, 8, z, x, 10, z, '#2a2420');
+    for (let y = 13; y <= 19; y++) for (let x = -4; x <= 4; x++) for (let z = -4; z <= 4; z++) { if (Math.abs(x) < 4 && Math.abs(z) < 4) continue; const ecke = Math.abs(x) >= 3 && Math.abs(z) >= 3; if (!ecke && y >= 15 && y <= 17 && (x === 0 || z === 0)) continue; g.set(x, y, z, ecke ? '#5a3d24' : ((x + z) & 1) ? '#9a7046' : '#8a6340', 0, 0.1); }
+    g.box(-6, 20, -6, 6, 20, 6, '#7d5a36');
+    for (let x = -6; x <= 6; x++) for (let z = -6; z <= 6; z++) if ((Math.abs(x) === 6 || Math.abs(z) === 6) && (x + z) % 2 === 0) g.box(x, 21, z, x, 22, z, '#a59f95');
+    for (let i = 0; i <= 7; i++) { const s = 6 - i; g.box(-s, 24 + i, -s, s, 24 + i, s, i % 2 ? '#3f5675' : '#36496a', 0, 0.08); }
+    g.box(-1, 21, -1, 1, 23, 1, '#6b4a2f');
+    banner(g, 5, 13, 0, zweig);
+  });
+}
+export function turmKanone(g: Grid, X: number, Y: number, Z: number, zweig = -1) {
+  g.at(X, Y, Z, 0, () => {
+    sockel(g);
+    g.cyl(0, 0, 4, 15, 4.6, mauerwerk('#8b8a86', '#7f7e7a'), 0, 0.06);
+    for (const y of [7, 15]) g.cyl(0, 0, y, y, 4.9, '#4a4c50', 0, 0.05, true);
+    g.cyl(0, 0, 16, 16, 4.2, '#55575c');
+    g.box(-2, 17, -2, 2, 18, 2, '#3a3b40');
+    for (let z = -2; z <= 9; z++) g.cyl(0, z, 20, 20, z > 7 ? 2.2 : 1.8, (x, y) => (z > 7 ? '#3a3b40' : '#2e2f33'));
+    g.box(-2, 19, -3, 2, 21, -2, '#4a4c50');
+    zahnrad(g, 5, 10, 0, 2.6, '#c9a043');
+    g.box(-5, 3, 3, -4, 4, 4, '#2e2f33'); g.ell(-4.5, 5, 3.5, 1, 1, 1, '#2e2f33');
+    banner(g, -5, 9, 0, zweig);
+  });
+}
+export function turmBlitz(g: Grid, X: number, Y: number, Z: number, zweig = -1) {
+  g.at(X, Y, Z, 0, () => {
+    g.cyl(0, 0, 0, 3, 5, '#c9c3b6');
+    g.cyl(0, 0, 4, 22, 3, mauerwerk('#e6e1d6', '#dcd6ca'), 0, 0.04);
+    for (const y of [8, 14, 20]) g.cyl(0, 0, y, y, 4, '#c99a3e', 0, 0.05, true);
+    for (const s of [-1, 1]) for (let i = 0; i < 10; i++) { const w = 5 - Math.floor(i / 2); g.box(s * 4, 9 + i, 0, s * (3 + w), 9 + i, 0, (i % 3 === 0) ? '#6f95bd' : '#8fb4d9', 0, 0.05); }
+    g.cyl(0, 0, 27, 27, 4.4, '#c99a3e', 0, 0.05, true);
+    g.ell(0, 27, 0, 2.6, 2.6, 2.6, '#9a8cff', 2); g.ell(0, 27, 0, 1.2, 1.2, 1.2, '#efeaff', 2.4);
+    banner(g, 0, 10, 4, zweig);
+  });
+}
+export function lichtFeuerKlein(g: Grid, X: number, Y: number, Z: number) {
+  g.at(X, Y, Z, 0, () => {
+    g.box(-2, 0, -2, 1, 1, 1, mauerwerk('#8f897f', '#837d74'));
+    g.cyl(-0.5, -0.5, 2, 14, 1.6, mauerwerk('#9a948b', '#8d877e'), 0, 0.06);
+    g.cyl(-0.5, -0.5, 15, 16, 2.6, '#b87333', 0, 0.06, true); g.cyl(-0.5, -0.5, 15, 15, 1.6, '#8a5428');
+    g.ell(-0.5, 18, -0.5, 2, 2.4, 2, (x, y) => (y > 19 ? '#ffe9a8' : '#ffb347'), -2.4, 0, (x, y) => y >= 16);
+  });
+}
+export function lichtSpiegelKlein(g: Grid, X: number, Y: number, Z: number) {
+  g.at(X, Y, Z, 0, () => {
+    g.box(-2, 0, -2, 1, 1, 1, '#7d776f');
+    for (const [x, z] of [[-2, -2], [1, -2], [-2, 1], [1, 1]]) g.box(x, 2, z, x, 16, z, '#4a4c50');
+    for (const s of [-2, 1]) { g.line(-2, 4, s, 1, 9, s, '#5a5c62'); g.line(1, 10, s, -2, 15, s, '#5a5c62'); }
+    g.box(-2, 17, -2, 1, 17, 1, '#55575c');
+    g.box(-2, 18, -2, 1, 21, 0, '#b38a36', 0, 0.06);
+    for (let dx = -2; dx <= 1; dx++) for (let dy = 18; dy <= 21; dy++) { const d = Math.hypot(dx + 0.5, dy - 19.5); g.set(dx, dy, 1, d < 1.2 ? '#fffbe6' : d < 2 ? '#ffe2a0' : '#8a6a2a', d < 2 ? -2.6 : 0); }
+  });
+}
+export function lichtKristallKlein(g: Grid, X: number, Y: number, Z: number) {
+  g.at(X, Y, Z, 0, () => {
+    g.box(-2, 0, -2, 1, 1, 1, '#4a4655');
+    g.cyl(-0.5, -0.5, 2, 15, 1.4, '#3d3b47', 0, 0.08);
+    for (const y of [6, 11, 15]) g.cyl(-0.5, -0.5, y, y, 2, '#d4a640', 0, 0.05, true);
+    g.cyl(-0.5, -0.5, 19, 19, 3.4, '#d4a640', 0, 0.05, true);
+    for (let dx = -3; dx <= 3; dx++) for (let dy = -5; dy <= 5; dy++) for (let dz = -3; dz <= 3; dz++)
+      if (Math.abs(dx) / 3 + Math.abs(dz) / 3 + Math.abs(dy) / 5.5 <= 1) g.set(dx, 22 + dy, dz, dy > 1 ? '#ffffff' : '#bff7ff', -2.4);
+  });
+}
+/** Verschmelzungen: Grundturm plus Merkmal */
+export function turmFusion(g: Grid, typ: string) {
+  if (typ === 'glutmoerser') {
+    turmAlchemie(g, 0, 0, 0);
+    g.cyl(0, 0, 21, 22, 5, '#2f2a2a', 0, 0.06, true); g.cyl(0, 0, 23, 23, 2.8, '#ff6a1a', 2.2);
+    for (const [x, z] of [[0, 5], [5, 0], [-5, 0], [0, -5]]) g.box(x, 4, z, x, 8, z, '#ff7a2a', 1.8);
+    return;
+  }
+  turmHolz(g, 0, 0, 0);
+  if (typ === 'brandturm') { g.cyl(0, 0, 33, 34, 1.6, '#3a3836', 0, 0, true); g.ell(0, 36, 0, 1.5, 2, 1.5, (x, y) => (y > 36 ? '#ffe9a8' : '#ff8a2a'), 2); banner(g, 5, 13, 0, 1); }
+  if (typ === 'leuchtpfeil') { for (let dy = -3; dy <= 3; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) if (Math.abs(dx) / 2 + Math.abs(dz) / 2 + Math.abs(dy) / 3.2 <= 1) g.set(dx, 37 + dy, dz, '#c8fbff', -2.2); }
+  if (typ === 'doppelturm') { g.box(6, 0, -2, 9, 1, 1, '#8f897f'); g.box(6, 2, -2, 9, 18, 1, (x, y, z) => ((x + y + z) & 1 ? '#9a7046' : '#8a6340'), 0, 0.1); for (let i = 0; i <= 3; i++) g.box(6 - 1 + i, 19 + i, -3 + i, 9 + 1 - i, 19 + i, 2 - i, '#8a3f2b'); g.line(4, 16, -1, 6, 16, -1, '#5a3d24', 0, 0, 1); }
+}
+/** Trümmer eines zerstörten Gebäudes */
+export function ruine(g: Grid, w: number, d: number, r: () => number) {
+  const hw = w, hd = d; // in halben Voxeln: Grundfläche w × d Blöcke = 2w × 2d
+  for (let x = -hw; x < hw; x++) for (let z = -hd; z < hd; z++) {
+    const h = Math.floor(r() * 3 * (1 - Math.max(Math.abs(x + 0.5) / hw, Math.abs(z + 0.5) / hd) * 0.7));
+    for (let y = 0; y <= h; y++) g.set(x, y, z, r() > 0.7 ? '#6a625a' : r() > 0.4 ? '#8a837b' : '#5a5048', 0, 0.12);
+  }
+  for (let i = 0; i < 3; i++) { const x = Math.round((r() - 0.5) * hw * 1.4), z = Math.round((r() - 0.5) * hd * 1.4); g.line(x, 1, z, x + Math.round((r() - 0.5) * 6), 2 + Math.round(r() * 3), z + Math.round((r() - 0.5) * 6), '#4a3524'); }
+  g.set(0, 3, 0, '#ff7a2a', 1.2);
+}
+/** Kristallpanzer für späte Trolle (über das Trollmodell gelegt) */
+export function trollPanzer(g: Grid) {
+  for (const [x, y, z] of [[-4, 11, 2], [4, 11, 2], [0, 14, -3], [-3, 15, -2], [3, 15, -2], [0, 10, 4], [-6, 13, 0], [6, 13, 0]] as [number, number, number][]) {
+    g.set(x, y, z, '#7fe9ff', 1.4); g.set(x, y + 1, z, '#c8fbff', 1.6);
+  }
+}
+/** Feuer des Drachlings, nur beim Angriff sichtbar */
+export function drachenFeuer(g: Grid) {
+  const fr = rng(31);
+  for (let i = 0; i < 16; i++) { const sp = i / 4; for (let k = 0; k <= i / 2; k++) g.set(Math.round((fr() - 0.5) * 2 * sp), 2 - Math.round(i * 0.7) + Math.round((fr() - 0.5) * sp), 16 + i, i < 5 ? '#ffe9a8' : (i < 10 ? '#ffb347' : '#ff6a1a'), 2.4 - i * 0.08); }
 }

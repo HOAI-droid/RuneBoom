@@ -12,8 +12,8 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.2.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
-> Nacht, Bauen, sichtbare Arbeiter, Türme, Licht, Wellen, Reparieren, Erfindungen, Klänge, Musik und Speichern. Das Konzeptbuch mit den
+> **Stand: Version 0.3.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
+> Nacht, Bauen, sichtbare Arbeiter, alle vier Zeitalter mit Turmzweigen, Umrüsten und Verschmelzen, Licht, Wellen, Ruinen, Reparieren, Erfindungen, Klänge, Musik und Speichern. Das Konzeptbuch mit den
 > Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
 
 ## Spielen
@@ -29,6 +29,8 @@ einem gemeinsamen Code.
 | Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
 | W A S D · Q E | verschieben · drehen |
 | 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
+| Klick auf Turm | Reparieren, Umrüsten (zwei Zweige), Verschmelzen mit dem Nachbarturm |
+| Klick auf Trümmer | Wiederaufbauen (halbe Kosten) oder Räumen |
 | 9 | Gelände ebnen (Fläche aufziehen) |
 | X | Späher in den Nebel schicken (15 Holz) |
 | T | Erfinderwerkstatt |
@@ -36,6 +38,22 @@ einem gemeinsamen Code.
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+
+### Neu in 0.3
+
+- **Vier Zeitalter durch Erfindungen:** Sprengpulver öffnet Glut & Alchemie, Uhrwerk öffnet Uhrwerk & Dampf,
+  die Kristallspule öffnet Blitz & Kristall. Die Werkstatt zeigt Schlüsselerfindungen, zwei geheime Rezepte
+  (erst sichtbar, wenn die Bausteine beisammen sind) und das **Rezeptbuch** der Verschmelzungen.
+- **Umrüsten am Tag:** Wachturm → Schützenturm → Bolzen-Repetierer → Kristall-Laser, Feuertopf-Schleuder →
+  Kanonenturm → Blitzspule, Fackelmast → Leuchtfeuer → Spiegel-Scheinwerfer → Kristall-Leuchtfeuer. Je Zeitalter
+  zwei Zweige (z. B. Weitschuss oder Salve). Altes steht neben Neuem.
+- **Verschmelzen:** benachbarte Türme werden zu Brandturm, Leuchtpfeil, Doppelturm oder Glutmörser.
+- **Hauptgebäude in vier Stufen** mit je einer Nacht-Fähigkeit: Feuerregen, Notreparatur, Kristallschild.
+- **Wesen beschädigen Türme im Vorbeigehen**, Hauptziel bleibt die Feste. Zerstörte Türme werden zu Trümmern,
+  die sich wiederaufbauen lassen. Späte Steintrolle tragen Kristallpanzer; Drachlinge speien nur beim Angriff Feuer.
+- **Kein Hängenbleiben mehr:** Wesen waten durch Wasser, entstehen nur an erreichbaren Stellen, festhängende
+  Wesen werden versetzt, und spätestens nach vier Minuten endet jede Nacht. Ein Fehler im Spieltakt wird
+  abgefangen, das Spiel läuft weiter.
 
 ### Neu in 0.2.1
 

@@ -66,7 +66,7 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
 
 - `window.runeboom.spiel` gibt in der Konsole Zugriff auf die laufende Partie (für Tests).
 - Einzeldatei-Fassung für eine Vorschau: `npm run build:artifact` → `dist-single/runeboom.html`.
-- Spielstand: `localStorage` `runeboom-spielstand-1`, gespeichert zu Beginn jedes Tages (nachts nicht).
+- Spielstand: `localStorage` `runeboom-spielstand-2`, gespeichert zu Beginn jedes Tages (nachts nicht).
 
 ## Stufenplan
 
@@ -80,6 +80,11 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Start mit 250 Holz/120 Stein/25 Kristall + Holzfäller + Steinbruch, mittlere Maustaste verschiebt
 - [x] 0.2.1: Arbeitsumkreis 32 (sonst ×1,6 weiter), Baum 3 Gänge (`gaenge`), Felsen 4 Gänge, Arbeiter schneller;
   Gelände ebnen (`ebnen()`, Höhen in `welt.ts` `setzeHoehe`, gespeichert, an den Worker übergeben; Kachelwände bis zum tiefsten Nachbarn)
-- [ ] 0.3 Zeitalter: alle vier Zeitalter, Turmzweige, Umrüsten, Verschmelzen, Scheinwerfer und Kristall-Leuchtfeuer, mehr Erfindungen
+- [x] 0.3 Zeitalter: Zeitalter über Schlüsselerfindungen (`zeitalter()`), Linien mit `von`/`zweige` (`umruesten()`, Dauer `UMBAU_DAUER`),
+  `VERSCHMELZUNGEN` (`verschmelzen()`, `entdeckt` = Rezeptbuch), `HAUPT_STUFEN` mit Fähigkeiten (`faehigkeit()`, je Nacht einmal),
+  Ruinen (`ruinen`, `wiederaufbauen()`/`raeumen()`), Wesen greifen im Vorbeigehen an (`nebenbei`), Panzer ab Nacht `PANZER_AB`,
+  geheime Erfindungen, Bot `tools/balance.ts` im Test.
+  Robustheit: Wasser watbar (Kosten 3,5), Entstehen nur an erreichbaren Stellen, Festhänge-Erkennung (`bester`/`stillstand`),
+  `NACHT_MAX` beendet jede Nacht, `spiel.schritt()` in `main.ts` per try/catch abgesichert. **Eine Runde darf nie das Spiel anhalten.**
 - [ ] 0.4 Wildnis: Rissfürst, Feuer, Mauern verlieren Blöcke · 0.5 Völker · 0.6 Weltreise · 0.7 Apps · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
