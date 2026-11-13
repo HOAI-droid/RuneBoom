@@ -1,5 +1,9 @@
 # runeBOOM · Die Feste der Erfinder
 
+<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: links die Feste am goldenen Tag, rechts dieselbe Feste in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
+
+<p align="center"><a href="https://hoai-droid.github.io/RuneBoom/"><b>Im Browser spielen</b></a> · <a href="docs/konzeptbuch.html">Konzeptbuch</a></p>
+
 **Ein episches Fantasy-Tower-Defense in Voxeln.** Am Tag baust du deine Feste aus und erfindest dich
 vom Holzturm bis zum Kristall-Laser. In der Nacht kommen die Wesen der Wildnis in Wellen, am Boden
 und aus der Luft.
@@ -8,9 +12,60 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand:** Konzeptphase. Das Konzeptbuch mit live berechneten 3D-Stilentwürfen liegt unter
-> [`docs/konzeptbuch.html`](docs/konzeptbuch.html). Herunterladen und im Browser öffnen; es braucht
-> eine Internetverbindung für Three.js und die Schriften.
+> **Stand: Version 0.2.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
+> Nacht, Bauen, sichtbare Arbeiter, Türme, Licht, Wellen, Reparieren, Erfindungen, Klänge, Musik und Speichern. Das Konzeptbuch mit den
+> Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
+
+## Spielen
+
+- **Im Browser:** nach dem Einrichten von GitHub Pages unter <https://hoai-droid.github.io/RuneBoom/>
+  (Repository → Settings → Pages → Source: „GitHub Actions“; jeder Push auf `main` veröffentlicht neu).
+- **Selbst bauen:** `npm install`, dann `npm run dev` und die angezeigte Adresse öffnen.
+
+### Steuerung
+
+| Eingabe | Wirkung |
+|---|---|
+| Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
+| W A S D · Q E | verschieben · drehen |
+| 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
+| X | Späher in den Nebel schicken (15 Holz) |
+| T | Erfinderwerkstatt |
+| N · Leertaste | Nacht einläuten · Pause |
+| Esc · Rechtsklick | abbrechen |
+
+Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+
+### Neu in 0.2
+
+- Die ganze Welt ist sofort da: Bäume und Felsen erst grob, im Blickfeld werden sie fein nachgeladen.
+- Arbeiter laufen sichtbar los, fällen Bäume, brechen Felsen und schlagen Kristall ab und tragen alles heim. Gefällte Bäume werden zu Stümpfen und wachsen nach drei Tagen als Setzling, nach sechs Tagen als Baum nach.
+- Bogenschützen auf den Wachtürmen, gut sichtbare Pfeile mit Leuchtspur, Feuertöpfe mit Rauch und Brandflecken.
+- Lebensbalken über Wesen und Gebäuden; Gebäude rauchen, wenn sie stark beschädigt sind.
+- Reparieren am Tag gegen Rohstoffe, mit Baumeistern und Fortschrittsbalken; „Alles reparieren“ in der Anzeige.
+- Leuchtender Weg der Welle am Boden, besonders am Abend.
+- Nebelrochen: fliegt über die Mauern und setzt Moorwichte ab.
+- Klänge und Musik (Tag ruhig, Nacht episch), Einführung in den ersten Tag, Einstellungen mit Lautstärke und Grafikstufe.
+- Mehr Rohstoffe zu Beginn, Holzfäller und Steinbruch stehen schon; Verschieben auch mit der mittleren Maustaste.
+
+### Was der Prototyp schon kann
+
+- Welt mit 1024 × 1024 Blöcken aus dem Weltcode, Kacheln laden im Hintergrund nach, fern eine grobe Übersicht.
+- Bodennebel über dem Unerkundeten; Späher und neue Gebäude decken auf.
+- Tag (Arbeiter sammeln Holz, Stein, Kristall) und Nacht (Wellen aus dem Riss, ab Nacht 5 auch aus einem zweiten).
+- Wachturm, Feuertopf-Schleuder, Fackelmast, Leuchtfeuer, Mauern, Holzfäller, Steinbruch, Kristallmine.
+- Licht in der Nacht über eine Lichtkarte: Türme treffen im Licht weiter und besser, Schattenwölfe sind nur im Licht zu sehen.
+- Moorwichte, Schattenwölfe, Steintrolle und fliegende Drachlinge; Wege um Mauern herum, sonst brechen sie durch.
+- Vier Erfindungen: Sprengpulver, Leuchtfeuer, Runenpfeile, Stahlguss.
+
+## Aufbau des Codes
+
+| Ordner | Inhalt |
+|---|---|
+| `packages/core` | Simulation ohne Grafik: Welt aus dem Seed, Spielwerte, Wegfeld, Spielablauf, Speichern. Tests: `npm test` |
+| `packages/render` | Three.js: Voxel-Modelle, Kacheln im Hintergrund-Rechner, Nebel, Lichtkarte, Tag und Nacht, Nachbearbeitung |
+| `apps/web` | Browser-Fassung: Oberfläche, Eingabe, Hauptschleife |
+| `docs` | Konzeptbuch |
 
 ---
 
@@ -171,7 +226,8 @@ Hintergrund gebaut werden, nah fein und fern grob.
 ## Stufenplan
 
 - [x] Konzept und Stilentwürfe ([`docs/konzeptbuch.html`](docs/konzeptbuch.html))
-- [ ] Erster spielbarer Prototyp: Weltcode, Nebel, Tag-Nacht-Zyklus, Bauen, ein Turm, ein Fackelmast, eine Welle
+- [x] Erster spielbarer Prototyp: Weltcode, Nebel, Tag-Nacht-Zyklus, Bauen, Türme, Licht, Wellen, erste Erfindungen
+- [x] 0.2 Leben in der Feste: grob-fein-Welt, Arbeiter und Nachwachsen, sichtbarer Kampf, Lebensbalken, Reparieren, Klänge und Musik, Wegvorschau, Einführung, Nebelrochen
 - [ ] Erfindungen und die vier Zeitalter
 - [ ] Drei Völker, alle Wesen, Rissfürsten
 - [ ] Weltreise und Stammfeste mit Speichern
