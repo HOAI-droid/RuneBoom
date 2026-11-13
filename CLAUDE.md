@@ -131,7 +131,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
   **Mauerverlauf sichtbar:** beim Ziehen einer Mauer erscheint die Linie auf dem Boden, damit man den Verlauf vor dem Bauen sieht.
   **Befehlsschicht** als Grundlage für späteren Mehrspieler: jede Spieleraktion als Befehl, überall gleiche Rechnung (eigene sin/cos …),
-  Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler-Modell (lieber miteinander) noch offen.
+  Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler (festgelegt, ab 0.9): **klassischer Koop** für 2–4 Spieler, eine Welt, eine Burg, je Spieler eine Himmelsrichtung/ein Riss,
+  eigene Rohstoffe und Arbeiter, Erfindungen gemeinsam, fällt die Burg, verlieren alle.
   Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
 - [ ] später: Steam · Weltreise · Mehrspieler · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
