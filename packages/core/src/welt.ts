@@ -12,7 +12,7 @@ export const RISS2 = { x: B.x + 150, z: B.z + 30 };       // öffnet sich späte
 /** alle Risse mit der Nacht, in der sie sich öffnen */
 export const RISSE: { x: number; z: number; ab: number; name: string }[] = [
   { ...RISS, ab: 1, name: 'Südriss' }, { ...RISS2, ab: 5, name: 'Ostriss' },
-  { x: B.x - 145, z: B.z + 75, ab: 12, name: 'Westriss' }, { x: B.x + 55, z: B.z - 150, ab: 20, name: 'Nordriss' }
+  { x: B.x - 145, z: B.z + 75, ab: 11, name: 'Westriss' }, { x: B.x + 55, z: B.z - 150, ab: 21, name: 'Nordriss' }
 ];
 export const GLUT = { x: B.x + 30, z: B.z + 16 }, TEICH = { x: B.x - 24, z: B.z + 6 };
 export const PAL = {
