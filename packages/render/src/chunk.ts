@@ -15,7 +15,9 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   for (let x = ox - 1; x <= ox + CH; x++) for (let z = oz - 1; z <= oz + CH; z++) {
     const s = S(x, z); if (!s) continue;
     const asch = s.a === 'asche' || s.a === 'l', innen = x >= ox && x < ox + CH && z >= oz && z < oz + CH;
-    const unten = innen ? s.h - s.dep : s.h - 3;
+    // Seitenwände bis zum tiefsten Nachbarn, damit an Stufen (auch geebneten) keine Lücken bleiben
+    let tiefst = s.h; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = S(x + dx, z + dz); if (n && n.h < tiefst) tiefst = n.h; }
+    const unten = Math.min(innen ? s.h - s.dep : s.h - 3, tiefst);
     for (let y = unten; y <= s.h; y++) {
       const col = y === s.h ? s.col : y >= s.h - 2 ? (asch ? PAL.ascheE : PAL.erde) : y > s.h - 7 ? (asch ? PAL.basalt : (y % 3 ? PAL.stein : PAL.stein2)) : PAL.tief;
       g.set(x, y, z, col, 0, 0.09);

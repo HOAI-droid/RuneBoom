@@ -26,9 +26,9 @@ export const GEBAEUDE: Record<GebTyp, GebDef> = {
   fackel: { name: 'Fackelmast', kurz: 'Kleiner Lichtkreis. Im Licht treffen Türme nachts besser und weiter.', w: 2, d: 2, hp: 80, kosten: { holz: 15 }, licht: 10, sicht: 10, baubar: true, taste: '3' },
   leuchtfeuer: { name: 'Leuchtfeuer', kurz: 'Großer Lichtkreis, macht auch Schattenwölfe sichtbar.', w: 5, d: 5, hp: 260, kosten: { holz: 30, stein: 30, kristall: 10 }, licht: 19, sicht: 22, braucht: 'leuchtfeuer', baubar: true, taste: '4' },
   mauer: { name: 'Mauer', kurz: 'Hält Bodenwesen auf. Ziehen zum Bauen einer Reihe.', w: 1, d: 1, hp: 160, kosten: { stein: 3 }, licht: 0, sicht: 0, baubar: true, taste: '5' },
-  holz: { name: 'Holzfäller', kurz: 'Zwei Arbeiter fällen am Tag Bäume in der Nähe. Gefällte Bäume wachsen nach einigen Tagen nach.', w: 5, d: 6, hp: 200, kosten: { holz: 20 }, licht: 3, sicht: 12, baubar: true, taste: '6', arbeit: { res: 'holz', menge: 7, dauer: 3.5, radius: 14, arbeiter: 2 } },
-  stein: { name: 'Steinbruch', kurz: 'Zwei Arbeiter brechen am Tag Felsen ab. Ohne Felsen in der Nähe arbeiten sie am Bruch selbst, aber langsamer.', w: 4, d: 4, hp: 200, kosten: { holz: 30 }, licht: 3, sicht: 12, baubar: true, taste: '7', arbeit: { res: 'stein', menge: 5, dauer: 4, radius: 14, arbeiter: 2 } },
-  kristall: { name: 'Kristallmine', kurz: 'Zwei Arbeiter schlagen am Tag Kristall ab. Nur an einem Kristallfeld.', w: 4, d: 4, hp: 200, kosten: { holz: 40, stein: 30 }, licht: 4, sicht: 12, baubar: true, taste: '8', arbeit: { res: 'kristall', menge: 2, dauer: 4.5, radius: 12, arbeiter: 2 } }
+  holz: { name: 'Holzfäller', kurz: 'Zwei Arbeiter holen am Tag Holz aus dem Umkreis. Ein Baum reicht für drei Gänge, dann wird er gefällt und wächst nach einigen Tagen nach.', w: 5, d: 6, hp: 200, kosten: { holz: 20 }, licht: 3, sicht: 12, baubar: true, taste: '6', arbeit: { res: 'holz', menge: 7, dauer: 3.5, radius: 32, arbeiter: 2 } },
+  stein: { name: 'Steinbruch', kurz: 'Zwei Arbeiter brechen am Tag Felsen im Umkreis ab, jeder Felsen reicht für vier Gänge. Felswände und Berge geben unbegrenzt Stein.', w: 4, d: 4, hp: 200, kosten: { holz: 30 }, licht: 3, sicht: 12, baubar: true, taste: '7', arbeit: { res: 'stein', menge: 5, dauer: 4, radius: 32, arbeiter: 2 } },
+  kristall: { name: 'Kristallmine', kurz: 'Zwei Arbeiter schlagen am Tag Kristall ab. Nur an einem Kristallfeld.', w: 4, d: 4, hp: 200, kosten: { holz: 40, stein: 30 }, licht: 4, sicht: 12, baubar: true, taste: '8', arbeit: { res: 'kristall', menge: 2, dauer: 4.5, radius: 32, arbeiter: 2 } }
 };
 export const BAULEISTE: GebTyp[] = ['wachturm', 'feuertopf', 'fackel', 'leuchtfeuer', 'mauer', 'holz', 'stein', 'kristall'];
 
@@ -67,3 +67,7 @@ export const START: { res: Record<Res, number> } = { res: { holz: 250, stein: 12
 export const MORGEN_REPARATUR = 0.25;
 /** Nachwachsen gefällter Bäume: Setzling nach, voller Baum nach (Tagen) */
 export const SETZLING_NACH = 3, BAUM_NACH = 6;
+/** Gänge, bis ein Baum gefällt bzw. ein Felsen abgebaut ist */
+export const BAUM_GAENGE = 3, FELS_GAENGE = 4;
+/** Gelände ebnen: Stein je Block Höhenunterschied, größte Fläche (Seitenlänge) */
+export const EBNEN_STEIN = 2, EBNEN_MAX = 16;

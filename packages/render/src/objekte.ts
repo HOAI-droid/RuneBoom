@@ -341,6 +341,15 @@ export class Objekte {
     this.ring.visible = reichweite > 0; this.ring.position.set(x, y + 0.15, z); this.ring.scale.setScalar(reichweite || 1);
     this.lichtRing.visible = licht > 4; this.lichtRing.position.set(x, y + 0.12, z); this.lichtRing.scale.setScalar(licht || 1);
   }
+  private flaeche: THREE.Mesh | null = null;
+  /** Vorschau für „Ebnen“: Fläche in Zielhöhe */
+  zeigeFlaeche(x0: number, z0: number, x1: number, z1: number, y: number, ok: boolean, sichtbar = true): void {
+    if (!this.flaeche) { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0.5, -0.5, 0.5); this.flaeche = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.35, depthWrite: false })); this.flaeche.renderOrder = 31; this.scene.add(this.flaeche); }
+    const f = this.flaeche; f.visible = sichtbar; if (!sichtbar) return;
+    const ax = Math.min(x0, x1), bx = Math.max(x0, x1) + 1, az = Math.min(z0, z1), bz = Math.max(z0, z1) + 1;
+    f.position.set(ax, y + 0.05, az); f.scale.set(bx - ax, 0.6, bz - az);
+    (f.material as THREE.MeshBasicMaterial).color.set(ok ? '#9fe0a0' : '#ff7a6a');
+  }
   waehle(g: Geb | null): void {
     this.gewaehlt = g;
     if (!g) { this.auswahl.visible = false; if (!this.vorschau?.visible) this.ring.visible = this.lichtRing.visible = false; return; }

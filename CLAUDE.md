@@ -78,6 +78,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   (nur am Tag, `reparieren()`, Morgen bessert nur 25 % aus), Wegvorschau (`wegVorschau()`), Nebelrochen mit Fracht,
   Klänge und Musik (`apps/web/src/klang.ts`, WebAudio), Einführung, Einstellungen (Lautstärke, Grafik hoch/mittel/niedrig),
   Start mit 250 Holz/120 Stein/25 Kristall + Holzfäller + Steinbruch, mittlere Maustaste verschiebt
+- [x] 0.2.1: Arbeitsumkreis 32 (sonst ×1,6 weiter), Baum 3 Gänge (`gaenge`), Felsen 4 Gänge, Arbeiter schneller;
+  Gelände ebnen (`ebnen()`, Höhen in `welt.ts` `setzeHoehe`, gespeichert, an den Worker übergeben; Kachelwände bis zum tiefsten Nachbarn)
 - [ ] 0.3 Zeitalter: alle vier Zeitalter, Turmzweige, Umrüsten, Verschmelzen, Scheinwerfer und Kristall-Leuchtfeuer, mehr Erfindungen
 - [ ] 0.4 Wildnis: Rissfürst, Feuer, Mauern verlieren Blöcke · 0.5 Völker · 0.6 Weltreise · 0.7 Apps · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

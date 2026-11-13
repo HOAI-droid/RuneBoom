@@ -29,12 +29,18 @@ einem gemeinsamen Code.
 | Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
 | W A S D · Q E | verschieben · drehen |
 | 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
+| 9 | Gelände ebnen (Fläche aufziehen) |
 | X | Späher in den Nebel schicken (15 Holz) |
 | T | Erfinderwerkstatt |
 | N · Leertaste | Nacht einläuten · Pause |
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+
+### Neu in 0.2.1
+
+- Holzfäller, Steinbruch und Kristallmine arbeiten im Umkreis von 32 Blöcken (vorher 12–14). Ist dort nichts mehr frei, gehen die Arbeiter noch weiter. Ein Baum reicht für drei Gänge, ein Felsen für vier. Die Wege werden mit der Zeit länger, aber der Ertrag bleibt.
+- Neues Werkzeug **Ebnen** (Taste 9): Fläche bis 16 × 16 aufziehen, sie bekommt die Höhe des ersten Blocks. Kostet 2 Stein je Block und Höhenstufe, Bäume und Felsen darauf verschwinden. So lassen sich Türme dort bauen, wo sie gebraucht werden.
 
 ### Neu in 0.2
 

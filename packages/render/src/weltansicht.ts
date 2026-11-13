@@ -29,6 +29,8 @@ export class WeltAnsicht {
   onUebersicht: () => void = () => {};
   /** Änderungen am Bewuchs einer Kachel (gefällte Bäume, abgebaute Felsen) */
   aenderungen: (cx: number, cz: number) => [number, number, string][] = () => [];
+  /** geebnete Höhen in und um eine Kachel */
+  hoehen: (cx: number, cz: number) => [number, number, number][] = () => [];
   /** grober Wald: jeder Baum der Welt als einfacher Stamm + Krone, sofort sichtbar */
   private wald: { stamm: THREE.InstancedMesh; krone: THREE.InstancedMesh; index: Map<number, number>; matS: Float32Array; matK: Float32Array } | null = null;
   private frustum = new THREE.Frustum(); private pm = new THREE.Matrix4();
@@ -53,7 +55,7 @@ export class WeltAnsicht {
   ende(): void { for (const w of this.rechner) w.terminate(); this.gen++; weg(this.gruppe); for (const n of this.nebelSchichten) weg(n); }
 
   private auftrag(msg: { art: string; cx?: number; cz?: number }): boolean {
-    const m: any = { ...msg, gen: this.gen }; if (m.art === 'chunk') m.aend = this.aenderungen(m.cx, m.cz);
+    const m: any = { ...msg, gen: this.gen }; if (m.art === 'chunk') { m.aend = this.aenderungen(m.cx, m.cz); m.hoehen = this.hoehen(m.cx, m.cz); }
     const w = this.frei.pop(); if (w) { w.postMessage(m); return true; }
     if (!this.rechner.length) { setTimeout(() => { if (m.art === 'chunk') this.chunkFertig(m.cx!, m.cz!, bauChunk(m.cx!, m.cz!, m.aend)); else this.uebersichtFertig(uebersicht()); }, 0); return true; }
     return false;

@@ -1,8 +1,8 @@
 import { rng, seedAusCode, type Rng } from './zufall.ts';
-import { B, RISS, RISS2, WR, setzeSeed, spalte, deko, begehbar, amPfad, orte, hoehe, type Spalte, type Deko } from './welt.ts';
+import { B, RISS, RISS2, WR, setzeSeed, spalte, deko, begehbar, amPfad, orte, hoehe, setzeHoehe, hoehenListe, type Spalte, type Deko } from './welt.ts';
 import { Wegfeld } from './flow.ts';
 import {
-  GEBAEUDE, GEGNER, ERFINDUNGEN, welle, staerke, START, TAG_DAUER, ABEND, MORGEN_DAUER, MORGEN_REPARATUR, SETZLING_NACH, BAUM_NACH,
+  GEBAEUDE, GEGNER, ERFINDUNGEN, welle, staerke, START, TAG_DAUER, ABEND, MORGEN_DAUER, MORGEN_REPARATUR, SETZLING_NACH, BAUM_NACH, BAUM_GAENGE, FELS_GAENGE, EBNEN_STEIN, EBNEN_MAX,
   type GebTyp, type GegTyp, type Res, type Baustein, type ErfId, type Kosten
 } from './daten.ts';
 
@@ -34,11 +34,12 @@ export type Ereignis =
   | { art: 'abgeliefert'; x: number; y: number; z: number; res: Res; menge: number }
   | { art: 'abwurf'; x: number; y: number; z: number }
   | { art: 'reparatur'; geb: Geb; fertig: boolean }
-  | { art: 'schuss'; geb: Geb; x: number; y: number; z: number; geschoss: 'pfeil' | 'topf' };
+  | { art: 'schuss'; geb: Geb; x: number; y: number; z: number; geschoss: 'pfeil' | 'topf' }
+  | { art: 'gelaende'; x0: number; z0: number; x1: number; z1: number };
 export type Phase = 'tag' | 'nacht' | 'morgen' | 'verloren';
 
 export interface Spielstand {
-  v: 1 | 2; code: string; nacht: number; phase: Phase; zeit: number; gefaellt?: [number, number][]; abgebaut?: [number, number][];
+  v: 1 | 2; code: string; nacht: number; phase: Phase; zeit: number; gefaellt?: [number, number][]; abgebaut?: [number, number][]; gaenge?: [number, number][]; hoehen?: [number, number][];
   res: Record<Res, number>; bausteine: Record<Baustein, number>; erfindungen: ErfId[];
   gebaeude: { typ: GebTyp; x: number; z: number; hp: number }[]; erkundet: string; besiegt: number;
 }
@@ -65,6 +66,8 @@ export class Spiel {
   gefaellt = new Map<number, number>();
   /** Kachel → wie oft ein Felsen schon abgebaut wurde */
   abgebaut = new Map<number, number>();
+  /** Kachel → Gänge an einem Baum, der noch steht */
+  gaenge = new Map<number, number>();
   private reserviert = new Set<number>();
   feldVersion = 0;
   private wegCache: { version: number; wege: [number, number][][] } | null = null;
@@ -115,7 +118,7 @@ export class Spiel {
   dekoZustand(x: number, z: number): DekoZustand | null {
     const k = Spiel.kachel(x, z), t = this.gefaellt.get(k);
     if (t !== undefined) { if (t < -1e8) return 'weg'; const d = this.nacht - t; return d >= BAUM_NACH ? null : d >= SETZLING_NACH ? 'setzling' : 'stumpf'; }
-    if ((this.abgebaut.get(k) || 0) >= 3) return 'weg';
+    if ((this.abgebaut.get(k) || 0) >= FELS_GAENGE) return 'weg';
     return null;
   }
   dekoJetzt(x: number, z: number, s: Spalte | null = spalte(x, z)): Deko {
@@ -453,33 +456,74 @@ export class Spiel {
       if (a.zustand === 'drin' || a.zustand === 'heim') a.zustand = 'warten';
       if (a.zustand === 'warten') {
         a.ruhe -= DT; if (a.ruhe > 0) { gehe(hx, hz, 2); continue; }
-        const q = this.quellen(g.typ, hx, g.z + g.d / 2, arb.radius, true)[0];
+        // nächste freie Quelle im Umkreis, sonst weiter draußen (längere Wege)
+        const q = this.quellen(g.typ, hx, g.z + g.d / 2, arb.radius, true)[0] || this.quellen(g.typ, hx, g.z + g.d / 2, arb.radius * 1.6, true)[0];
         if (!q) { a.ruhe = 3; continue; }
         a.ziel = [q.x, q.z]; a.quelle = q.k; if (q.k >= 0) this.reserviert.add(q.k); a.zustand = 'hin';
       } else if (a.zustand === 'hin') {
         // nicht ganz auf die Kachel, sondern daneben stehen
         const [zx, zz] = a.ziel!, dx = a.x - zx, dz = a.z - zz, d = Math.hypot(dx, dz) || 1;
-        if (gehe(zx + (dx / d) * 0.9, zz + (dz / d) * 0.9, 2.4)) { a.zustand = 'arbeit'; a.t = 0; a.richtung = Math.atan2(zx - a.x, zz - a.z); }
+        if (gehe(zx + (dx / d) * 0.9, zz + (dz / d) * 0.9, 3.2)) { a.zustand = 'arbeit'; a.t = 0; a.richtung = Math.atan2(zx - a.x, zz - a.z); }
       } else if (a.zustand === 'arbeit') {
         const vor = a.t; a.t += DT;
         if (Math.floor(vor / 0.7) !== Math.floor(a.t / 0.7)) this.ereignisse.push({ art: 'hieb', x: a.ziel![0], y: a.y + 1, z: a.ziel![1], res: arb.res });
         if (a.t >= arb.dauer) {
           if (a.quelle >= 0) {
             const x = Math.floor(a.ziel![0]), z = Math.floor(a.ziel![1]);
-            if (arb.res === 'holz') this.gefaellt.set(a.quelle, this.nacht); else this.abgebaut.set(a.quelle, (this.abgebaut.get(a.quelle) || 0) + 1);
-            if (arb.res === 'holz' || (this.abgebaut.get(a.quelle) || 0) >= 3) { this.ereignisse.push({ art: 'deko', x, z }); this.feldAlt = true; }
+            let weg = false;
+            if (arb.res === 'holz') { const n = (this.gaenge.get(a.quelle) || 0) + 1; if (n >= BAUM_GAENGE) { this.gaenge.delete(a.quelle); this.gefaellt.set(a.quelle, this.nacht); weg = true; } else this.gaenge.set(a.quelle, n); }
+            else { const n = (this.abgebaut.get(a.quelle) || 0) + 1; this.abgebaut.set(a.quelle, n); weg = n >= FELS_GAENGE; }
+            if (weg) { this.ereignisse.push({ art: 'deko', x, z }); this.feldAlt = true; }
             this.reserviert.delete(a.quelle); a.quelle = -1;
           }
           a.traegt = arb.res; a.zustand = 'zurueck';
         }
       } else if (a.zustand === 'zurueck') {
-        if (gehe(hx, hz, 2.2)) {
+        if (gehe(hx, hz, 3.0)) {
           const menge = arb.menge * (a.quelle === -1 && arb.res === 'stein' && !a.ziel ? 1 : 1);
           this.res[arb.res] += menge; this.ereignisse.push({ art: 'abgeliefert', x: a.x, y: a.y, z: a.z, res: arb.res, menge });
-          a.traegt = null; a.zustand = 'warten'; a.ruhe = 0.6; g.quellen = this.quellenZahl(g.typ, g.x, g.z);
+          a.traegt = null; a.zustand = 'warten'; a.ruhe = 0.6; if (Math.random() < 0.2) g.quellen = this.quellenZahl(g.typ, g.x, g.z);
         }
       }
     }
+  }
+  // ---------------- Gelände ebnen ----------------
+  /** Fläche (x0,z0)–(x1,z1) auf die Höhe der Startkachel bringen: Kosten, Gründe */
+  ebnenPruefen(x0: number, z0: number, x1: number, z1: number, zielH?: number): { ok: boolean; grund?: string; stein: number; ziel: number; kacheln: number } {
+    const ax = Math.min(x0, x1), bx = Math.max(x0, x1), az = Math.min(z0, z1), bz = Math.max(z0, z1);
+    const start = spalte(x0, z0); const ziel = zielH ?? (start ? start.h : 6);
+    if (bx - ax + 1 > EBNEN_MAX || bz - az + 1 > EBNEN_MAX) return { ok: false, grund: `Höchstens ${EBNEN_MAX} × ${EBNEN_MAX} Blöcke auf einmal.`, stein: 0, ziel, kacheln: 0 };
+    let stein = 0, kacheln = 0;
+    for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) {
+      const s = spalte(x, z);
+      if (!s) return { ok: false, grund: 'Hier ist kein Land.', stein, ziel, kacheln };
+      if (!this.erkundetAn(x, z)) return { ok: false, grund: 'Noch im Nebel.', stein, ziel, kacheln };
+      if (s.a === 'w' || s.a === 'l') return { ok: false, grund: 'Wasser und Lava lassen sich nicht ebnen.', stein, ziel, kacheln };
+      if (this.belegt[this.bi(x, z)]) return { ok: false, grund: 'Auf der Fläche steht ein Gebäude.', stein, ziel, kacheln };
+      const d = Math.abs(s.h - ziel); if (d) { stein += d * EBNEN_STEIN; kacheln++; }
+    }
+    if (!kacheln) return { ok: false, grund: 'Die Fläche ist schon eben.', stein: 0, ziel, kacheln };
+    if (ziel >= 14) return { ok: false, grund: 'Zu hoch: oben auf den Bergen lässt sich nicht bauen.', stein, ziel, kacheln };
+    if (this.res.stein < stein) return { ok: false, grund: `Nicht genug Stein (${stein} nötig).`, stein, ziel, kacheln };
+    return { ok: true, stein, ziel, kacheln };
+  }
+  ebnen(x0: number, z0: number, x1: number, z1: number): boolean {
+    if (this.phase === 'verloren') return false;
+    const p = this.ebnenPruefen(x0, z0, x1, z1);
+    if (!p.ok) { this.melde(p.grund!, 'schlecht'); return false; }
+    const ax = Math.min(x0, x1), bx = Math.max(x0, x1), az = Math.min(z0, z1), bz = Math.max(z0, z1);
+    this.res.stein -= p.stein;
+    for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) {
+      const s = spalte(x, z)!; if (s.h !== p.ziel) setzeHoehe(x, z, p.ziel);
+      const dk = deko(x, z, s), k = Spiel.kachel(x, z);
+      if (dk?.art === 'baum') { this.gefaellt.set(k, -2e9); this.gaenge.delete(k); }
+      if (dk?.art === 'fels') this.abgebaut.set(k, 99);
+    }
+    this.feldAlt = true;
+    for (const a of this.arbeiter) a.y = hoehe(a.x, a.z);
+    this.ereignisse.push({ art: 'gelaende', x0: ax, z0: az, x1: bx, z1: bz });
+    this.melde(`Gelände geebnet: ${p.kacheln} Blöcke, ${p.stein} Stein.`, 'gut');
+    return true;
   }
   // ---------------- Reparieren ----------------
   reparaturKosten(g: Geb): Kosten {
@@ -553,14 +597,15 @@ export class Spiel {
   // ---------------- Speichern ----------------
   speichern(): Spielstand {
     let s = ''; for (let i = 0; i < this.erkundet.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) b |= this.erkundet[i + k] << k; s += String.fromCharCode(b); }
-    return { v: 2, gefaellt: [...this.gefaellt], abgebaut: [...this.abgebaut], code: this.code, nacht: this.nacht, phase: this.phase === 'verloren' ? 'verloren' : 'tag', zeit: this.phase === 'tag' ? this.zeit : 0,
+    return { v: 2, gefaellt: [...this.gefaellt], abgebaut: [...this.abgebaut], gaenge: [...this.gaenge], hoehen: hoehenListe(), code: this.code, nacht: this.nacht, phase: this.phase === 'verloren' ? 'verloren' : 'tag', zeit: this.phase === 'tag' ? this.zeit : 0,
       res: { ...this.res }, bausteine: { ...this.bausteine }, erfindungen: [...this.erfindungen],
       gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp })), erkundet: btoa(s), besiegt: this.besiegt };
   }
   private laden(st: Spielstand): void {
     this.nacht = st.nacht; this.phase = st.phase; this.zeit = st.zeit; this.res = { ...st.res }; this.bausteine = { ...st.bausteine };
     this.erfindungen = new Set(st.erfindungen); this.besiegt = st.besiegt || 0;
-    this.gefaellt = new Map(st.gefaellt || []); this.abgebaut = new Map(st.abgebaut || []);
+    this.gefaellt = new Map(st.gefaellt || []); this.abgebaut = new Map(st.abgebaut || []); this.gaenge = new Map(st.gaenge || []);
+    for (const [k, h] of st.hoehen || []) setzeHoehe(Math.floor(k / 2048) - 600, (k % 2048) - 600, h);
     const bin = atob(st.erkundet); for (let i = 0; i < bin.length; i++) { const b = bin.charCodeAt(i); for (let k = 0; k < 8; k++) this.erkundet[i * 8 + k] = (b >> k) & 1; }
     for (const g of st.gebaeude) this.setze(g.typ, g.x, g.z, g.hp);
     this.ereignisse = this.ereignisse.filter((e) => e.art !== 'meldung');

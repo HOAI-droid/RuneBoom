@@ -48,3 +48,23 @@ if (fehler) process.exit(1);
   pruefe(t.hp >= t.max - 0.5 && w.res.stein < st0 + 50, 'Reparatur kostet und heilt über die Zeit');
   pruefe(w.wegVorschau()[0].length > 50, `Wegvorschau vom Riss zur Feste (${w.wegVorschau()[0].length} Schritte)`);
 }
+// Holzfäller und Steinbruch liefern auch nach vielen Tagen noch (großer Umkreis, mehrere Gänge je Baum)
+{
+  const w = new Spiel('NEBELKRAKE-4127');
+  const ertrag: number[] = [];
+  for (let tag = 0; tag < 10; tag++) {
+    const h0 = w.res.holz + w.res.stein;
+    for (let i = 0; i < 20 * 80; i++) { w.schritt(); w.ereignisse.length = 0; }
+    ertrag.push(Math.round(w.res.holz + w.res.stein - h0));
+    w.phase = 'morgen'; w.zeit = 99; w.gegner.length = 0; w.schritt(); w.ereignisse.length = 0; // Nacht überspringen
+  }
+  console.log('  Holz + Stein je Tag:', ertrag.join(', '));
+  pruefe(ertrag[9] > ertrag[0] * 0.55, 'Auch an Tag 10 bringen die Arbeiter noch gut Ertrag');
+  // Gelände ebnen
+  const st = w.res.stein = 500;
+  const vor = w.ebnenPruefen(-30, -10, -20, -2);
+  pruefe(vor.ok || vor.grund === 'Die Fläche ist schon eben.', `Ebnen prüfbar (${vor.grund || vor.stein + ' Stein'})`);
+  const x0 = 24, z0 = -60; const p = w.ebnenPruefen(x0, z0, x0 + 6, z0 + 6);
+  if (p.ok) { pruefe(w.ebnen(x0, z0, x0 + 6, z0 + 6) && w.res.stein === st - p.stein, `Ebnen kostet ${p.stein} Stein`); pruefe(w.pruefe('wachturm', x0 + 1, z0 + 1).ok || w.pruefe('wachturm', x0 + 1, z0 + 1).grund === 'Hier steht schon etwas.', 'Nach dem Ebnen passt ein Wachturm'); }
+  else console.log('  (Testfläche nicht ebnbar: ' + p.grund + ')');
+}

@@ -22,7 +22,14 @@ export interface Ort { typ: 'riss' | 'kristall'; x: number; z: number; r: number
 let SEED = 4127;
 let ORTE: Ort[] | null = null;
 const roheCache = new Map<number, ReturnType<typeof rohBerechnen>>();
-export function setzeSeed(s: number): void { SEED = s; ORTE = null; roheCache.clear(); }
+export function setzeSeed(s: number): void { SEED = s; ORTE = null; roheCache.clear(); HOEHEN.clear(); }
+/** eingeebnetes Gelände: Kachel → neue Höhe */
+const HOEHEN = new Map<number, number>();
+const hk = (x: number, z: number) => (x + 600) * 2048 + (z + 600);
+export function setzeHoehe(x: number, z: number, h: number): void { HOEHEN.set(hk(x, z), h); }
+export function hoehenLeeren(): void { HOEHEN.clear(); }
+export function hoehenListe(): [number, number][] { return [...HOEHEN]; }
+export function hoeheGeaendert(x: number, z: number): number | undefined { return HOEHEN.get(hk(x, z)); }
 export function seed(): number { return SEED; }
 
 export function pfadX(z: number): number {
@@ -58,7 +65,9 @@ export function roh(x: number, z: number) {
 }
 export function spalte(x: number, z: number): Spalte | null {
   const r = roh(x, z); if (!r) return null;
-  const { h, a } = r; let col: string;
+  let { h, a } = r; let col: string;
+  const ov = HOEHEN.size ? HOEHEN.get(hk(x, z)) : undefined;
+  if (ov !== undefined && a !== 'w' && a !== 'l') { h = ov; if (a === 'fels' || a === 'schnee') a = h >= 12 ? a : 'gras'; }
   if (a === 'gras') col = PAL.gras[Math.min(3, Math.floor(fbm(x, z, 0.16, SEED + 9) * 4.8))];
   else if (a === 'asche') {
     col = PAL.asche[Math.floor(h3(x, 0, z) * 3)];

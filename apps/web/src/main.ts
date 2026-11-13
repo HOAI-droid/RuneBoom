@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
-  Spiel, DT, B, WR, CH, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
+  Spiel, DT, B, WR, CH, EBNEN_STEIN, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
   type GebTyp, type Geb, type Res, type Baustein, type ErfId, type Spielstand
 } from '@runeboom/core';
 import { neuerRenderer, Beleuchtung, Nachbearbeitung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
@@ -47,7 +47,7 @@ const naehe = (x: number, z: number) => Math.max(0, 1 - Math.hypot(x - controls.
 
 // ================= Zustand =================
 let spiel: Spiel | null = null, welt: WeltAnsicht | null = null, obj: Objekte | null = null;
-let tempo = 1, werkzeug: { art: 'bau'; typ: GebTyp } | { art: 'spaeher' } | null = null, gewaehlt: Geb | null = null;
+let tempo = 1, werkzeug: { art: 'bau'; typ: GebTyp } | { art: 'spaeher' } | { art: 'ebnen' } | null = null, gewaehlt: Geb | null = null;
 let anzeigeDunkel = 0, akku = 0, planZeit = 0, uiZeit = 0;
 let panelArt: 'geb' | 'werkstatt' | 'einst' | null = null;
 let einfuehrungSchritt = -1, spaeherGeschickt = false;
@@ -59,6 +59,7 @@ function starte(code: string, stand?: Spielstand): void {
   welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet);
   const sp = spiel, wa = welt;
   welt.aenderungen = (cx, cz) => sp.dekoAenderungen(cx, cz, CH);
+  welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
   welt.onUebersicht = () => { zeichneKartenGrund(); $('laden').hidden = true; for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
   einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
   obj = new Objekte(scene, spiel);
@@ -113,14 +114,19 @@ function baueLeiste(): void {
   const ws = document.createElement('button'); ws.type = 'button'; ws.className = 'bau sonder';
   ws.innerHTML = '<kbd>T</kbd><b>Werkstatt</b><span class="preis">Erfindungen</span>';
   ws.onclick = () => (panelArt === 'werkstatt' ? schliessePanel() : zeigeWerkstatt());
-  l.append(sp, ws);
+  const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'bau sonder'; eb.dataset.typ = 'ebnen';
+  eb.innerHTML = `<kbd>9</kbd><b>Ebnen</b><span class="preis">${EBNEN_STEIN} Stein je Stufe</span>`;
+  eb.onclick = () => werkzeugSetzen(werkzeug?.art === 'ebnen' ? null : { art: 'ebnen' });
+  eb.onmouseenter = () => zeigeTipp('<b>Gelände ebnen</b> · Ziehe eine Fläche auf. Sie bekommt die Höhe des ersten Blocks. Bäume und Felsen darauf verschwinden.'); eb.onmouseleave = () => zeigeTipp(null);
+  l.append(sp, eb, ws);
 }
 function leisteAktualisieren(): void {
   if (!spiel) return;
   for (const b of $('leiste').querySelectorAll<HTMLButtonElement>('.bau')) {
-    const typ = b.dataset.typ as GebTyp | 'spaeher' | undefined; if (!typ) continue;
-    const aktiv = typ === 'spaeher' ? werkzeug?.art === 'spaeher' : werkzeug?.art === 'bau' && werkzeug.typ === typ;
+    const typ = b.dataset.typ as GebTyp | 'spaeher' | 'ebnen' | undefined; if (!typ) continue;
+    const aktiv = typ === 'spaeher' || typ === 'ebnen' ? werkzeug?.art === typ : werkzeug?.art === 'bau' && werkzeug.typ === typ;
     b.setAttribute('aria-pressed', String(!!aktiv));
+    if (typ === 'ebnen') continue;
     if (typ === 'spaeher') { b.classList.toggle('teuer', spiel.res.holz < 15); continue; }
     b.classList.toggle('gesperrt', !spiel.freigeschaltet(typ));
     b.classList.toggle('teuer', !spiel.kannBezahlen(GEBAEUDE[typ].kosten));
@@ -129,7 +135,10 @@ function leisteAktualisieren(): void {
 function werkzeugSetzen(w: typeof werkzeug): void {
   werkzeug = w;
   if (w?.art === 'bau' && spiel && !spiel.freigeschaltet(w.typ)) { melde(`${GEBAEUDE[w.typ].name} braucht erst die Erfindung ${ERFINDUNGEN[GEBAEUDE[w.typ].braucht!].name}.`, 'schlecht'); werkzeug = null; }
-  if (!werkzeug) { obj?.zeigeVorschau(null); zeigeTipp(null); }
+  if (!werkzeug || werkzeug.art !== 'bau') obj?.zeigeVorschau(null);
+  if (werkzeug?.art !== 'ebnen') obj?.zeigeFlaeche(0, 0, 0, 0, 0, true, false);
+  if (!werkzeug) zeigeTipp(null);
+  if (werkzeug?.art === 'ebnen') zeigeTipp('<b>Ebnen</b> · Fläche aufziehen (bis 16 × 16). Esc oder Rechtsklick bricht ab.');
   if (werkzeug?.art === 'spaeher') zeigeTipp('<b>Späher</b> · Klick in den Nebel. Esc oder Rechtsklick bricht ab.');
   canvas.style.cursor = werkzeug ? 'crosshair' : '';
   leisteAktualisieren();
@@ -212,7 +221,7 @@ function linie(a: [number, number], b: [number, number]): [number, number][] {
   for (let i = 0; i <= n; i++) out.push([Math.round(a[0] + (dx * i) / (n || 1)), Math.round(a[1] + (dz * i) / (n || 1))]);
   return out;
 }
-let unten: { x: number; y: number; t: number; mauer?: [number, number] } | null = null;
+let unten: { x: number; y: number; t: number; mauer?: [number, number]; ebene?: [number, number] } | null = null;
 let mauerZiel: [number, number] | null = null;
 let rechts: { x: number; y: number } | null = null;
 canvas.addEventListener('pointerdown', (e) => { if (e.button === 2) rechts = { x: e.clientX, y: e.clientY }; });
@@ -222,8 +231,18 @@ canvas.addEventListener('pointerdown', (e) => {
   if (e.button === 0 && werkzeug?.art === 'bau' && werkzeug.typ === 'mauer') {
     const p = bodenPunkt(e.clientX, e.clientY); if (p) { unten.mauer = [Math.floor(p.x), Math.floor(p.z)]; controls.enabled = false; }
   }
+  if (e.button === 0 && werkzeug?.art === 'ebnen') { const p = bodenPunkt(e.clientX, e.clientY); if (p) { unten.ebene = [Math.floor(p.x), Math.floor(p.z)]; mauerZiel = unten.ebene; controls.enabled = false; } }
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (spiel && werkzeug?.art === 'ebnen') {
+    const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
+    const a: [number, number] = unten?.ebene || [Math.floor(p.x), Math.floor(p.z)], b: [number, number] = [Math.floor(p.x), Math.floor(p.z)];
+    if (unten?.ebene) mauerZiel = b;
+    const pr = spiel.ebnenPruefen(a[0], a[1], b[0], b[1]);
+    obj?.zeigeFlaeche(a[0], a[1], b[0], b[1], pr.ziel + 1, pr.ok);
+    zeigeTipp(`<b>Ebnen</b> · ${Math.abs(b[0] - a[0]) + 1} × ${Math.abs(b[1] - a[1]) + 1} Blöcke auf Höhe ${pr.ziel}${pr.stein ? ` · ${pr.stein} Stein` : ''}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : ''}`);
+    return;
+  }
   if (!spiel || !werkzeug || werkzeug.art !== 'bau') return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) { obj?.zeigeVorschau(null); return; }
   const typ = werkzeug.typ, [x0, z0] = typ === 'mauer' ? [Math.floor(p.x), Math.floor(p.z)] : ecke(typ, p);
@@ -235,6 +254,7 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   const u = unten; unten = null; controls.enabled = true;
   if (!u || !spiel || e.button !== 0) return;
+  if (u.ebene && mauerZiel) { if (spiel.ebnen(u.ebene[0], u.ebene[1], mauerZiel[0], mauerZiel[1])) klang.spiele('hieb_stein'); mauerZiel = null; return; }
   if (u.mauer && mauerZiel) {
     let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.bauen('mauer', x, z, true)) n++;
     if (!n) melde('Hier lässt sich keine Mauer bauen.', 'schlecht');
@@ -255,6 +275,7 @@ addEventListener('keydown', (e) => {
   const typ = BAULEISTE.find((t) => GEBAEUDE[t].taste === e.key);
   if (typ) werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ });
   if (k === 'escape') { werkzeugSetzen(null); waehle(null); schliessePanel(); }
+  if (k === '9') werkzeugSetzen(werkzeug?.art === 'ebnen' ? null : { art: 'ebnen' });
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
   if (k === 't') panelArt === 'werkstatt' ? schliessePanel() : zeigeWerkstatt();
   if (k === 'n') spiel.nachtEinlaeuten();
@@ -367,6 +388,7 @@ renderer.setAnimationLoop(() => {
     let lichtNeu = false;
     for (const e of ev) {
       if (e.art === 'gebaut' || e.art === 'weg') lichtNeu = true;
+      if (e.art === 'gelaende') { for (let cx = Math.floor((e.x0 - 1) / CH); cx <= Math.floor((e.x1 + 1) / CH); cx++) for (let cz = Math.floor((e.z0 - 1) / CH); cz <= Math.floor((e.z1 + 1) / CH); cz++) welt.kachelNeu(cx, cz); for (let x = e.x0; x <= e.x1; x++) for (let z = e.z0; z <= e.z1; z++) welt.grobDeko(x, z, false); }
       if (e.art === 'deko') { welt.kachelNeu(Math.floor(e.x / CH), Math.floor(e.z / CH)); welt.grobDeko(e.x, e.z, !spiel.dekoZustand(e.x, e.z)); }
       if (e.art === 'schuss') klang.spiele(e.geschoss === 'pfeil' ? 'sehne' : 'wurf', naehe(e.x, e.z) * 0.8);
       if (e.art === 'treffer') klang.spiele('treffer', naehe(e.x, e.z) * 0.7);
