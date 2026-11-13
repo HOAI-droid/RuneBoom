@@ -11,7 +11,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.5.0';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.6.0';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -45,7 +45,7 @@ function grafikSetzen(): void {
   const schatten = st !== 'niedrig';
   if (renderer.shadowMap.enabled !== schatten) { renderer.shadowMap.enabled = schatten; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => (x.needsUpdate = true)); }); }
   licht.sun.shadow.mapSize.set(st === 'hoch' ? 2048 : 1024, st === 'hoch' ? 2048 : 1024); licht.sun.shadow.map?.dispose(); (licht.sun.shadow as any).map = null;
-  if (obj) obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25;
+  try { if (obj) obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25; } catch { /* beim Start noch nicht da */ }
   groesse();
 }
 grafikSetzen();
@@ -126,9 +126,9 @@ function baueMenueWelt(): void {
   enthuellen();
 }
 // ================= Enthüllung: erst alles laden, dann von der Mitte her einblenden =================
-const enth = { aktiv: false, phase: 0, t: 0 };
+const enth = { aktiv: false, phase: 0, t: 0, start: 0 };
 function enthuellen(): void {
-  enth.aktiv = true; enth.phase = 0; enth.t = 0;
+  enth.aktiv = true; enth.phase = 0; enth.t = 0; enth.start = performance.now();
   const el = $('schleier'); el.hidden = false; el.classList.remove('auf'); el.style.setProperty('--r', '-30vmax');
   document.body.classList.add('verhuellt');
 }
@@ -138,7 +138,7 @@ function enthuellungSchritt(dt: number): void {
   const el = $('schleier');
   if (enth.phase === 0) {
     welt.planen(controls.target, camera.position.distanceTo(controls.target), camera);
-    if (welt.bereit(controls.target, camera.position.distanceTo(controls.target), camera) || enth.t > 15) {
+    if (welt.bereit(controls.target, camera.position.distanceTo(controls.target), camera) || performance.now() - enth.start > 9000) {
       try { renderer.compile(scene, camera); } catch { /* */ }
       enth.phase = 1; enth.t = 0; el.classList.add('auf'); document.body.classList.remove('verhuellt');
     }
@@ -247,9 +247,6 @@ function zeigeStart(): void {
 $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
-$('fps').hidden = !einst.fps;
-uebersetzeStatisch();
-zeigeStart();
 // für Tests und Neugierige in der Konsole
 (window as unknown as { runeboom: unknown }).runeboom = { get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
@@ -444,7 +441,7 @@ function erfStatus(id: ErfId): 'fertig' | 'kann' | 'fehlt' | 'zu' | 'geheim' {
 let baumHtmlAlt = '';
 function baumZeichnen(neu = false): void {
   const s = spiel; if (!s || $('baum').hidden) return;
-  $('baum-za').textContent = `${t('Zeitalter {a} · {b} · {c} von {d} erfunden', { a: s.zeitalter(), b: s.zeitalterName(), c: s.erfindungen.size, d: Object.keys(ERFINDUNGEN).length })}`;
+  $('baum-za').textContent = `${t('Zeitalter {a} · {b} · {c} von {d} erfunden', { a: s.zeitalter(), b: t(s.zeitalterName()), c: s.erfindungen.size, d: Object.keys(ERFINDUNGEN).length })}`;
   $('baum-bst').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span><i class="${b}"></i>${t(BAUSTEIN_NAME[b])} ${s.bausteine[b]}</span>`).join('') + `<span><i class="kristall"></i>${t('Kristall {a}', { a: Math.floor(s.res.kristall) })}</span>`;
   document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.reiter === baumReiter)));
   let html = '';
@@ -584,7 +581,7 @@ canvas.addEventListener('pointerup', (e) => {
 // ================= Tastatur =================
 const tasten = new Set<string>();
 addEventListener('keydown', (e) => {
-  if (!spiel || imMenue || (e.target as HTMLElement).tagName === t('INPUT')) return;
+  if (!spiel || imMenue || (e.target as HTMLElement).tagName === 'INPUT') return;
   const k = e.key.toLowerCase(); tasten.add(k);
   const typ = BAULEISTE.find((t) => GEBAEUDE[t].taste?.toLowerCase() === k);
   if (typ) werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ });
@@ -644,7 +641,7 @@ function anzeige(): void {
   $('bausteine').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span class="${s.bausteine[b] ? '' : 'null'}" title="${t(BAUSTEIN_NAME[b])}"><i class="${b}"></i>${t(BAUSTEIN_NAME[b])} ${s.bausteine[b]}</span>`).join('');
   const u = $('uhr');
   u.classList.toggle('nacht', s.phase === 'nacht');
-  $('zeitalter').textContent = s.zeitalterName();
+  $('zeitalter').textContent = t(s.zeitalterName());
   if (s.phase === 'tag') {
     u.dataset.html = '';
     const rest = Math.ceil(s.restTag()), mm = Math.floor(rest / 60), ss = String(rest % 60).padStart(2, '0');
@@ -879,3 +876,8 @@ renderer.setAnimationLoop(() => {
   } else controls.update();
   if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
 });
+
+// ================= Start (am Ende, wenn alles definiert ist) =================
+$('fps').hidden = !einst.fps;
+uebersetzeStatisch();
+zeigeStart();

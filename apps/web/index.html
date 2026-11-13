@@ -374,6 +374,19 @@
     .panel { top: auto; bottom: 150px; left: 8px; right: 8px; width: auto; max-height: 52vh; overflow-y: auto; }
     .gruppen { gap: 4px; padding: 4px; } .gruppe { width: 74px; } .gruppe kbd { display: none; }
   }
+
+  /* Gebäudefenster unter Karte und Tempo, damit beides bedienbar bleibt */
+  .panel { top: calc(max(10px, env(safe-area-inset-top)) + 300px); max-height: calc(100vh - 300px - 140px); }
+  body.panel-offen .oben-rechts { visibility: visible; }
+  @media (max-height: 860px) { .panel p.kurz { display: none; } .panel { padding: 9px 12px; gap: 5px; } .akt { padding: 4px 7px; } .panel h2 { font-size: 16px; } }
+  @media (max-height: 700px) { .panel { top: calc(max(10px, env(safe-area-inset-top)) + 250px); max-height: calc(100vh - 250px - 120px); } .karte canvas { width: 150px; height: 150px; } }
+
+  .untertitel { white-space: nowrap; }
+  @media (max-height: 820px) {
+    .baum-gitter { gap: 3px 6px; } .baum-gitter .zelle { gap: 3px; padding: 2px; }
+    .ekarte { padding: 3px 8px; } .ekarte, .ekarte b { font-size: 13px; } .ekarte .zut { font-size: 11px; }
+    .baum-gitter .zkopf { padding: 4px 8px; } .baum-gitter .zkopf small { display: none; } .baum-gitter .wkopf { padding: 2px; }
+  }
 </style>
 </head>
 <body>
