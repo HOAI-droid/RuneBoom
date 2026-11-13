@@ -129,6 +129,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Sturmweber: Streicher, Glocken, Hackbrett), Schichten Tag/Abend/Nacht/Kampf, Themen für Rissfürst und Sieg,
   **Gamepad-Steuerung**, **Jahreszeiten über die 40 Nächte** (Frühling bis Winter), **Tiere am Tag** (nur wenn es kaum Bildrate kostet),
   **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
+  **Befehlsschicht** als Grundlage für späteren Mehrspieler: jede Spieleraktion als Befehl, überall gleiche Rechnung (eigene sin/cos …),
+  Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler-Modell (lieber miteinander) noch offen.
   Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
 - [ ] später: Steam · Weltreise · Mehrspieler · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
