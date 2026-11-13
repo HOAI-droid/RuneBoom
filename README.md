@@ -1,5 +1,8 @@
 # runeBOOM · Die Feste der Erfinder
 
+> **▶ Jetzt online spielen · Play online now: <https://hoai-droid.github.io/RuneBoom/>**  
+> Projektseite · Project page: <https://hoai-droid.github.io/RuneBoom/docs/>
+
 <p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: die Feste am goldenen Tag und in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
 
 <p align="center">
