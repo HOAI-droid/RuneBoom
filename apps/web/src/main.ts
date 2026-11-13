@@ -6,6 +6,7 @@ import {
 } from '@runeboom/core';
 import { neuerRenderer, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
+import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
 import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
@@ -283,7 +284,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -478,6 +479,38 @@ function erfStatus(id: ErfId): 'fertig' | 'kann' | 'fehlt' | 'zu' | 'geheim' {
   return hat && s.res.kristall >= s.erfKristall(id) ? 'kann' : 'fehlt';
 }
 let baumHtmlAlt = '';
+const SCHLOSS = '<svg viewBox="0 0 12 12" width="11" height="11"><rect x="2" y="5.5" width="8" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+/** Zeichen der Wissensgebiete (Strichzeichnungen) */
+const WZ = (d: string) => `<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const WISSEN_ZEICHEN: Record<Wissen, string> = {
+  krieg: WZ('M4 16 15 5M12 4h4v4M5 13l2 2M3 17l2-2M16 16 5 5M8 4H4v4M15 13l-2 2M17 17l-2-2'),
+  bau: WZ('M3 16h14M3 12h14M3 8h14M3 4h14M3 4v12M17 4v12M8 4v4M12 8v4M8 12v4'),
+  wirtschaft: WZ('M10 18V6M10 9c-3 0-4-2-4-4 3 0 4 2 4 4zM10 9c3 0 4-2 4-4-3 0-4 2-4 4zM10 13c-3 0-4-2-4-4 3 0 4 2 4 4zM10 13c3 0 4-2 4-4-3 0-4 2-4 4z'),
+  licht: WZ('M10 3v2M4 6l1.5 1.5M16 6l-1.5 1.5M7 11a3 3 0 1 1 6 0c0 1.5-1 2-1 3.5H8c0-1.5-1-2-1-3.5zM8 17h4'),
+  runen: WZ('M7 3v14M7 6l6-3M7 10l6 3M13 13v4'),
+  alchemie: WZ('M8 3h4M9 3v5l-5 8a1.3 1.3 0 0 0 1 2h10a1.3 1.3 0 0 0 1-2l-5-8V3M6 13h8')
+};
+/** Gebäude, das zur Skizze einer Erfindung gezeichnet wird: das erste, das sie freischaltet, sonst eines aus ihrem Wissensgebiet */
+function erfGebaeude(id: ErfId): GebTyp {
+  const frei = (Object.keys(GEBAEUDE) as GebTyp[]).find((g) => GEBAEUDE[g].braucht === id && !GEBAEUDE[g].volk);
+  if (frei) return frei;
+  const ERSATZ: Record<Wissen, GebTyp> = { krieg: 'wachturm', bau: 'tor', wirtschaft: 'hof', licht: 'leuchtfeuer', runen: 'werkstatt', alchemie: 'feuertopf' };
+  return ERSATZ[ERFINDUNGEN[id].wissen];
+}
+/** große Erfinderskizze (bei Schlüssel- und geheimen Erfindungen, im Rezeptbuch erneut) */
+function zeigeSkizze(id: ErfId): void {
+  const e = ERFINDUNGEN[id], g = erfGebaeude(id), el = $('skizze');
+  const zut = Object.entries(e.zutaten).map(([b, n]) => `<span><i class="${b}"></i>${n} ${t(BAUSTEIN_NAME[b as Baustein])}</span>`).join('') + `<span><i class="kristall"></i>${e.kristall} ${t('Kristall')}</span>`;
+  const za = e.zeitalter || e.ab;
+  el.innerHTML = `<div class="sk-blatt sk-papier" role="dialog" aria-label="${t(e.name)}">
+    <div class="sk-kopf"><div><h2>${t(e.name)}</h2><p>${e.zeitalter ? t('Erfindung des Zeitalters {a}', { a: t(ZA_NAMEN[e.zeitalter]) }) : t('Geheimes Rezept')}</p></div><span class="sk-siegel">${['', 'I', 'II', 'III', 'IV', 'V'][za]}</span></div>
+    <div class="sk-mitte">${skizze(g, 620, 360, 1, spiel?.volk || '')}
+      <div class="sk-notizen">${spiegelNotiz(t(GEBAEUDE[g].kurz))}${spiegelNotiz(t(e.wirkung))}</div></div>
+    <div class="sk-fuss"><div class="sk-zut"><b>${t('Bausteine für das Werk')}</b>${zut}</div><p>${t(e.wirkung)}</p></div>
+    <button type="button" class="knopf haupt" id="skizze-zu">${t('Weiter')}</button></div>`;
+  el.hidden = false; klang.spiele('glocke', 0.6);
+  $('skizze-zu').onclick = () => { el.hidden = true; };
+}
 function baumZeichnen(neu = false): void {
   const s = spiel; if (!s || $('baum').hidden) return;
   $('baum-za').textContent = `${t('Zeitalter {a} · {b} · {c} von {d} erfunden', { a: s.zeitalter(), b: t(s.zeitalterName()), c: s.erfindungen.size, d: Object.keys(ERFINDUNGEN).length })}`;
@@ -489,40 +522,67 @@ function baumZeichnen(neu = false): void {
     const aus = (a: number) => (a !== baumZa ? t(' z-aus') : '');
     $('baum-za-reiter').innerHTML = [1, 2, 3, 4, 5].map((a) => `<button type="button" data-za="${a}" aria-pressed="${a === baumZa}">${a}</button>`).join('');
     $('baum-za-reiter').querySelectorAll<HTMLButtonElement>('[data-za]').forEach((b) => { b.onclick = () => { baumZa = Number(b.dataset.za); baumZeichnen(true); }; });
-    html = `<div class="baum-gitter"><div></div>${[1, 2, 3, 4, 5].map((a) => `<div class="zkopf${aus(a)} ${a === z ? 'jetzt' : a > z ? 'zu' : ''}">${t(ZA_NAMEN[a])}<small>${a < z ? 'erreicht' : a === z ? t('jetziges Zeitalter') : t('noch verschlossen')}</small></div>`).join('')}`;
+    const alle = Object.keys(ERFINDUNGEN) as ErfId[];
+    html = `<div class="baum-gitter"><div></div>${[1, 2, 3, 4, 5].map((a) => {
+      const im = alle.filter((i) => ERFINDUNGEN[i].ab === a), fertig = im.filter((i) => s.erfindungen.has(i)).length;
+      return `<div class="zkopf za${a}${aus(a)} ${a === z ? 'jetzt' : a > z ? 'zu' : ''}"><span class="za-nr">${['', 'I', 'II', 'III', 'IV', 'V'][a]}</span>${t(ZA_NAMEN[a])}<small>${a < z ? t('erreicht') : a === z ? t('jetziges Zeitalter') : t('noch verschlossen')} · ${fertig}/${im.length}</small><i class="za-balken"><i style="width:${Math.round((fertig / Math.max(1, im.length)) * 100)}%"></i></i></div>`;
+    }).join('')}`;
     for (const w of Object.keys(WISSEN_NAME) as Wissen[]) {
-      html += `<div class="wkopf">${t(WISSEN_NAME[w])}</div>`;
+      html += `<div class="wkopf">${WISSEN_ZEICHEN[w]}<span>${t(WISSEN_NAME[w])}</span></div>`;
       for (const a of [1, 2, 3, 4, 5]) {
         const ids = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].wissen === w && ERFINDUNGEN[i].ab === a);
-        html += `<div class="zelle${aus(a)}">${ids.map((id) => {
+        html += `<div class="zelle za${a}${aus(a)}">${ids.map((id) => {
           const e = ERFINDUNGEN[id], st = erfStatus(id);
           if (st === 'geheim') return `<button type="button" class="ekarte geheim" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>???</b><span>${t('geheimes Rezept')}</span></button>`;
           const zut = Object.entries(e.zutaten).map(([b, n]) => `<span class="${st !== 'fertig' && s.bausteine[b as Baustein] < (n as number) ? 'fehlt' : ''}"><i class="${b}"></i>${n}</span>`).join('') + `<span class="${st !== 'fertig' && s.res.kristall < s.erfKristall(id) ? 'fehlt' : ''}"><i class="kristall"></i>${s.erfKristall(id)}</span>`;
-          return `<button type="button" class="ekarte ${st} ${e.zeitalter ? 'schluessel' : ''}" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>${e.zeitalter ? '◆ ' : ''}${t(e.name)}${st === 'fertig' ? ' ✓' : ''}</b><span class="zut">${zut}</span></button>`;
+          const zeichen = st === 'fertig' ? '<em class="e-zeichen fertig" aria-label="erfunden">✓</em>' : st === 'zu' ? `<em class="e-zeichen zu" aria-hidden="true">${SCHLOSS}</em>` : '';
+          return `<button type="button" class="ekarte ${st} ${e.zeitalter ? 'schluessel' : ''}" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>${e.zeitalter ? '<span class="raute" aria-hidden="true"></span>' : ''}${t(e.name)}${zeichen}</b><span class="zut">${zut}</span></button>`;
         }).join('')}</div>`;
       }
     }
     html += '</div>';
   } else if (baumReiter === 'buch') {
     const LN = { fern: t('Fernkampf'), flaeche: t('Fläche'), licht: t('Licht') };
-    html = `<div class="baum-liste"><p>${t('Zwei benachbarte Türme lassen sich am Tag verschmelzen. Was einmal gelungen ist, bleibt hier vermerkt.')}</p>${VERSCHMELZUNGEN.map((v) => { const bek = s.entdeckt.has(v.ergebnis); return `<div class="zeile"><span>${LN[v.a]} + ${LN[v.b]}</span><span>${bek ? `<b>${t(GEBAEUDE[v.ergebnis].name)}</b> · ${t(GEBAEUDE[v.ergebnis].kurz)}` : '???'}</span></div>`; }).join('')}</div>`;
+    const LINIE: Record<'fern' | 'flaeche' | 'licht', GebTyp> = { fern: 'wachturm', flaeche: 'feuertopf', licht: 'leuchtfeuer' };
+    const klein = (typ: GebTyp, zu = false) => `<span class="sk-klein${zu ? ' sk-zu' : ''}">${skizze(typ, 120, 96, 3, spiel!.volk)}</span>`;
+    const schluessel = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].zeitalter);
+    const geheim = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].geheim), gefunden = geheim.filter((i) => s.erfindungen.has(i));
+    html = `<div class="buch">
+      <section class="buch-teil"><h3>${t('Verschmelzungen')}</h3><p>${t('Zwei benachbarte Türme lassen sich am Tag verschmelzen. Was einmal gelungen ist, bleibt hier vermerkt.')}</p>
+        <div class="buch-gitter">${VERSCHMELZUNGEN.map((v) => { const bek = s.entdeckt.has(v.ergebnis); return `<div class="rezept sk-papier${bek ? '' : ' unbekannt'}">
+          <div class="rezept-formel">${klein(LINIE[v.a])}<b>+</b>${klein(LINIE[v.b])}<b>=</b>${klein(v.ergebnis, !bek)}</div>
+          <div class="rezept-text"><small>${LN[v.a]} + ${LN[v.b]}</small><strong>${bek ? t(GEBAEUDE[v.ergebnis].name) : t('Noch nicht entdeckt')}</strong><span>${bek ? t(GEBAEUDE[v.ergebnis].kurz) : t('Stelle zwei solche Türme nebeneinander und probiere es aus.')}</span></div></div>`; }).join('')}</div></section>
+      <section class="buch-teil"><h3>${t('Skizzen der großen Erfindungen')}</h3><p>${t('Jede Schlüsselerfindung öffnet ein Zeitalter. Ist sie gelungen, liegt hier ihre Skizze.')}</p>
+        <div class="buch-galerie">${schluessel.map((id) => { const e = ERFINDUNGEN[id], da = s.erfindungen.has(id), g = erfGebaeude(id); return `<button type="button" class="galerie sk-papier${da ? '' : ' unbekannt'}" ${da ? `data-skizze="${id}"` : 'disabled'}>${klein(g, !da)}<strong>${t(e.name)}</strong><small>${t(ZA_NAMEN[e.zeitalter!])}</small></button>`; }).join('')}</div></section>
+      <section class="buch-teil"><h3>${t('Geheime Rezepte')}</h3><p>${gefunden.length ? t('{a} von {b} gefunden.', { a: gefunden.length, b: geheim.length }) : t('Noch keines gefunden. Geheime Rezepte zeigen sich, wenn die richtigen Bausteine beisammen sind.')}</p>
+        <div class="buch-liste">${gefunden.map((id) => `<div class="zeile"><b>${t(ERFINDUNGEN[id].name)}</b><span>${t(ERFINDUNGEN[id].wirkung)}</span></div>`).join('')}${geheim.length - gefunden.length ? `<div class="zeile leer"><b>???</b><span>${t('{a} weitere warten noch.', { a: geheim.length - gefunden.length })}</span></div>` : ''}</div></section>
+    </div>`;
   } else {
-    html = `<div class="baum-liste"><p>${t('Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.')}</p>${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="zeile"><span><i class="${bs}" style="width:8px;height:8px;display:inline-block;transform:rotate(45deg);border-radius:2px;margin-right:6px"></i>${t(BAUSTEIN_NAME[bs])}</span><span>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).filter((gt) => GEGNER[gt].beute.some(([x]) => x === bs)).map((gt) => { const bt = GEGNER[gt].beute.find(([x]) => x === bs)!; return `${t(GEGNER[gt].name)} ${Math.round(100 * bt[1])} %${bt[2] ? ` (×${bt[2]})` : ''}`; }).join(' · ')}</span></div>`).join('')}
-      <p>${t('Die Wesen der Wildnis:')}</p>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).map((gt) => `<div class="zeile"><span>${t(GEGNER[gt].name)}</span><span>${t(GEGNER[gt].kurz)}</span></div>`).join('')}</div>`;
+    const alleG = Object.keys(GEGNER) as (keyof typeof GEGNER)[];
+    html = `<div class="beute">
+      <section class="beute-links"><h3>${t('Bausteine')}</h3><p>${t('Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.')}</p>
+        ${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="bst-karte"><i class="${bs} bst-raute"></i><div><strong>${t(BAUSTEIN_NAME[bs])}</strong><small>${t('Vorrat: {a}', { a: s.bausteine[bs] })}</small>
+          <div class="chips">${alleG.filter((gt) => GEGNER[gt].beute.some(([x]) => x === bs)).map((gt) => { const bt = GEGNER[gt].beute.find(([x]) => x === bs)!; return `<span class="chip">${t(GEGNER[gt].name)} ${Math.round(bt[1] * 100)} %${bt[2] && bt[2] > 1 ? ` ×${bt[2]}` : ''}</span>`; }).join('')}</div></div></div>`).join('')}
+      </section>
+      <section class="beute-rechts"><h3>${t('Die Wesen der Wildnis')}</h3>
+        <div class="wesen-gitter">${alleG.map((gt) => { const G = GEGNER[gt]; return `<div class="wesen-karte"><span class="wesen-bild sk-papier">${wesenSkizze(gt, 96, 72, gt === 'rissfuerst' ? 2 : 1)}</span><strong>${t(G.name)}</strong><div class="chips">${G.flug ? `<span class="chip blau">${t('fliegt')}</span>` : ''}${G.verborgen ? `<span class="chip lila">${t('verborgen')}</span>` : ''}${G.boss ? `<span class="chip rot">${t('Anführer')}</span>` : ''}</div><span>${t(G.kurz)}</span><div class="chips">${G.beute.map(([b, w]) => `<span class="chip"><i class="${b}"></i>${Math.round(w * 100)} %</span>`).join('')}</div></div>`; }).join('')}</div>
+      </section>
+    </div>`;
   }
   if (neu || html !== baumHtmlAlt) {
     baumHtmlAlt = html; $('baum-inhalt').innerHTML = html;
     $('baum-inhalt').querySelectorAll<HTMLButtonElement>('[data-erf]').forEach((b) => { b.onclick = () => { baumWahl = b.dataset.erf as ErfId; baumZeichnen(); }; });
+    $('baum-inhalt').querySelectorAll<HTMLButtonElement>('[data-skizze]').forEach((b) => { b.onclick = () => zeigeSkizze(b.dataset.skizze as ErfId); });
   }
   // Einzelheiten der gewählten Erfindung
   const d = $('baum-detail');
   if (!baumWahl || baumReiter !== 'baum') { d.hidden = true; return; }
   const e = ERFINDUNGEN[baumWahl], st = erfStatus(baumWahl);
   const grund = st === 'fertig' ? '' : st === 'geheim' ? t('Ein geheimes Rezept. Es zeigt sich, sobald die richtigen Bausteine beisammen sind.') : s.vorwissenFehlt(baumWahl) || (st === 'fehlt' ? t('Es fehlen noch Bausteine oder Kristall.') : '');
-  const dhtml = `<h3>${st === 'geheim' ? '???' : e.name}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
+  const dhtml = `${st === 'geheim' ? '' : `<div class="detail-skizze sk-papier">${skizze(erfGebaeude(baumWahl), 300, 150, 2, s.volk)}</div>`}<h3>${st === 'geheim' ? '???' : t(e.name)}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
   if (d.dataset.html !== dhtml || d.hidden) {
     d.dataset.html = dhtml; d.innerHTML = dhtml; d.hidden = false;
-    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { if (s.erfinden(baumWahl!)) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); } };
+    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (s.erfinden(id)) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
   }
 }
 document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => { b.onclick = () => { baumReiter = b.dataset.reiter as typeof baumReiter; baumZeichnen(true); }; });
@@ -630,7 +690,7 @@ addEventListener('keydown', (e) => {
   if (typ) werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ });
   if (berichtPause && (k === 'enter' || k === ' ' || k === 'escape')) { e.preventDefault(); $('bericht').hidden = true; berichtPause = false; return; }
   if (k === 'f1' || k === '?') { e.preventDefault(); if ($('hilfe').hidden) zeigeHilfe(); else $('hilfe').hidden = true; }
-  if (k === 'escape') { $('hilfe').hidden = true; gruppeZeigen(null); werkzeugSetzen(null); waehle(null); schliessePanel(); baumZu(); $('bericht').hidden = true; }
+  if (k === 'escape') { $('skizze').hidden = true; $('hilfe').hidden = true; gruppeZeigen(null); werkzeugSetzen(null); waehle(null); schliessePanel(); baumZu(); $('bericht').hidden = true; }
   if (k === '9') werkzeugSetzen(werkzeug?.art === 'ebnen' ? null : { art: 'ebnen' });
   const gr = BAUGRUPPEN.find((g) => g.taste.toLowerCase() === k); if (gr) gruppeZeigen(gruppeOffen === gr.id ? null : gr.id);
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });

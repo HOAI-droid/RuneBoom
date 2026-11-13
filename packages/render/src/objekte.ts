@@ -15,12 +15,17 @@ import { rng, type Ruine } from '@runeboom/core';
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
 /** schicht 1–5: Gebäude im Bau, nur die unteren Schichten stehen, dazu ein Gerüst */
-function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', schicht = 0): THREE.Group {
+/** Voxel eines Wesens (für die Skizzen im Bestand der Bausteine) */
+export function wesenGrid(typ: GegTyp): Grid {
+  const g = new Grid();
+  const F: Record<GegTyp, () => void> = { moorwicht: () => moorwicht(g, 0, 0, 0, 0), wolf: () => wolf(g, 0, 0, 0, 0), troll: () => troll(g, 0, 0, 0, 0), drachling: () => drachling(g), rochen: () => nebelrochen(g),
+    aschegeist: () => aschegeist(g), steinwerfer: () => steinwerfer(g), schamane: () => schamane(g), schildwaechter: () => schildwaechter(g), rissfuerst: () => rissfuerst(g) };
+  F[typ]?.(); return g;
+}
+/** Voxel eines Gebäudes (halbe Voxel, Mitte bei 0), auch für die Erfinderskizzen */
+export function gebGrid(typ: GebTyp, stahl = false, zweigId?: string, stufe = 1, schaden = 0, volk = ''): Grid {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
-  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (schicht ? '/bau' + schicht : '');
-  let m = modellCache.get(key);
-  if (!m) {
-    const g = new Grid(), def = GEBAEUDE[typ];
+  const g = new Grid(), def = GEBAEUDE[typ];
     Grid.tausch = VOLK_FARBEN[volk] || null;
     if (def.wunder) wunder(g, typ);
     if (def.zeitalter === 5) turmZeitalter5(g, typ);
@@ -55,6 +60,14 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
     if (typ === 'mauer') { mauerStueck(g, 0, 0, 0, stahl); mauerSchaden(g, schaden); }
     if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer' && !def.wunder && !def.falle && typ !== 'tor' && typ !== 'siegel') stufenSchmuck(g, def.w, def.d, stufe);
     Grid.tausch = null;
+  return g;
+}
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', schicht = 0): THREE.Group {
+  const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (schicht ? '/bau' + schicht : '');
+  let m = modellCache.get(key);
+  if (!m) {
+    const g = gebGrid(typ, stahl, zweigId, stufe, schaden, volk), def = GEBAEUDE[typ];
     if (schicht) { // im Bau: oberhalb der Schicht nichts, ringsum ein Gerüst
       let hoch = 0; for (const v of g.m.values()) hoch = Math.max(hoch, v.y);
       const grenze = Math.ceil(((hoch + 1) * schicht) / 6) - 1;

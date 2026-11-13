@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#11161f">
 <title>runeBOOM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
   :root {
     --ink: #11161f; --stone: rgba(26, 33, 45, 0.9); --stone-voll: #1a212d; --stone-2: #232c3a; --line: #313b4c;
@@ -380,6 +380,76 @@
   .panel { top: calc(max(10px, env(safe-area-inset-top)) + 300px); max-height: calc(100vh - 300px - 140px); }
   body.panel-offen .oben-rechts { visibility: visible; }
   @media (max-height: 860px) { .panel p.kurz { display: none; } .panel { padding: 9px 12px; gap: 5px; } .akt { padding: 4px 7px; } .panel h2 { font-size: 16px; } }
+  /* ---------- 0.8: Erfindungsbaum, Rezeptbuch, Bausteine, Erfinderskizzen ---------- */
+  .za1 { --za: #8fbf6a; } .za2 { --za: #e0823a; } .za3 { --za: #c9a043; } .za4 { --za: #7fd3e6; } .za5 { --za: #b48cff; }
+  .baum-gitter .zkopf { position: relative; border-top: 3px solid var(--za); padding-left: 42px !important; }
+  .baum-gitter .zkopf .za-nr { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--za); color: var(--za); font-size: 12px; }
+  .baum-gitter .zkopf .za-balken { display: block; height: 3px; margin-top: 5px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+  .baum-gitter .zkopf .za-balken i { display: block; height: 100%; background: var(--za); }
+  .baum-gitter .zkopf.jetzt { box-shadow: 0 0 0 1px var(--za), 0 0 18px -6px var(--za); }
+  .baum-gitter .wkopf { display: flex; align-items: center; gap: 8px; } .baum-gitter .wkopf svg { color: var(--rune); flex: none; opacity: .9; }
+  .baum-gitter .zelle { border-left: 2px solid color-mix(in srgb, var(--za) 35%, transparent); }
+  .ekarte { position: relative; transition: transform .12s ease, box-shadow .12s ease; }
+  .ekarte:hover:not(.zu) { transform: translateY(-1px); box-shadow: 0 4px 14px -6px rgba(0,0,0,.6); }
+  .ekarte b { display: flex; align-items: center; gap: 6px; }
+  .ekarte .raute { width: 9px; height: 9px; transform: rotate(45deg); background: var(--ember); box-shadow: 0 0 6px rgba(227,165,78,.6); flex: none; }
+  .ekarte .e-zeichen { font-style: normal; margin-left: auto; display: inline-grid; place-items: center; }
+  .ekarte .e-zeichen.fertig { color: #9fd99a; } .ekarte .e-zeichen.zu { color: var(--muted); }
+  .ekarte.fertig { background: linear-gradient(180deg, rgba(70,105,72,.34), rgba(50,78,54,.2)); }
+  .ekarte.kann { animation: kann-glimmen 2.4s ease-in-out infinite; }
+  @keyframes kann-glimmen { 50% { box-shadow: 0 0 0 1px rgba(227,165,78,.55), 0 0 16px -4px rgba(227,165,78,.7); } }
+  @media (prefers-reduced-motion: reduce) { .ekarte.kann { animation: none; } }
+  .ekarte.schluessel:not(.fertig) { border-color: color-mix(in srgb, var(--ember) 45%, var(--line)); }
+  /* Pergament */
+  .sk-papier { background: radial-gradient(ellipse at 50% 42%, #efdcab 0%, #e2c58c 58%, #b88a4c 100%); color: #3a2210; border: 1px solid #8a6230; box-shadow: inset 0 0 40px rgba(120,80,30,.35), 0 10px 30px rgba(0,0,0,.45); }
+  .sk-bild { display: block; max-width: 100%; height: auto; }
+  .sk-spiegel { display: block; transform: scaleX(-1); font-family: "IM Fell English", Georgia, serif; font-style: italic; font-size: 13px; color: #4a2e16; opacity: .7; line-height: 1.35; }
+  .baum-detail .detail-skizze { border-radius: 4px; padding: 4px; margin: -2px -2px 2px; }
+  .skizze-overlay { z-index: 40; }
+  .sk-blatt { width: min(880px, 94vw); max-height: 92vh; overflow: auto; border-radius: 4px; padding: 22px 28px 20px; display: grid; gap: 10px; font-family: "IM Fell English", Georgia, serif; }
+  .sk-kopf { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+  .sk-kopf h2 { margin: 0; font-family: "IM Fell English SC", Georgia, serif; font-size: clamp(30px, 4vw, 48px); font-weight: 400; color: #3a2210; letter-spacing: 1px; }
+  .sk-kopf p { margin: 0; font-style: italic; font-size: 17px; }
+  .sk-siegel { width: 62px; height: 62px; flex: none; border-radius: 50%; background: #8e2a1e; color: #f1d9b0; display: grid; place-items: center; font-family: "IM Fell English SC", Georgia, serif; font-size: 26px; box-shadow: inset 0 0 0 6px #a5402f, inset 0 0 0 7px #c0503a, 0 2px 6px rgba(0,0,0,.35); }
+  .sk-mitte { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: center; }
+  .sk-notizen { display: grid; gap: 18px; }
+  .sk-fuss { display: grid; gap: 6px; border-top: 1px solid rgba(63,38,18,.35); padding-top: 10px; }
+  .sk-fuss p { margin: 0; font-size: 17px; line-height: 1.4; }
+  .sk-zut { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 16px; }
+  .sk-zut b { font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; }
+  .sk-zut span { display: inline-flex; align-items: center; gap: 6px; } .sk-zut i { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; border: 1px solid #3f2612; }
+  .sk-blatt .knopf { justify-self: end; }
+  @media (max-width: 700px) { .sk-mitte { grid-template-columns: 1fr; } }
+  /* Rezeptbuch */
+  .buch { display: grid; gap: 22px; max-width: 1280px; padding-bottom: 20px; }
+  .buch-teil h3, .beute h3 { margin: 0 0 4px; font-family: var(--display); color: var(--ember); font-size: 19px; }
+  .buch-teil > p, .beute p { margin: 0 0 10px; color: var(--muted); }
+  .buch-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 12px; }
+  .rezept { border-radius: 4px; padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+  .rezept-formel { display: flex; align-items: center; gap: 4px; }
+  .rezept-formel b { font-family: "IM Fell English", Georgia, serif; font-size: 26px; color: #4a2e16; }
+  .rezept-text { display: grid; gap: 2px; font-family: "IM Fell English", Georgia, serif; } .rezept-text small { font-style: italic; opacity: .8; } .rezept-text strong { font-size: 19px; font-weight: 400; font-family: "IM Fell English SC", Georgia, serif; }
+  .sk-klein { display: block; width: 84px; } .sk-klein svg { width: 100%; height: auto; }
+  .sk-zu svg { filter: brightness(0) opacity(.28); }
+  .rezept.unbekannt { filter: saturate(.7); }
+  .buch-galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .galerie { border-radius: 4px; padding: 10px; display: grid; justify-items: center; gap: 2px; font-family: "IM Fell English", Georgia, serif; color: #3a2210; cursor: pointer; }
+  .galerie .sk-klein { width: 110px; } .galerie strong { font-weight: 400; font-size: 16px; } .galerie small { font-style: italic; opacity: .8; }
+  .galerie:disabled { cursor: default; opacity: .6; }
+  .galerie:not(:disabled):hover { transform: translateY(-2px); }
+  .buch-liste { display: grid; gap: 6px; } .buch-liste .zeile { display: flex; gap: 12px; justify-content: space-between; padding: 8px 10px; background: var(--stone-2); border: 1px solid var(--line); border-radius: 5px; } .buch-liste .leer { opacity: .6; }
+  /* Bausteine */
+  .beute { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; padding-bottom: 20px; }
+  @media (max-width: 900px) { .beute { grid-template-columns: 1fr; } }
+  .bst-karte { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px; margin-bottom: 8px; background: var(--stone-2); border: 1px solid var(--line); border-radius: 6px; }
+  .bst-karte strong { font-size: 16px; } .bst-karte small { display: block; color: var(--muted); margin-bottom: 6px; }
+  i.bst-raute { width: 18px !important; height: 18px !important; margin: 6px 0 0 6px; display: block; transform: rotate(45deg); border-radius: 3px; box-shadow: 0 0 10px -2px currentColor; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; } .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 12.5px; }
+  .chip i { width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; } .chip.blau { color: #9fd3ff; } .chip.lila { color: #c9a2ff; } .chip.rot { color: #ffb3a6; }
+  .wesen-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; }
+  .wesen-karte { display: grid; gap: 6px; align-content: start; padding: 12px; background: var(--stone-2); border: 1px solid var(--line); border-radius: 6px; font-size: 14px; color: #d9d1c0; }
+  .wesen-karte { grid-template-columns: minmax(0, 1fr) 80px; } .wesen-karte > :not(.wesen-bild) { grid-column: 1; } .wesen-bild { grid-column: 2; grid-row: 1 / span 4; align-self: start; border-radius: 4px; padding: 2px; } .wesen-bild svg { width: 100%; height: auto; }
+  .wesen-karte strong { font-family: var(--display); color: var(--parch); font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
   /* Einstellungen: Zeilen umbrechen statt über den Rand, Häkchen neben dem Text, im Kasten scrollen */
   .panel:has(#e-musik) { overflow-y: auto; overflow-x: hidden; }
   .panel .zeile:has(.wahl), .menue-seite .zeile:has(.wahl) { flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -465,6 +535,14 @@
 </div>
 
 <div class="bericht tafel" id="bericht" hidden data-dynamisch></div>
+<div class="overlay skizze-overlay" id="skizze" hidden data-dynamisch></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="sk-h1" width="4.2" height="4.2" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><rect width="5" height="5" fill="#e6cd97"/><line x1="0" y1="0" x2="0" y2="5" stroke="#4a2e16" stroke-width="0.75" opacity="0.6"/></pattern>
+    <pattern id="sk-h2" width="3.2" height="3.2" patternUnits="userSpaceOnUse" patternTransform="rotate(-38)"><rect width="4" height="4" fill="#d4b47a"/><line x1="0" y1="0" x2="0" y2="4" stroke="#3f2612" stroke-width="0.85" opacity="0.75"/><line x1="0" y1="1.6" x2="4" y2="1.6" stroke="#3f2612" stroke-width="0.5" opacity="0.4"/></pattern>
+    <filter id="sk-feder" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G"/></filter>
+  </defs>
+</svg>
 <div class="hilfe-fenster tafel" id="hilfe" hidden data-dynamisch></div>
 <div class="fps" id="fps" hidden data-dynamisch></div>
 <div class="akt-tafel" id="akt" data-dynamisch hidden></div>
