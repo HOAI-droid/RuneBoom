@@ -1,7 +1,7 @@
 {
   "name": "runeboom",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "description": "runeBOOM · Die Feste der Erfinder – episches Fantasy-Tower-Defense in Voxeln",
   "scripts": {
@@ -13,10 +13,10 @@
     "test": "node --experimental-strip-types --no-warnings packages/core/test/welt.test.ts && node --experimental-strip-types --no-warnings packages/core/test/spiel.test.ts && node --experimental-strip-types --no-warnings packages/core/test/sprachen.test.ts"
   },
   "dependencies": {
-    "three": "^0.170.0"
+    "three": "^0.187.0"
   },
   "devDependencies": {
-    "@types/three": "^0.170.0",
+    "@types/three": "^0.187.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
     "vite-plugin-singlefile": "^2.0.0"

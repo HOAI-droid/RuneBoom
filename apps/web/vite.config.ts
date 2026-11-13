@@ -19,7 +19,7 @@ export default defineConfig({
   build: {
     outDir: r(single ? '../../dist-single' : '../../dist'),
     emptyOutDir: true,
-    target: 'es2020',
+    target: 'es2022',
     chunkSizeWarningLimit: 2000
   },
   server: { host: true }

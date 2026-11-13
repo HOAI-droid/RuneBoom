@@ -3,7 +3,6 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { WR } from '@runeboom/core';
 import { meshVoxels, type Grid, type MeshDaten } from './voxel.ts';
 
@@ -13,36 +12,70 @@ export const LICHTKARTE = new Uint8Array(LK * LK);
 export const lichtTex = new THREE.DataTexture(LICHTKARTE, LK, LK, THREE.RedFormat, THREE.UnsignedByteType);
 lichtTex.magFilter = THREE.LinearFilter; lichtTex.minFilter = THREE.LinearFilter; lichtTex.needsUpdate = true;
 export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') } };
-export function lichtkarteSetzen(lichter: { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } }[]): void {
-  LICHTKARTE.fill(0);
-  for (const l of lichter) {
-    const r = Math.ceil(l.r);
-    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
-      const x = Math.floor(l.x + dx) + WR, z = Math.floor(l.z + dz) + WR; if (x < 0 || z < 0 || x >= LK || z >= LK) continue;
-      const e = Math.hypot(dx, dz); let d = e / l.r; if (d >= 1) continue;
-      if (l.kegel && l.geb) { // Scheinwerfer: kleiner Kreis plus Kegel in Blickrichtung
-        let da = Math.atan2(dx, dz) - l.geb.zielen; da = Math.atan2(Math.sin(da), Math.cos(da));
-        const kreis = e < 6 ? 1 - e / 6 : 0, kegel = Math.abs(da) < l.kegel ? Math.max(0, 1 - d) * (1 - Math.abs(da) / l.kegel * 0.5) : 0;
-        d = 1 - Math.max(kreis, kegel); if (d >= 1) continue;
-      }
-      const v = Math.round((1 - d) * 255), i = z * LK + x; if (v > LICHTKARTE[i]) LICHTKARTE[i] = v;
+type Lichtquelle = { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } };
+const LK_FEST = new Uint8Array(LK * LK);
+let lkKegelAn = false;
+function lichtMalen(ziel: Uint8Array, l: Lichtquelle): void {
+  const r = Math.ceil(l.r);
+  for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    const x = Math.floor(l.x + dx) + WR, z = Math.floor(l.z + dz) + WR; if (x < 0 || z < 0 || x >= LK || z >= LK) continue;
+    const e = Math.hypot(dx, dz); let d = e / l.r; if (d >= 1) continue;
+    if (l.kegel && l.geb) { // Scheinwerfer: kleiner Kreis plus Kegel in Blickrichtung
+      let da = Math.atan2(dx, dz) - l.geb.zielen; da = Math.atan2(Math.sin(da), Math.cos(da));
+      const kreis = e < 6 ? 1 - e / 6 : 0, kegel = Math.abs(da) < l.kegel ? Math.max(0, 1 - d) * (1 - Math.abs(da) / l.kegel * 0.5) : 0;
+      d = 1 - Math.max(kreis, kegel); if (d >= 1) continue;
     }
+    const v = Math.round((1 - d) * 255), i = z * LK + x; if (v > ziel[i]) ziel[i] = v;
   }
+}
+/**
+ * Lichtkarte neu malen. fest = true: alle Lichter haben sich geändert (Bau, Abriss);
+ * sonst werden nur die Scheinwerfer auf den zwischengespeicherten festen Teil gemalt – und nur nachts.
+ */
+export function lichtkarteSetzen(lichter: Lichtquelle[], fest = true, nacht = true): void {
+  if (fest) { LK_FEST.fill(0); for (const l of lichter) if (!l.kegel) lichtMalen(LK_FEST, l); }
+  const kegel = nacht ? lichter.filter((l) => l.kegel && l.geb) : [];
+  if (!fest && !kegel.length && !lkKegelAn) return;
+  LICHTKARTE.set(LK_FEST); for (const l of kegel) lichtMalen(LICHTKARTE, l);
+  lkKegelAn = kegel.length > 0;
   lichtTex.needsUpdate = true;
 }
 /** Material bekommt Licht aus der Lichtkarte, nachts */
-export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7): T {
+export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture): T {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LICHT_U);
     sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; }');
     sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht; uniform vec3 uLichtFarbe; varying vec3 vWP;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};`);
+    if (maske) { // unter fertigen Kacheln ausblenden
+      sh.uniforms.uMaske = { value: maske };
+      sh.fragmentShader = 'uniform sampler2D uMaske;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `if (texture2D(uMaske, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r > 0.5) discard;\n#include <clipping_planes_fragment>`);
+    }
   };
+  if (maske) mat.customProgramCacheKey = () => `lichtkarte-maske-${staerke}`;
   return mat;
 }
 
+/**
+ * Alle eigenen Materialien entstehen über diese Fabrik. Für WebGPU ersetzt knoten.ts jeden Eintrag
+ * durch eine Fassung in Three.js-Knoten (TSL); WebGL behält die Shader hier.
+ */
+export const FABRIK = {
+  gpu: false,
+  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske),
+  wasser: (): THREE.Material => wasserGL(),
+  lava: (): THREE.Material => lavaGL(),
+  himmel: (u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color }; uFog: { value: THREE.Color } }): THREE.Material => himmelGL(u),
+  nebel: (u: NebelU, lage: number, zahl: number): THREE.Material => nebelGL(u, lage, zahl),
+  wegLeuchten: (u: { uZeit: { value: number }; uStaerke: { value: number } }): THREE.Material => wegGL(u),
+  kegel: (): THREE.Material => kegelGL(),
+  post: (renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, tilt: number): Post => new Nachbearbeitung(renderer, scene, camera, tilt)
+};
+export interface NebelU { uZeit: { value: number }; uMaske: { value: THREE.Texture }; uFarbe: { value: THREE.Color }; uDichte: { value: number } }
+export interface Post { tilt: boolean; groesse(w: number, h: number): void; setze(b: Beleuchtung): void; render(): void }
+
 // ================= Materialien =================
-export const SOLID = mitLichtkarte(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0.02 }));
+export let SOLID: THREE.Material = FABRIK.licht({ vertexColors: true, roughness: 0.86, metalness: 0.02 });
 export const GLOW = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
 export const LAMP = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
 export function geometrie(T: MeshDaten): THREE.BufferGeometry {
@@ -75,7 +108,7 @@ export const NOISE_GLSL = `
     return mix(mix(h1(i), h1(i + vec2(1, 0)), f.x), mix(h1(i + vec2(0, 1)), h1(i + vec2(1, 1)), f.x), f.y); }
   float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s; }`;
 const VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
-export const WASSER = new THREE.ShaderMaterial({
+const wasserGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: VS,
   fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe; uniform sampler2D uLicht; varying vec3 vW; ${NOISE_GLSL}
     void main(){
@@ -88,7 +121,7 @@ export const WASSER = new THREE.ShaderMaterial({
       gl_FragColor = vec4(c, 1.0);
     }`
 });
-export const LAVA = new THREE.ShaderMaterial({
+const lavaGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT }, vertexShader: VS,
   fragmentShader: `uniform float uZeit; varying vec3 vW; ${NOISE_GLSL}
     float zellen(vec2 p, float t) { vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
@@ -109,6 +142,45 @@ export const LAVA = new THREE.ShaderMaterial({
       gl_FragColor = vec4(mix(kruste * 1.4, glut * 1.7, smoothstep(0.12, 0.45, hitze)) + vec3(0.15, 0.03, 0.0), 1.0);
     }`
 });
+export let WASSER: THREE.Material = wasserGL(), LAVA: THREE.Material = lavaGL();
+/** nach dem Umschalten auf WebGPU die festen Materialien neu anlegen */
+export function materialienNeu(): void { SOLID = FABRIK.licht({ vertexColors: true, roughness: 0.86, metalness: 0.02 }); WASSER = FABRIK.wasser(); LAVA = FABRIK.lava(); }
+const himmelGL = (u: Parameters<typeof FABRIK.himmel>[0]) => new THREE.ShaderMaterial({
+  uniforms: u, side: THREE.BackSide, depthWrite: false, fog: false,
+  vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'uniform vec3 uTop, uBot, uFog; varying vec3 vD; void main(){ float h = vD.y; vec3 c = h > 0.0 ? mix(uBot, uTop, smoothstep(0.0, 0.55, h)) : mix(uBot, uFog, smoothstep(0.0, 0.25, -h)); gl_FragColor = vec4(c, 1.0); }'
+});
+const nebelGL = (u: NebelU, lage: number, zahl: number) => new THREE.ShaderMaterial({
+  uniforms: { ...u, uLage: { value: lage }, uZahl: { value: zahl } },
+  vertexShader: `attribute float aLand; uniform float uZeit; varying float vLand, vGross; varying vec3 vW; ${NOISE_GLSL}
+    void main(){ vLand = aLand; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz;
+      vGross = aLand > 0.0 ? fbm(w.xz * 0.0065 + vec2(uZeit * 0.006, -uZeit * 0.004)) : 0.0;
+      gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform float uZeit, uDichte, uLage, uZahl; uniform vec3 uFarbe; uniform sampler2D uMaske; varying float vLand, vGross; varying vec3 vW; ${NOISE_GLSL}
+    void main(){
+      if (vLand < 0.01) discard;
+      float frei = smoothstep(0.2, 0.8, texture2D(uMaske, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r);
+      if (frei > 0.995) discard;
+      vec2 p = vW.xz * 0.03 + vec2(uZeit * 0.012 * (1.0 + uLage * 0.3), uZeit * 0.007) + uLage * 3.7;
+      float n = fbm(p);
+      float wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, vGross)) * (0.88 + 0.12 * sin(uZeit * 0.21 + vGross * 9.0));
+      float a = uDichte * (0.45 + 0.9 * n) * wechsel * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
+      a = 1.0 - pow(1.0 - clamp(a, 0.0, 0.98), uZahl);
+      if (a < 0.01) discard;
+      gl_FragColor = vec4(uFarbe * (0.9 + 0.18 * n), a);
+    }`,
+  transparent: true, depthWrite: false
+});
+const wegGL = (u: Parameters<typeof FABRIK.wegLeuchten>[0]) => new THREE.ShaderMaterial({
+  uniforms: u, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: 'attribute float aPhase; varying float vP; void main(){ vP = aPhase; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'uniform float uZeit, uStaerke; varying float vP; void main(){ float a = 0.5 + 0.5 * sin(vP * 0.9 - uZeit * 5.0); a = smoothstep(0.3, 1.0, a); gl_FragColor = vec4(vec3(1.0, 0.45, 0.25) * 1.6, a * uStaerke); }'
+});
+const kegelGL = () => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: 'varying float vZ; void main(){ vZ = position.z; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'varying float vZ; void main(){ float a = (1.0 - clamp(vZ, 0.0, 1.0)) * 0.05; gl_FragColor = vec4(1.0, 0.9, 0.65, a); }'
+});
 export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
   const p: number[] = [], idx: number[] = [];
   for (let k = 0; k < zellen.length; k += 3) { const x = zellen[k], y = zellen[k + 1], z = zellen[k + 2], b = p.length / 3; p.push(x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z + 1); idx.push(b, b + 2, b + 1, b, b + 3, b + 2); }
@@ -127,11 +199,7 @@ export class Himmel {
   readonly mesh: THREE.Mesh;
   private u = { uTop: { value: new THREE.Color() }, uBot: { value: new THREE.Color() }, uFog: { value: new THREE.Color() } };
   constructor() {
-    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(2500, 24, 12), new THREE.ShaderMaterial({
-      uniforms: this.u, side: THREE.BackSide, depthWrite: false, fog: false,
-      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 uTop, uBot, uFog; varying vec3 vD; void main(){ float h = vD.y; vec3 c = h > 0.0 ? mix(uBot, uTop, smoothstep(0.0, 0.55, h)) : mix(uBot, uFog, smoothstep(0.0, 0.25, -h)); gl_FragColor = vec4(c, 1.0); }'
-    }));
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(2500, 24, 12), FABRIK.himmel(this.u));
     this.mesh.renderOrder = -100; this.mesh.frustumCulled = false;
   }
   setze(top: THREE.Color, bot: THREE.Color, fog: THREE.Color) { this.u.uTop.value.copy(top); this.u.uBot.value.copy(bot); this.u.uFog.value.copy(fog); }
@@ -174,46 +242,86 @@ export class Beleuchtung {
 }
 
 // ================= Nachbearbeitung wie im Grafik-Zweig von overBOOM =================
-const GRADE = () => new THREE.ShaderMaterial({
-  uniforms: { tDiffuse: { value: null }, uTint: { value: new THREE.Color('#ffd9a8') } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform vec3 uTint; varying vec2 vUv;
-    void main(){ vec3 c = texture2D(tDiffuse, vUv).rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+// Ablauf: Szene → Bloom → Tilt-Shift waagrecht → Abschluss (Tilt-Shift senkrecht, Farbstimmung, Vignette, Tonwerte, sRGB) in einem Durchgang
+const QUAD_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+const TILT_GLSL = `float tiltR(vec2 uv, float st, vec2 res) { return smoothstep(0.45, 1.0, abs(uv.y - 0.5) * 2.0) * st * res.y / 300.0; }
+  vec3 tiltBlur(sampler2D t, vec2 uv, vec2 st) { vec3 c = vec3(0.0); float ws = 0.0;
+    for (int i = -4; i <= 4; i++) { float w = exp(-float(i * i) / 6.0); c += texture2D(t, uv + st * float(i)).rgb * w; ws += w; } return c / ws; }`;
+const TILT = () => new THREE.ShaderMaterial({
+  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uStaerke: { value: 0.7 } },
+  vertexShader: QUAD_VS,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uStaerke; varying vec2 vUv; ${TILT_GLSL}
+    void main(){ float r = tiltR(vUv, uStaerke, uRes); gl_FragColor = vec4(r < 0.05 ? texture2D(tDiffuse, vUv).rgb : tiltBlur(tDiffuse, vUv, vec2(r, 0.0) / uRes), 1.0); }`
+});
+const ABSCHLUSS = () => new THREE.ShaderMaterial({
+  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uStaerke: { value: 0.7 }, uTint: { value: new THREE.Color('#ffd9a8') }, uBelichtung: { value: 1 } },
+  vertexShader: QUAD_VS, toneMapped: false,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uStaerke, uBelichtung; uniform vec3 uTint; varying vec2 vUv; ${TILT_GLSL}
+    vec3 rrt(vec3 v) { vec3 a = v * (v + 0.0245786) - 0.000090537; vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; }
+    vec3 aces(vec3 c) {
+      const mat3 I = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
+      const mat3 O = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
+      c *= uBelichtung / 0.6; return clamp(O * rrt(I * c), 0.0, 1.0); }
+    vec3 srgb(vec3 c) { return mix(pow(c, vec3(0.41666)) * 1.055 - 0.055, c * 12.92, vec3(lessThanEqual(c, vec3(0.0031308)))); }
+    void main(){
+      float r = tiltR(vUv, uStaerke, uRes);
+      vec3 c = r < 0.05 ? texture2D(tDiffuse, vUv).rgb : tiltBlur(tDiffuse, vUv, vec2(0.0, r) / uRes);
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c = mix(c, c * uTint, smoothstep(0.3, 1.0, l) * 0.35);
       c = mix(c, c * vec3(0.85, 0.9, 1.1), (1.0 - smoothstep(0.0, 0.4, l)) * 0.3);
-      c = mix(vec3(l), c, 1.12); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.55; gl_FragColor = vec4(c, 1.0); }`
+      c = mix(vec3(l), c, 1.12); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.55;
+      gl_FragColor = vec4(srgb(aces(max(c, 0.0))), 1.0); }`
 });
-const TILT = () => new THREE.ShaderMaterial({
-  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uDir: { value: new THREE.Vector2(1, 0) }, uStaerke: { value: 0.7 } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes, uDir; uniform float uStaerke; varying vec2 vUv;
-    void main(){ float d = abs(vUv.y - 0.5) * 2.0; float r = smoothstep(0.45, 1.0, d) * uStaerke * uRes.y / 300.0;
-      vec2 st = uDir * r / uRes; vec3 c = vec3(0.0); float ws = 0.0;
-      for (int i = -4; i <= 4; i++) { float w = exp(-float(i * i) / 6.0); c += texture2D(tDiffuse, vUv + st * float(i)).rgb * w; ws += w; }
-      gl_FragColor = vec4(c / ws, 1.0); }`
-});
-export class Nachbearbeitung {
-  comp: EffectComposer; private bloom: UnrealBloomPass; private grade: ShaderPass; private tilt: ShaderPass[];
+export class Nachbearbeitung implements Post {
+  comp: EffectComposer; private bloom: UnrealBloomPass; private tiltH: ShaderPass; private ende: ShaderPass; private tiltStaerke: number;
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, tilt = 0.5) {
+    this.tiltStaerke = tilt;
     this.comp = new EffectComposer(renderer);
     this.comp.addPass(new RenderPass(scene, camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), 0.3, 0.55, 1.0); this.comp.addPass(this.bloom);
-    this.grade = new ShaderPass(GRADE()); this.comp.addPass(this.grade);
-    this.tilt = [new ShaderPass(TILT()), new ShaderPass(TILT())];
-    this.tilt.forEach((p, i) => { p.uniforms.uDir.value.set(i ? 0 : 1, i ? 1 : 0); p.uniforms.uStaerke.value = tilt; this.comp.addPass(p); });
-    this.comp.addPass(new OutputPass());
+    this.tiltH = new ShaderPass(TILT()); this.tiltH.uniforms.uStaerke.value = tilt; this.comp.addPass(this.tiltH);
+    this.ende = new ShaderPass(ABSCHLUSS()); this.ende.uniforms.uStaerke.value = tilt; this.comp.addPass(this.ende);
   }
+  /** Tilt-Shift an oder aus (mittlere Grafikstufe ohne) */
+  set tilt(an: boolean) { this.tiltH.enabled = an; this.ende.uniforms.uStaerke.value = an ? this.tiltStaerke : 0; }
   groesse(w: number, h: number): void {
     const pr = this.renderer.getPixelRatio();
-    this.comp.setSize(w, h); this.bloom.resolution.set(w * pr, h * pr); for (const p of this.tilt) p.uniforms.uRes.value.set(w * pr, h * pr);
+    this.comp.setPixelRatio(pr); this.comp.setSize(w, h); this.bloom.resolution.set(w * pr, h * pr);
+    this.tiltH.uniforms.uRes.value.set(w * pr, h * pr); this.ende.uniforms.uRes.value.set(w * pr, h * pr);
   }
-  setze(b: Beleuchtung): void { this.bloom.strength = b.werte.bloom; this.grade.uniforms.uTint.value.copy(b.werte.tint); this.renderer.toneMappingExposure = b.werte.exp; }
+  setze(b: Beleuchtung): void { this.bloom.strength = b.werte.bloom; this.ende.uniforms.uTint.value.copy(b.werte.tint); this.ende.uniforms.uBelichtung.value = b.werte.exp; this.renderer.toneMappingExposure = b.werte.exp; }
   render(): void { this.comp.render(); }
 }
-export function neuerRenderer(canvas: HTMLCanvasElement): THREE.WebGLRenderer {
+function webglRenderer(canvas: HTMLCanvasElement): THREE.WebGLRenderer {
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
   r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace;
   r.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
   return r;
+}
+export type Darstellung = 'auto' | 'webgpu' | 'webgl';
+const RUECKFALL = 'runeboom-webgl-rueckfall';
+/**
+ * Zeichner anlegen: WebGPU, wenn gewünscht und vom Gerät unterstützt, sonst WebGL.
+ * Bei WebGPU werden alle eigenen Materialien auf Knoten umgestellt (knoten.ts, erst dann geladen).
+ */
+export async function neuerRenderer(canvas: HTMLCanvasElement, wunsch: Darstellung = 'auto', beiVerlust?: () => void): Promise<{ renderer: THREE.WebGLRenderer; weg: 'WebGPU' | 'WebGL' }> {
+  let rueckfall = false; try { rueckfall = sessionStorage.getItem(RUECKFALL) === '1'; } catch { /* */ }
+  if (rueckfall && wunsch !== 'webgpu') wunsch = 'webgl';
+  const nav = navigator as Navigator & { gpu?: { requestAdapter(o?: object): Promise<unknown> } };
+  if ((wunsch as string) === 'knoten-webgl') { // nur für Tests: Knoten-Materialien über WebGL zeichnen
+    const k = await import('./knoten.ts'); return { renderer: await k.webgpuRenderer(canvas, true), weg: 'WebGPU' };
+  }
+  if (wunsch !== 'webgl' && nav.gpu) {
+    try {
+      const adapter = await nav.gpu.requestAdapter({ powerPreference: 'high-performance' });
+      if (adapter) {
+        const k = await import('./knoten.ts');
+        // geht das Gerät verloren (Treiber, Ruhezustand), einmal mit WebGL neu starten
+        const r = await k.webgpuRenderer(canvas, false, () => { try { sessionStorage.setItem(RUECKFALL, '1'); } catch { /* */ } beiVerlust?.(); location.reload(); });
+        if (r) return { renderer: r, weg: 'WebGPU' };
+      }
+    } catch (e) { console.warn('WebGPU nicht verfügbar, nehme WebGL', e); }
+  }
+  return { renderer: webglRenderer(canvas), weg: 'WebGL' };
 }

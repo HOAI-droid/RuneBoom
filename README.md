@@ -36,7 +36,7 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.6.** In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
+> **Stand: Version 0.7.** Zeichnet über WebGPU, wo es geht, sonst über WebGL. In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
 > Omen, Wundern, Leitsätzen, Verarbeitung, Fallen, Bevölkerung, Ausbaustufen und Spielständen.
 
 <a id="english"></a>
@@ -81,6 +81,14 @@ The game speaks German, English, French and Spanish. Apps for Windows, macOS and
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.7
+
+- **WebGPU** mit WebGL als Rückfall (Einstellungen → Darstellung), gemeinsame Shader in Three.js-Knoten (`packages/render/src/knoten.ts`).
+- **Flüssiger:** weniger Zeichenaufrufe (Kacheln in einem Netz, ferner Wald in Bereichen, ohne Schatten), leichterer Bodennebel,
+  Nachbearbeitung in einem Durchgang weniger, Schatten und Lichtkarte nur bei Bedarf neu, **automatische Auflösung**.
+- **Messwerte** in der Bildrate-Anzeige (Spiel, Grafik, Zeichenaufrufe, Dreiecke, Auflösung, WebGPU/WebGL).
+- **Schmalere Bauleiste** mit Späher, Ebnen und Erfindungen in einer eigenen Zeile.
 
 ### Neu in 0.6
 

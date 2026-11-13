@@ -685,5 +685,17 @@ export const EN: Record<string, string> = {
  "Tempo": "Speed",
  "Pause (Leertaste)": "Pause (space)",
  "Einstellungen und Menü": "Settings and menu",
- "Hauptmenü": "Main menu"
+ "Hauptmenü": "Main menu",
+ "Hoch": "High",
+ "Mittel": "Medium",
+ "Niedrig": "Low",
+ "Darstellung": "Renderer",
+ "Jetzt: {a}.": "Now: {a}.",
+ "Die Änderung gilt ab dem nächsten Start.": "The change takes effect on the next start.",
+ "Auflösung automatisch anpassen": "Adjust resolution automatically",
+ "Bildrate und Messwerte anzeigen": "Show frame rate and measurements",
+ "Spiel": "Game",
+ "Zeichenaufrufe": "draw calls",
+ "Mio. Dreiecke": "M triangles",
+ "Auflösung": "Resolution"
 };

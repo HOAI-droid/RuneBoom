@@ -685,5 +685,17 @@ export const ES: Record<string, string> = {
  "Tempo": "Velocidad",
  "Pause (Leertaste)": "Pausa (espacio)",
  "Einstellungen und Menü": "Ajustes y menú",
- "Hauptmenü": "Menú principal"
+ "Hauptmenü": "Menú principal",
+ "Hoch": "Alta",
+ "Mittel": "Media",
+ "Niedrig": "Baja",
+ "Darstellung": "Renderizado",
+ "Jetzt: {a}.": "Ahora: {a}.",
+ "Die Änderung gilt ab dem nächsten Start.": "El cambio se aplicará en el próximo inicio.",
+ "Auflösung automatisch anpassen": "Ajustar la resolución automáticamente",
+ "Bildrate und Messwerte anzeigen": "Mostrar fotogramas y mediciones",
+ "Spiel": "Juego",
+ "Zeichenaufrufe": "llamadas de dibujo",
+ "Mio. Dreiecke": "M triángulos",
+ "Auflösung": "Resolución"
 };
