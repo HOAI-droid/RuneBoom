@@ -154,6 +154,21 @@ export class WeltAnsicht {
     }
   }
   geladenAnzahl(): number { return this.geladen.size; }
+  /** Ist alles Sichtbare fertig gebaut? (Übersicht da, keine fehlende Kachel im Blickfeld) */
+  bereit(ziel: THREE.Vector3, dist: number, kamera: THREE.Camera): boolean {
+    if (!this.uebersicht) return false;
+    this.pm.multiplyMatrices(kamera.projectionMatrix, kamera.matrixWorldInverse); this.frustum.setFromProjectionMatrix(this.pm);
+    const kugel = new THREE.Sphere(new THREE.Vector3(), CH * 0.75), NCH = this.NCH;
+    const R = dist > 420 ? 0 : THREE.MathUtils.clamp(dist * 1.15, 80, 190);
+    const c0x = Math.floor(ziel.x / CH), c0z = Math.floor(ziel.z / CH), n = Math.ceil(R / CH) + 1;
+    for (let cx = c0x - n; cx <= c0x + n; cx++) for (let cz = c0z - n; cz <= c0z + n; cz++) {
+      if (cx < -NCH / 2 || cz < -NCH / 2 || cx >= NCH / 2 || cz >= NCH / 2) continue;
+      if (Math.hypot((cx + 0.5) * CH - ziel.x, (cz + 0.5) * CH - ziel.z) > R) continue;
+      kugel.center.set((cx + 0.5) * CH, 8, (cz + 0.5) * CH);
+      if (this.frustum.intersectsSphere(kugel) && !this.geladen.has(cx * 1000 + cz)) return false;
+    }
+    return true;
+  }
 
   // ---------- Bodennebel ----------
   private nebelMaterial(k: number): THREE.ShaderMaterial {

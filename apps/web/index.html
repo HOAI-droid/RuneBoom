@@ -317,6 +317,39 @@
   .gruppe.sonder { width: 124px; }
   i.erz { background: #8a6a4a; } i.balken { background: #c9a36a; } i.stahl { background: #c0c8d0; } i.linsen { background: #c8fbff; box-shadow: 0 0 5px #9fe7ff; }
   @media (max-width: 1100px) { .baum-kopf { flex-wrap: wrap; } }
+
+  /* ---------- Erfindungsbaum 0.6: größer, nutzt die ganze Höhe ---------- */
+  .baum-inhalt { display: flex; flex-direction: column; min-height: 0; }
+  .baum-gitter { flex: 1; grid-template-columns: 128px repeat(5, minmax(0, 1fr)); grid-template-rows: auto repeat(6, minmax(0, auto)); align-content: space-evenly; gap: 6px 8px; }
+  .baum-gitter .zkopf { font-size: clamp(14px, 1.15vw, 19px); padding: 8px 10px; } .baum-gitter .zkopf small { font-size: clamp(11px, .8vw, 13px); }
+  .baum-gitter .wkopf { font-size: clamp(13px, 1vw, 17px); padding: 8px 2px; align-self: center; }
+  .baum-gitter .zelle { gap: 6px; padding: 4px; }
+  .ekarte { padding: clamp(5px, .5vw, 9px) clamp(8px, .7vw, 12px); font-size: clamp(13px, 1vw, 17px); gap: 10px; grid-template-columns: minmax(0, 1fr) auto; }
+  .ekarte b { font-size: clamp(13px, 1vw, 17px); }
+  .ekarte .zut { gap: 8px; font-size: clamp(11px, .85vw, 14px); }
+  .ekarte .zut span { display: inline-flex; align-items: center; gap: 3px; }
+  .ekarte .zut i, .baum-bst i { width: clamp(8px, .6vw, 11px); height: clamp(8px, .6vw, 11px); }
+  .baum-kopf h2 { font-size: clamp(22px, 2vw, 32px); }
+  .baum-bst { font-size: clamp(13px, 1vw, 17px); }
+  .baum-detail { width: min(440px, calc(100% - 36px)); font-size: 16px; } .baum-detail p { font-size: 16px; }
+  @media (max-width: 900px) {
+    .baum-gitter { grid-template-columns: 110px minmax(0, 1fr); }
+    .ekarte, .ekarte b { font-size: 16px; } .ekarte .zut { font-size: 13px; } .baum-gitter .wkopf { font-size: 15px; }
+    .baum-za-reiter button { font-size: 15px; padding: 7px 12px; }
+  }
+
+  /* ---------- Enthüllung beim Laden ---------- */
+  .schleier { position: fixed; inset: 0; z-index: 30; pointer-events: none; display: grid; place-items: center;
+    background: radial-gradient(ellipse at 50% 46%, #1b1f2a 0%, #0d1017 55%, #07090d 100%);
+    -webkit-mask-image: radial-gradient(circle at 50% 48%, transparent var(--r, -30vmax), #000 calc(var(--r, -30vmax) + 26vmax));
+            mask-image: radial-gradient(circle at 50% 48%, transparent var(--r, -30vmax), #000 calc(var(--r, -30vmax) + 26vmax)); }
+  .schleier-logo { text-align: center; transition: opacity .8s, transform 2.6s; animation: atmen 3.6s ease-in-out infinite; }
+  .schleier-logo .titel { font-size: clamp(48px, 7vw, 86px); }
+  .schleier-logo .untertitel { justify-content: center; }
+  .schleier.auf .schleier-logo { opacity: 0; transform: scale(1.08); }
+  @keyframes atmen { 0%, 100% { filter: drop-shadow(0 0 18px rgba(227,165,78,.18)); } 50% { filter: drop-shadow(0 0 34px rgba(227,165,78,.38)); } }
+  body.verhuellt #start, body.verhuellt #hud { opacity: 0; }
+  #start, #hud { transition: opacity 1.4s .5s; }
 </style>
 </head>
 <body>
@@ -397,7 +430,7 @@
     </div>
   </div>
 </div>
-<div class="laden" id="laden" hidden>Welt wird erzeugt …</div>
+<div class="schleier" id="schleier" hidden><div class="schleier-logo"><div class="titel">rune<b>BOOM</b></div><div class="untertitel" data-t="untertitel">Die Feste der Erfinder</div></div></div>
 
 <script type="module" src="./src/main.ts"></script>
 </body>

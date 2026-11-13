@@ -57,14 +57,14 @@ let einfuehrungSchritt = -1, spaeherGeschickt = false;
 
 function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit = 'normal', volk: Volk = 'glutborn'): void {
   aufraeumen(); imMenue = false; $('start').hidden = true;
-  $('laden').hidden = false; klang.start();
+  enthuellen(); klang.start();
   spiel = new Spiel(code, stand, { schwierigkeit, volk });
   $('sieg').hidden = true;
   welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet);
   const sp = spiel, wa = welt;
   welt.aenderungen = (cx, cz) => sp.dekoAenderungen(cx, cz, CH);
   welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
-  welt.onUebersicht = () => { zeichneKartenGrund(); $('laden').hidden = true; for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
+  welt.onUebersicht = () => { zeichneKartenGrund(); for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
   einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
   obj = new Objekte(scene, spiel);
   lichtkarteSetzen(spiel.lichtquellen());
@@ -112,10 +112,34 @@ function baueMenueWelt(): void {
   const wa = welt;
   welt.aenderungen = (cx, cz) => s.dekoAenderungen(cx, cz, CH);
   welt.hoehen = () => [];
-  welt.onUebersicht = () => { $('laden').hidden = true; void wa; };
+  welt.onUebersicht = () => { void wa; };
   obj = new Objekte(scene, s); obj.zeigePfeile = false;
   lichtkarteSetzen(s.lichtquellen());
   imMenue = true; menueZeit = 0;
+  enthuellen();
+}
+// ================= Enthüllung: erst alles laden, dann von der Mitte her einblenden =================
+const enth = { aktiv: false, phase: 0, t: 0 };
+function enthuellen(): void {
+  enth.aktiv = true; enth.phase = 0; enth.t = 0;
+  const el = $('schleier'); el.hidden = false; el.classList.remove('auf'); el.style.setProperty('--r', '-30vmax');
+  document.body.classList.add('verhuellt');
+}
+function enthuellungSchritt(dt: number): void {
+  if (!enth.aktiv || !welt) return;
+  enth.t += dt;
+  const el = $('schleier');
+  if (enth.phase === 0) {
+    welt.planen(controls.target, camera.position.distanceTo(controls.target), camera);
+    if (welt.bereit(controls.target, camera.position.distanceTo(controls.target), camera) || enth.t > 15) {
+      try { renderer.compile(scene, camera); } catch { /* */ }
+      enth.phase = 1; enth.t = 0; el.classList.add('auf'); document.body.classList.remove('verhuellt');
+    }
+    return;
+  }
+  const f = Math.min(1, enth.t / 2.6), e = 1 - Math.pow(1 - f, 3);
+  el.style.setProperty('--r', `${-30 + e * 150}vmax`);
+  if (f >= 1) { enth.aktiv = false; el.hidden = true; }
 }
 function menueKamera(dt: number): void {
   menueZeit += dt;
@@ -712,6 +736,7 @@ renderer.setAnimationLoop(() => {
   const jetzt = performance.now(), dt = Math.min(0.1, (jetzt - letzte) / 1000); letzte = jetzt;
   ZEIT.value += dt;
   if (spiel && welt && obj) {
+    enthuellungSchritt(dt);
     if (imMenue) { // Menü: die Feste lebt, Tag und Nacht wechseln langsam, keine Wellen
       if (spiel.phase !== 'tag' || spiel.zeit > TAGD - 12) { spiel.phase = 'tag'; spiel.zeit = 5; }
       try { spiel.schritt(); } catch (err) { console.error(err); }
@@ -719,14 +744,14 @@ renderer.setAnimationLoop(() => {
       const d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
       licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
-      menueKamera(dt);
+      menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
       const dist = camera.position.distanceTo(controls.target);
       licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45; licht.folge(controls.target, camera);
       planZeit -= dt; if (planZeit <= 0) { welt.planen(controls.target, dist, camera); planZeit = 0.25; }
       if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
       return;
     }
-    akku += dt * tempo; let n = 0;
+    akku += enth.aktiv && enth.phase === 0 ? 0 : dt * tempo; let n = 0;
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     while (akku >= DT && n < 12) {
       try { spiel.schritt(); } catch (err) { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.', 'schlecht'); } }
