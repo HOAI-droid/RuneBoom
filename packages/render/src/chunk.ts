@@ -1,11 +1,12 @@
-import { CH, WR, PAL, spalte, deko, orte, istWald, rng, h3, seed, type Spalte } from '@runeboom/core';
+import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
-import { baum, fels, kristalle, riss } from './modelle.ts';
+import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 
 export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array }
 
 /** Eine Kachel (32 × 32 Blöcke) bauen: Boden, Becken, Pflanzen, Kristallfelder, Risse. Läuft im Hintergrund-Rechner. */
-export function bauChunk(cx: number, cz: number): ChunkDaten {
+export function bauChunk(cx: number, cz: number, aenderungen: [number, number, string][] = []): ChunkDaten {
+  const aend = new Map<number, string>(); for (const [x, z, a] of aenderungen) aend.set(x * 4096 + z, a);
   const ox = cx * CH, oz = cz * CH;
   const g = new Grid(), F = new Grid(); g.o = [-ox, 0, -oz, 0]; F.o = [-2 * ox, 0, -2 * oz, 0];
   const cache = new Map<number, Spalte | null>();
@@ -28,6 +29,9 @@ export function bauChunk(cx: number, cz: number): ChunkDaten {
     const s = S(x, z); if (!s) continue;
     const dk = deko(x, z, s); if (!dk) continue;
     const [X, Y, Z] = fein(x, z);
+    const zu = aend.get(x * 4096 + z);
+    if (zu === 'weg' && dk.art !== 'gras') continue;
+    if (dk.art === 'baum' && zu) { if (zu === 'stumpf') stumpf(F, X, Y, Z, dk.typ); else setzling(F, X, Y, Z, r, dk.typ); continue; }
     if (dk.art === 'baum') baum(F, X, Y, Z, r, dk.typ);
     else if (dk.art === 'fels') fels(F, X, Y, Z, 1.6 + r() * 1.6, r, s.a === 'asche' ? '#3a383c' : '#8c867f');
     else {
@@ -47,7 +51,9 @@ export function bauChunk(cx: number, cz: number): ChunkDaten {
   return { grob: meshVoxels(g, innen), fein: meshVoxels(F, F.m.values()), wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
 }
 
-export interface UebersichtDaten { p: Float32Array; n: Int8Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number }
+export interface UebersichtDaten { p: Float32Array; n: Int8Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
+  /** grobe Bäume und Felsen der ganzen Welt: je 4 Werte x, Bodenhöhe, z, Art (0 laub, 1 tanne, 2 herbst, 3 leucht, 4 busch, 5 tot, 9 fels) */
+  dekoListe: Float32Array }
 
 /** Übersicht der ganzen Welt in Zellen zu 4 × 4 Blöcken (weite Sicht und Übersichtskarte) */
 export function uebersicht(): UebersichtDaten {
@@ -60,10 +66,18 @@ export function uebersicht(): UebersichtDaten {
     if (s.a === 'w') { top = s.h + 1.72; col = '#3f7fa0'; }
     if (s.a === 'l') { top = s.h + 1.62; col = '#c8501a'; }
     boden[i * N + j] = top;
-    if (istWald(x, z, s)) { top += 5; col = ['#2f5a2e', '#36652f', '#2a5230'][Math.floor(h3(i, 2, j) * 3)]; }
     for (const o of L) if (o.typ === 'kristall' && Math.abs(x - o.x) < 4 && Math.abs(z - o.z) < 4) { col = '#7fe9ff'; top += 2; }
     hoch[i * N + j] = top;
     const c = parseInt(col.slice(1), 16); farbe.set([(c >> 16) & 255, (c >> 8) & 255, c & 255], (j * N + i) * 3);
+  }
+  // grobe Bäume und Felsen: jede Kachel der Welt einmal fragen
+  const ART: Record<string, number> = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5 };
+  const dl: number[] = [];
+  for (let x = -WR; x < WR; x++) for (let z = -WR; z < WR; z++) {
+    if (h3(x, 9, z) > 0.07 && h3(x, 11, z) > 0.05) continue; // schneller Vorfilter (siehe deko)
+    const s = spalte(x, z); if (!s) continue;
+    const d = deko(x, z, s); if (!d || d.art === 'gras') continue;
+    dl.push(x, s.h + 1, z, d.art === 'fels' ? 9 : ART[d.typ]);
   }
   const p: number[] = [], n: number[] = [], c: number[] = [], idx: number[] = [];
   const quad = (a: number[], b: number[], cc: number[], d: number[], nx: number, ny: number, nz: number, rgb: number[], k: number) => {
@@ -83,5 +97,5 @@ export function uebersicht(): UebersichtDaten {
     v = unten(nb(i, j + 1)); if (v < h) quad([x1, h, z1], [x0, h, z1], [x0, v, z1], [x1, v, z1], 0, 0, 1, rgb, 0.85);
     v = unten(nb(i, j - 1)); if (v < h) quad([x0, h, z0], [x1, h, z0], [x1, v, z0], [x0, v, z0], 0, 0, -1, rgb, 0.65);
   }
-  return { p: new Float32Array(p), n: new Int8Array(n), c: new Float32Array(c), i: new Uint32Array(idx), hoch, boden, farbe, N };
+  return { p: new Float32Array(p), n: new Int8Array(n), c: new Float32Array(c), i: new Uint32Array(idx), hoch, boden, farbe, N, dekoListe: new Float32Array(dl) };
 }

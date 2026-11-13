@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
-  Spiel, DT, B, WR, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
+  Spiel, DT, B, WR, CH, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
   type GebTyp, type Geb, type Res, type Baustein, type ErfId, type Spielstand
 } from '@runeboom/core';
 import { neuerRenderer, Beleuchtung, Nachbearbeitung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
+import { Klang } from './klang.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const SPEICHER = 'runeboom-spielstand-1';
@@ -21,22 +22,45 @@ const licht = new Beleuchtung(scene, 60);
 const post = new Nachbearbeitung(renderer, scene, camera, 0.5);
 const controls = new MapControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.screenSpacePanning = false;
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
 controls.minDistance = 22; controls.maxDistance = 900; controls.maxPolarAngle = 1.15; controls.minPolarAngle = 0.3;
 function groesse(): void { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); post.groesse(w, h); }
 addEventListener('resize', groesse); groesse();
+
+// ================= Einstellungen =================
+const EINST = 'runeboom-einstellungen-1';
+const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true };
+try { Object.assign(einst, JSON.parse(localStorage.getItem(EINST) || '{}')); } catch { /* */ }
+const einstSpeichern = () => { try { localStorage.setItem(EINST, JSON.stringify(einst)); } catch { /* */ } };
+const klang = new Klang(); klang.setzeLautstaerke(einst.musik, einst.effekte);
+function grafikSetzen(): void {
+  const st = einst.grafik;
+  renderer.setPixelRatio(st === 'hoch' ? Math.min(devicePixelRatio || 1, 1.6) : 1);
+  const schatten = st !== 'niedrig';
+  if (renderer.shadowMap.enabled !== schatten) { renderer.shadowMap.enabled = schatten; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => (x.needsUpdate = true)); }); }
+  licht.sun.shadow.mapSize.set(st === 'hoch' ? 2048 : 1024, st === 'hoch' ? 2048 : 1024); licht.sun.shadow.map?.dispose(); (licht.sun.shadow as any).map = null;
+  groesse();
+}
+grafikSetzen();
+/** Lautstärke eines Geräuschs nach Entfernung zum Blickpunkt */
+const naehe = (x: number, z: number) => Math.max(0, 1 - Math.hypot(x - controls.target.x, z - controls.target.z) / (40 + camera.position.distanceTo(controls.target) * 0.6));
 
 // ================= Zustand =================
 let spiel: Spiel | null = null, welt: WeltAnsicht | null = null, obj: Objekte | null = null;
 let tempo = 1, werkzeug: { art: 'bau'; typ: GebTyp } | { art: 'spaeher' } | null = null, gewaehlt: Geb | null = null;
 let anzeigeDunkel = 0, akku = 0, planZeit = 0, uiZeit = 0;
-let panelArt: 'geb' | 'werkstatt' | null = null;
+let panelArt: 'geb' | 'werkstatt' | 'einst' | null = null;
+let einfuehrungSchritt = -1, spaeherGeschickt = false;
 
 function starte(code: string, stand?: Spielstand): void {
   aufraeumen();
-  $('laden').hidden = false;
+  $('laden').hidden = false; klang.start();
   spiel = new Spiel(code, stand);
   welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet);
-  welt.onUebersicht = () => { zeichneKartenGrund(); $('laden').hidden = true; };
+  const sp = spiel, wa = welt;
+  welt.aenderungen = (cx, cz) => sp.dekoAenderungen(cx, cz, CH);
+  welt.onUebersicht = () => { zeichneKartenGrund(); $('laden').hidden = true; for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
+  einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
   obj = new Objekte(scene, spiel);
   lichtkarteSetzen(spiel.lichtquellen());
   const ziel = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
@@ -64,7 +88,7 @@ function zeigeStart(): void {
 }
 $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c); };
-$('menue').onclick = () => { speichern(); zeigeStart(); };
+$('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 zeigeStart();
 // für Tests und Neugierige in der Konsole
 (window as unknown as { runeboom: unknown }).runeboom = { get spiel() { return spiel; }, camera, controls };
@@ -123,16 +147,21 @@ function waehle(g: Geb | null): void {
 function panelGeb(): void {
   const g = gewaehlt; if (!g || !spiel) return;
   const d = GEBAEUDE[g.typ], p = $('panel');
-  const ertrag = d.ertrag ? `<div class="zeile"><span>Ertrag am Tag</span><span>${(d.ertrag.rate * g.faktor * 60).toFixed(0)} ${RES_NAME[d.ertrag.res]} je Minute</span></div>` : '';
+  const quellName = { holz: 'Bäume', stein: 'Felsen und Fels', kristall: 'Kristalladern' } as Record<Res, string>;
+  const ertrag = d.arbeit ? `<div class="zeile"><span>${quellName[d.arbeit.res]} in Reichweite</span><span>${g.quellen}</span></div><div class="zeile"><span>Je Gang</span><span>${d.arbeit.menge} ${RES_NAME[d.arbeit.res]}</span></div>` : '';
+  const rk = spiel.reparaturKosten(g), kaputt = g.hp < g.max - 0.5;
+  const rep = g.rep ? `<div class="zeile"><span>Reparatur</span><span>${Math.round((100 * g.rep.t) / g.rep.dauer)} %</span></div><div class="hp"><div style="width:${(100 * g.rep.t) / g.rep.dauer}%;background:var(--frost)"></div></div>`
+    : kaputt ? `<button type="button" class="aktion" id="reparieren" ${spiel.phase === 'tag' && spiel.kannBezahlen(rk) ? '' : 'disabled'}>Reparieren · ${kostenHtml(rk)}${spiel.phase !== 'tag' ? ' (nur am Tag)' : ''}</button>` : '';
   const kampf = d.kampf ? `<div class="zeile"><span>Reichweite · Schaden</span><span>${d.kampf.reichweite} · ${d.kampf.schaden}${d.kampf.flaeche ? ' (Fläche)' : ''}</span></div>` : '';
   const lichtZ = d.licht > 4 ? `<div class="zeile"><span>Lichtkreis</span><span>${d.licht} Blöcke</span></div>` : '';
   p.innerHTML = `<button class="schliessen" type="button" aria-label="Schließen">×</button><h2>${d.name}</h2><p>${d.kurz}</p>
     <div class="zeile"><span>Haltbarkeit</span><span>${Math.ceil(g.hp)} / ${g.max}</span></div><div class="hp"><div style="width:${(100 * g.hp) / g.max}%"></div></div>
-    ${ertrag}${kampf}${lichtZ}
+    ${ertrag}${kampf}${lichtZ}${rep}
     ${g.typ !== 'haupt' ? '<button type="button" class="aktion" id="abreissen">Abreißen (halbe Kosten zurück)</button>' : ''}`;
   p.hidden = false;
   p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = () => waehle(null);
   const a = p.querySelector<HTMLButtonElement>('#abreissen'); if (a) a.onclick = () => { spiel!.abreissen(g); waehle(null); };
+  const rb = p.querySelector<HTMLButtonElement>('#reparieren'); if (rb) rb.onclick = () => { if (spiel!.reparieren(g)) { klang.spiele('bau', 0.8); panelGeb(); } };
 }
 function zeigeWerkstatt(): void {
   if (!spiel) return;
@@ -185,7 +214,9 @@ function linie(a: [number, number], b: [number, number]): [number, number][] {
 }
 let unten: { x: number; y: number; t: number; mauer?: [number, number] } | null = null;
 let mauerZiel: [number, number] | null = null;
-canvas.addEventListener('contextmenu', (e) => { if (werkzeug) { e.preventDefault(); werkzeugSetzen(null); } });
+let rechts: { x: number; y: number } | null = null;
+canvas.addEventListener('pointerdown', (e) => { if (e.button === 2) rechts = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); if (werkzeug && rechts && Math.hypot(e.clientX - rechts.x, e.clientY - rechts.y) < 6) werkzeugSetzen(null); });
 canvas.addEventListener('pointerdown', (e) => {
   unten = { x: e.clientX, y: e.clientY, t: performance.now() };
   if (e.button === 0 && werkzeug?.art === 'bau' && werkzeug.typ === 'mauer') {
@@ -212,7 +243,7 @@ canvas.addEventListener('pointerup', (e) => {
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
   if (werkzeug?.art === 'bau') { const [x0, z0] = werkzeug.typ === 'mauer' ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); spiel.bauen(werkzeug.typ, x0, z0); return; }
-  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde('Hier ist schon erkundet. Klick in den Nebel.', 'info'); else if (spiel.spaeher(p.x, p.z)) werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde('Hier ist schon erkundet. Klick in den Nebel.', 'info'); else if (spiel.spaeher(p.x, p.z)) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
   waehle(spiel.gebAn(p.x, p.z) || null);
 });
 
@@ -277,13 +308,50 @@ function anzeige(): void {
     const rest = Math.ceil(s.restTag()), mm = Math.floor(rest / 60), ss = String(rest % 60).padStart(2, '0');
     const vorschau = s.welleVorschau().map((w) => `${w.zahl} ${w.zahl === 1 ? GEGNER[w.typ].name : MEHRZAHL[w.typ]}`).join(' · ');
     u.innerHTML = `<div class="titel">Tag ${s.nacht}</div><div class="balken"><div style="width:${(100 * s.zeit) / TAG_DAUER}%"></div></div>
-      <div class="unter">${s.abend() ? `Heute Nacht: ${vorschau}` : `Ruhig. Nacht in ${mm}:${ss}`}</div><button type="button" id="einlaeuten">Nacht einläuten</button>`;
+      <div class="unter">${s.abend() ? `Heute Nacht: ${vorschau}` : `Ruhig. Nacht in ${mm}:${ss}`}</div><div><button type="button" id="einlaeuten">Nacht einläuten</button>${s.beschaedigt().length ? ` <button type="button" id="allerep" ${s.kannBezahlen(s.alleReparaturKosten()) ? '' : 'disabled'}>Alles reparieren · ${kostenHtml(s.alleReparaturKosten())}</button>` : ''}</div>`;
     $('einlaeuten').onclick = () => s.nachtEinlaeuten();
+    const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
     u.innerHTML = `<div class="titel">Nacht ${s.nacht}</div><div class="unter">Die Welle kommt · ${s.gegner.length} Wesen unterwegs</div>`;
   } else if (s.phase === 'morgen') u.innerHTML = `<div class="titel">Morgen</div><div class="unter">Die Nacht ist überstanden</div>`;
-  leisteAktualisieren();
+  leisteAktualisieren(); einfuehrung();
   if (panelArt === 'geb' && gewaehlt) { if (!s.gebaeude.includes(gewaehlt)) waehle(null); else panelGeb(); }
+}
+
+// ================= Einführung =================
+const SCHRITTE: { text: string; fertig: (s: Spiel) => boolean }[] = [
+  { text: 'Stelle einen zweiten <b>Wachturm</b> an den Pfad (Taste 1). Der Pfad zeigt, woher die Wesen kommen.', fertig: (s) => s.gebaeude.filter((g) => g.typ === 'wachturm').length >= 2 },
+  { text: 'Mach Licht vor dem Tor: ein <b>Fackelmast</b> (Taste 3). Im Licht treffen Türme nachts weiter und besser.', fertig: (s) => s.gebaeude.some((g) => g.typ === 'fackel') },
+  { text: 'Schicke einen <b>Späher</b> in den Nebel (Taste X) und klicke an den Rand des Erkundeten.', fertig: () => spaeherGeschickt },
+  { text: 'Bereit? <b>Nacht einläuten</b> (Taste N). Die leuchtende Linie zeigt den Weg der Welle.', fertig: (s) => s.phase !== 'tag' || s.nacht > 1 },
+  { text: 'Gut gehalten! Wähle ein beschädigtes Gebäude: Arbeiter <b>reparieren</b> es am Tag gegen Rohstoffe. Aus Beute entstehen in der <b>Werkstatt</b> (Taste T) Erfindungen.', fertig: (s) => s.nacht > 2 }
+];
+function einfuehrung(): void {
+  const el = $('einfuehrung'); if (!spiel || einfuehrungSchritt < 0) { el.hidden = true; return; }
+  while (einfuehrungSchritt < SCHRITTE.length && SCHRITTE[einfuehrungSchritt].fertig(spiel)) einfuehrungSchritt++;
+  if (einfuehrungSchritt >= SCHRITTE.length) { einfuehrungSchritt = -1; el.hidden = true; return; }
+  if (einfuehrungSchritt === 4 && spiel.nacht < 2) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="schritt">Einführung ${einfuehrungSchritt + 1} / ${SCHRITTE.length}</div><p>${SCHRITTE[einfuehrungSchritt].text}</p><button type="button" id="ueberspringen">Einführung ausblenden</button>`;
+  $('ueberspringen').onclick = () => { einfuehrungSchritt = -1; einst.einfuehrung = false; einstSpeichern(); el.hidden = true; };
+}
+// ================= Einstellungen =================
+function zeigeEinstellungen(): void {
+  panelArt = 'einst'; const p = $('panel');
+  p.innerHTML = `<button class="schliessen" type="button" aria-label="Schließen">×</button><h2>Einstellungen</h2>
+    <label class="regler">Musik <input type="range" id="e-musik" min="0" max="1" step="0.05" value="${einst.musik}"></label>
+    <label class="regler">Klänge <input type="range" id="e-effekte" min="0" max="1" step="0.05" value="${einst.effekte}"></label>
+    <div class="zeile"><span>Grafik</span><span class="wahl">${(['hoch', 'mittel', 'niedrig'] as const).map((g) => `<button type="button" data-grafik="${g}" aria-pressed="${einst.grafik === g}">${g[0].toUpperCase() + g.slice(1)}</button>`).join('')}</span></div>
+    <p>Niedrig: ohne Schatten und Nachbearbeitung, für schwächere Geräte.</p>
+    <button type="button" class="aktion" id="e-einf">Einführung neu zeigen</button>
+    <button type="button" class="aktion" id="e-menue">Speichern und zum Menü</button>`;
+  p.hidden = false;
+  p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = schliessePanel;
+  const m = $<HTMLInputElement>('e-musik'), f = $<HTMLInputElement>('e-effekte');
+  m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
+  p.querySelectorAll<HTMLButtonElement>('[data-grafik]').forEach((b) => { b.onclick = () => { einst.grafik = b.dataset.grafik as typeof einst.grafik; einstSpeichern(); grafikSetzen(); zeigeEinstellungen(); }; });
+  $('e-einf').onclick = () => { einst.einfuehrung = true; einstSpeichern(); einfuehrungSchritt = 0; schliessePanel(); einfuehrung(); };
+  $('e-menue').onclick = () => { speichern(); schliessePanel(); zeigeStart(); };
 }
 
 // ================= Hauptschleife =================
@@ -299,6 +367,18 @@ renderer.setAnimationLoop(() => {
     let lichtNeu = false;
     for (const e of ev) {
       if (e.art === 'gebaut' || e.art === 'weg') lichtNeu = true;
+      if (e.art === 'deko') { welt.kachelNeu(Math.floor(e.x / CH), Math.floor(e.z / CH)); welt.grobDeko(e.x, e.z, !spiel.dekoZustand(e.x, e.z)); }
+      if (e.art === 'schuss') klang.spiele(e.geschoss === 'pfeil' ? 'sehne' : 'wurf', naehe(e.x, e.z) * 0.8);
+      if (e.art === 'treffer') klang.spiele('treffer', naehe(e.x, e.z) * 0.7);
+      if (e.art === 'explosion') klang.spiele('explosion', naehe(e.x, e.z));
+      if (e.art === 'hieb') klang.spiele(e.res === 'holz' ? 'hieb_holz' : e.res === 'stein' ? 'hieb_stein' : 'hieb_kristall', naehe(e.x, e.z) * 0.6);
+      if (e.art === 'abgeliefert') klang.spiele('abgeliefert', naehe(e.x, e.z) * 0.6);
+      if (e.art === 'gebaut') klang.spiele('bau', naehe(e.geb.x, e.geb.z));
+      if (e.art === 'weg' && e.zerstoert) klang.spiele('einsturz', naehe(e.geb.x, e.geb.z));
+      if (e.art === 'tod') klang.spiele('tod', naehe(e.x, e.z) * 0.6);
+      if (e.art === 'reparatur') klang.spiele(e.fertig ? 'glocke' : 'reparatur', naehe(e.geb.x, e.geb.z) * (e.fertig ? 0.3 : 0.8));
+      if (e.art === 'phase' && e.phase === 'nacht') klang.spiele('horn');
+      if (e.art === 'phase' && e.phase === 'morgen') klang.spiele('glocke', 0.8);
       if (e.art === 'erkundet') { welt.nebelAktualisieren(); zeichneKartenGrund(); }
       if (e.art === 'meldung') melde(e.text, e.ton);
       if (e.art === 'phase' && e.phase === 'tag') speichern();
@@ -308,7 +388,9 @@ renderer.setAnimationLoop(() => {
     if (lichtNeu) lichtkarteSetzen(spiel.lichtquellen());
     anzeigeDunkel += (spiel.dunkel() - anzeigeDunkel) * Math.min(1, dt * 1.5);
     licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
-    obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5);
+    const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
+    obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);
+    { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.stimmung(spiel.phase === 'nacht', nah / 25); }
     tastenBewegung(dt);
     controls.update();
     const tg = controls.target, cx = THREE.MathUtils.clamp(tg.x, -WR + 20, WR - 20), cz = THREE.MathUtils.clamp(tg.z, -WR + 20, WR - 20);
@@ -316,11 +398,11 @@ renderer.setAnimationLoop(() => {
     const dist = camera.position.distanceTo(tg);
     licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45;
     licht.folge(tg, camera);
-    planZeit -= dt; if (planZeit <= 0) { welt.planen(tg, dist); planZeit = 0.25; }
+    planZeit -= dt; if (planZeit <= 0) { welt.planen(tg, dist, camera); planZeit = 0.25; }
     uiZeit -= dt; if (uiZeit <= 0) { anzeige(); zeichneKarte(); uiZeit = 0.15; }
   } else {
     // Menü: langsamer Flug über einer leeren Szene
     controls.update();
   }
-  post.render();
+  if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
 });

@@ -362,3 +362,20 @@ export function kristallmine(g: Grid, X: number, Y: number, Z: number) {
     g.set(2, 5, -3, '#ffc06a', -2);
   });
 }
+/** gefällter Baum: Stumpf mit hellem Schnitt */
+export function stumpf(g: Grid, X: number, Y: number, Z: number, typ: string) {
+  g.at(X, Y, Z, 0, () => {
+    const holz = typ === 'tot' ? '#3b302a' : typ === 'tanne' ? '#4d3522' : '#5e4128';
+    g.box(0, 0, 0, 1, 0, 1, holz); g.set(0, 1, 0, '#c9a36a'); g.set(1, 1, 1, '#b48a5a'); g.set(1, 1, 0, holz);
+    g.set(-1, 0, 0, '#563b24'); g.set(2, 0, 1, '#563b24');
+  });
+}
+/** junger Baum, der nachwächst */
+export function setzling(g: Grid, X: number, Y: number, Z: number, r: () => number, typ: string) {
+  g.at(X, Y, Z, 0, () => {
+    if (typ === 'tanne') { g.box(0, 0, 0, 0, 1, 0, '#4d3522'); g.cone(0, 0, 1, 6, 2.2, '#3a6b45', 0, 0.1); return; }
+    const blatt = typ === 'herbst' ? '#c9722e' : typ === 'leucht' ? '#6e60a3' : typ === 'tot' ? '#3b302a' : '#5e9a44';
+    g.box(0, 0, 0, 0, 3, 0, '#5e4128');
+    if (typ !== 'tot') g.ell(0, 4, 0, 1.6 + r() * 0.4, 1.4, 1.6, blatt, 0, 0.12);
+  });
+}

@@ -72,4 +72,12 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
 
 - [x] Konzept und Stilentwürfe (`docs/konzeptbuch.html`)
 - [x] Prototyp 0.1: Weltcode, Nebel/Späher, Tag-Nacht, Bauen (8 Gebäude), Licht, 4 Wesen, 4 Erfindungen, Speichern
-- [ ] Nächste Schritte: Lebensbalken, Klänge, Turmzweige und Fusion, Völker, Weltreise, Apps
+- [x] 0.2 Leben in der Feste: grober Wald für die ganze Welt (Instanzen, unter feinen Kacheln ausgeblendet), Arbeiter
+  (`Spiel.arbeiter`, Bäume fällen → `gefaellt`, Setzling nach 3, Baum nach 6 Tagen; Felsen 3× abbaubar → `abgebaut`),
+  Kachel wird nach Änderung im Worker neu gebaut, Bogenschützen/Pfeile/Spuren/Brandflecken, Lebensbalken, Reparieren
+  (nur am Tag, `reparieren()`, Morgen bessert nur 25 % aus), Wegvorschau (`wegVorschau()`), Nebelrochen mit Fracht,
+  Klänge und Musik (`apps/web/src/klang.ts`, WebAudio), Einführung, Einstellungen (Lautstärke, Grafik hoch/mittel/niedrig),
+  Start mit 250 Holz/120 Stein/25 Kristall + Holzfäller + Steinbruch, mittlere Maustaste verschiebt
+- [ ] 0.3 Zeitalter: alle vier Zeitalter, Turmzweige, Umrüsten, Verschmelzen, Scheinwerfer und Kristall-Leuchtfeuer, mehr Erfindungen
+- [ ] 0.4 Wildnis: Rissfürst, Feuer, Mauern verlieren Blöcke · 0.5 Völker · 0.6 Weltreise · 0.7 Apps · 1.0 Veröffentlichung
+- Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

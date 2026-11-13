@@ -1,5 +1,9 @@
 # runeBOOM · Die Feste der Erfinder
 
+<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Tower Defense & Base Building: links die Feste am goldenen Tag, rechts dieselbe Feste in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
+
+<p align="center"><a href="https://hoai-droid.github.io/RuneBoom/"><b>Im Browser spielen</b></a> · <a href="docs/konzeptbuch.html">Konzeptbuch</a></p>
+
 **Ein episches Fantasy-Tower-Defense in Voxeln.** Am Tag baust du deine Feste aus und erfindest dich
 vom Holzturm bis zum Kristall-Laser. In der Nacht kommen die Wesen der Wildnis in Wellen, am Boden
 und aus der Luft.
@@ -8,8 +12,8 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Prototyp 0.1.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
-> Nacht, Bauen, Türme, Licht, Wellen, Erfindungen und Speichern. Das Konzeptbuch mit den
+> **Stand: Version 0.2.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
+> Nacht, Bauen, sichtbare Arbeiter, Türme, Licht, Wellen, Reparieren, Erfindungen, Klänge, Musik und Speichern. Das Konzeptbuch mit den
 > Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
 
 ## Spielen
@@ -22,7 +26,7 @@ einem gemeinsamen Code.
 
 | Eingabe | Wirkung |
 |---|---|
-| Ziehen · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
+| Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
 | W A S D · Q E | verschieben · drehen |
 | 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
 | X | Späher in den Nebel schicken (15 Holz) |
@@ -31,6 +35,18 @@ einem gemeinsamen Code.
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+
+### Neu in 0.2
+
+- Die ganze Welt ist sofort da: Bäume und Felsen erst grob, im Blickfeld werden sie fein nachgeladen.
+- Arbeiter laufen sichtbar los, fällen Bäume, brechen Felsen und schlagen Kristall ab und tragen alles heim. Gefällte Bäume werden zu Stümpfen und wachsen nach drei Tagen als Setzling, nach sechs Tagen als Baum nach.
+- Bogenschützen auf den Wachtürmen, gut sichtbare Pfeile mit Leuchtspur, Feuertöpfe mit Rauch und Brandflecken.
+- Lebensbalken über Wesen und Gebäuden; Gebäude rauchen, wenn sie stark beschädigt sind.
+- Reparieren am Tag gegen Rohstoffe, mit Baumeistern und Fortschrittsbalken; „Alles reparieren“ in der Anzeige.
+- Leuchtender Weg der Welle am Boden, besonders am Abend.
+- Nebelrochen: fliegt über die Mauern und setzt Moorwichte ab.
+- Klänge und Musik (Tag ruhig, Nacht episch), Einführung in den ersten Tag, Einstellungen mit Lautstärke und Grafikstufe.
+- Mehr Rohstoffe zu Beginn, Holzfäller und Steinbruch stehen schon; Verschieben auch mit der mittleren Maustaste.
 
 ### Was der Prototyp schon kann
 
@@ -211,6 +227,7 @@ Hintergrund gebaut werden, nah fein und fern grob.
 
 - [x] Konzept und Stilentwürfe ([`docs/konzeptbuch.html`](docs/konzeptbuch.html))
 - [x] Erster spielbarer Prototyp: Weltcode, Nebel, Tag-Nacht-Zyklus, Bauen, Türme, Licht, Wellen, erste Erfindungen
+- [x] 0.2 Leben in der Feste: grob-fein-Welt, Arbeiter und Nachwachsen, sichtbarer Kampf, Lebensbalken, Reparieren, Klänge und Musik, Wegvorschau, Einführung, Nebelrochen
 - [ ] Erfindungen und die vier Zeitalter
 - [ ] Drei Völker, alle Wesen, Rissfürsten
 - [ ] Weltreise und Stammfeste mit Speichern
