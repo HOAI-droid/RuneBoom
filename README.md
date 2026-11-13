@@ -1,6 +1,6 @@
 # runeBOOM · Die Feste der Erfinder
 
-<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Tower Defense & Base Building: links die Feste am goldenen Tag, rechts dieselbe Feste in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
+<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: links die Feste am goldenen Tag, rechts dieselbe Feste in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
 
 <p align="center"><a href="https://hoai-droid.github.io/RuneBoom/"><b>Im Browser spielen</b></a> · <a href="docs/konzeptbuch.html">Konzeptbuch</a></p>
 
