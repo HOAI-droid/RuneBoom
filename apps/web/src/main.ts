@@ -4,7 +4,7 @@ import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
   type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand
 } from '@runeboom/core';
-import { neuerRenderer, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
+import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
 import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
@@ -890,6 +890,14 @@ function zeigeBericht(b: import('@runeboom/core').Nachtbericht): void {
   $('bericht-zu').onclick = () => { el.hidden = true; berichtPause = false; };
 }
 
+// ================= Jahreszeiten =================
+/** s = 0…4 über die Partie (je Akt eine Jahreszeit: Frühling, Sommer, Herbst, Winter), Übergang über etwa zwei Nächte */
+function jahreszeit(s: number): void {
+  const sm = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  s = ((s % 4) + 4) % 4;
+  jahreszeitSetzen(1 - sm(0.85, 1.05, s) + sm(3.85, 4, s), sm(1.85, 2.05, s) * (1 - sm(2.85, 3.05, s)), sm(2.85, 3.05, s) * (1 - sm(3.85, 4, s)));
+}
+
 // ================= Querformat =================
 /** Handy und Tablet nur quer: hochkant erscheint ein Hinweis und das Spiel wartet */
 let hochkant = false;
@@ -944,6 +952,7 @@ renderer.setAnimationLoop(() => {
       try { spiel.schritt(); } catch (err) { console.error(err); }
       obj.ereignisse(spiel.ereignisse.splice(0).filter((e) => e.art !== 'meldung'));
       const d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
+      jahreszeit(menueZeit / 60);
       licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
       menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
@@ -953,6 +962,7 @@ renderer.setAnimationLoop(() => {
       zeichnen();
       return;
     }
+    jahreszeit(Math.min(3.999, (spiel.nacht - 1 + (spiel.phase === 'tag' ? spiel.zeit / TAGD : 1)) / 10));
     akku += (enth.aktiv && enth.phase === 0) || berichtPause || hochkant ? 0 : dt * tempo; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     while (akku >= DT && n < 12) {

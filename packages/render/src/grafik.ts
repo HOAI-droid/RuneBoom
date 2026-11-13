@@ -11,6 +11,20 @@ const LK = 2 * WR;
 export const LICHTKARTE = new Uint8Array(LK * LK);
 export const lichtTex = new THREE.DataTexture(LICHTKARTE, LK, LK, THREE.RedFormat, THREE.UnsignedByteType);
 lichtTex.magFilter = THREE.LinearFilter; lichtTex.minFilter = THREE.LinearFilter; lichtTex.needsUpdate = true;
+/** Jahreszeit: Anteile von Frühling, Herbst und Winter (Sommer = alle 0) */
+export const JAHR_U = { uFruehling: { value: 0 }, uHerbst: { value: 0 }, uWinter: { value: 0 } };
+export function jahreszeitSetzen(fruehling: number, herbst: number, winter: number): void { JAHR_U.uFruehling.value = fruehling; JAHR_U.uHerbst.value = herbst; JAHR_U.uWinter.value = winter; }
+/** Grün erkennen und je Jahreszeit umfärben; Schnee auf Oberseiten (gleiche Rechnung in knoten.ts) */
+const JAHR_GLSL = `vec3 jahreszeit(vec3 c, vec3 n) {
+  float gruen = smoothstep(0.0, 0.05, c.g - max(c.r, c.b));
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(c, c * vec3(1.08, 1.12, 0.78) + vec3(0.01, 0.015, 0.0), gruen * uFruehling);
+  vec3 herbst = mix(vec3(l * 1.7, l * 0.85, l * 0.22), vec3(l * 1.25, l * 0.48, l * 0.12), step(0.5, fract(c.g * 37.0)));
+  c = mix(c, herbst, gruen * uHerbst * 0.7);
+  c = mix(c, vec3(l) * vec3(0.82, 0.88, 0.92), gruen * uWinter * 0.55);
+  float oben = smoothstep(0.55, 0.95, n.y);
+  c = mix(c, vec3(0.86, 0.9, 0.96), oben * uWinter * 0.88);
+  return c; }`;
 export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') } };
 type Lichtquelle = { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } };
 const LK_FEST = new Uint8Array(LK * LK);
@@ -44,8 +58,9 @@ export function lichtkarteSetzen(lichter: Lichtquelle[], fest = true, nacht = tr
 export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): T {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LICHT_U);
-    sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; }');
-    sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht; uniform vec3 uLichtFarbe; varying vec3 vWP;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
+    Object.assign(sh.uniforms, JAHR_U);
+    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal); }');
+    sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht, uFruehling, uHerbst, uWinter; uniform vec3 uLichtFarbe; varying vec3 vWP; varying vec3 vWN;\n' + JAHR_GLSL + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = jahreszeit(diffuseColor.rgb, vWN);').replace('#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};`);
     if (maske) { // unter fertigen Kacheln ausblenden
       sh.uniforms.uMaske = { value: maske };
