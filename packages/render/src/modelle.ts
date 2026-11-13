@@ -285,17 +285,17 @@ export function werkstatt(g, X, Y, Z, rot) {
     g.box(-2, 0, 8, 1, 1, 9, '#3a3b40'); g.box(-3, 2, 8, 2, 2, 9, '#4a4c50');
   });
 }
-export function hauptgebaeude(g, X, Y, Z) {
+export function hauptgebaeude(g, X, Y, Z, dach = ['#3f5675', '#36496a']) {
   g.at(X, Y, Z, 0, () => {
     const stein = mauerwerk('#b9b2a6', '#aea79b');
     g.box(-11, 0, -11, 11, 1, 11, '#8f897f');
     g.box(-3, 0, 12, 3, 0, 14, '#8f897f'); g.box(-3, 1, 12, 3, 1, 12, '#8f897f');
     g.box(-9, 2, -9, 9, 16, 9, stein, 0, 0.05);
     for (const x of [-6, -2, 2, 6]) for (const y of [6, 12]) { g.box(x, y, 9, x, y + 2, 9, '#ffc06a', -2); g.box(9, y, x, 9, y + 2, x, '#ffc06a', -1.8); g.box(-9, y, x, -9, y + 2, x, '#ffc06a', -1.8); }
-    for (const [x, z] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) { g.cyl(x, z, 2, 22, 3, stein, 0, 0.05); g.cone(x, z, 23, 9, 3.8, '#3f5675', 0, 0.08); g.set(x, 18, z + Math.sign(z) * 3, '#ffc06a', -2); }
+    for (const [x, z] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) { g.cyl(x, z, 2, 22, 3, stein, 0, 0.05); g.cone(x, z, 23, 9, 3.8, dach[0], 0, 0.08); g.set(x, 18, z + Math.sign(z) * 3, '#ffc06a', -2); }
     g.box(-7, 17, -7, 7, 24, 7, stein, 0, 0.05);
     for (const x of [-4, 0, 4]) g.box(x, 20, 7, x, 22, 7, '#ffc06a', -2);
-    for (let i = 0; i <= 8; i++) g.box(-8 + i, 25 + i, -8 + i, 8 - i, 25 + i, 8 - i, i % 2 ? '#3f5675' : '#36496a', 0, 0.08);
+    for (let i = 0; i <= 8; i++) g.box(-8 + i, 25 + i, -8 + i, 8 - i, 25 + i, 8 - i, i % 2 ? dach[0] : dach[1], 0, 0.08);
     g.box(-1, 33, -1, 1, 38, 1, '#d4a640');
     g.ell(0, 42, 0, 1.8, 3.4, 1.8, '#6ff0ff', 2);
     g.box(-2, 2, 9, 2, 7, 9, '#4a3524'); g.box(-3, 8, 9, 3, 8, 9, '#8f897f');
@@ -484,4 +484,160 @@ export function trollPanzer(g: Grid) {
 export function drachenFeuer(g: Grid) {
   const fr = rng(31);
   for (let i = 0; i < 16; i++) { const sp = i / 4; for (let k = 0; k <= i / 2; k++) g.set(Math.round((fr() - 0.5) * 2 * sp), 2 - Math.round(i * 0.7) + Math.round((fr() - 0.5) * sp), 16 + i, i < 5 ? '#ffe9a8' : (i < 10 ? '#ffb347' : '#ff6a1a'), 2.4 - i * 0.08); }
+}
+
+
+// ================= v0.4: Bevölkerung, Stufen, Burg, neue Wesen =================
+/** Wohnhaus auf 4 × 4 Blöcken (8 × 8 halbe Voxel), wächst mit der Stufe */
+export function wohnhaus(g: Grid, stufe = 1) {
+  const holz = (x: number, y: number, z: number) => ((Math.abs(x) === 3 && Math.abs(z) === 3) || y % 4 === 1 ? '#6b4a2f' : '#d4c4a0');
+  g.box(-4, 0, -4, 3, 0, 3, '#8f897f', 0, 0.08);
+  const boden = stufe >= 3 ? 4 : 0;
+  if (stufe >= 3) g.box(-3, 1, -3, 3, 4, 3, mauerwerk('#a59f95', '#9a948a'), 0, 0.06);
+  const h = stufe >= 2 ? 9 : 5;
+  g.box(-3, 1 + boden, -3, 3, h + boden, 3, holz, 0, 0.05);
+  for (const y of stufe >= 2 ? [3, 7] : [3]) { g.box(-2, y + boden, 3, -1, y + 1 + boden, 3, '#ffc06a', -2); g.box(1, y + boden, 3, 2, y + 1 + boden, 3, '#ffc06a', -2); g.box(3, y + boden, -1, 3, y + 1 + boden, 0, '#ffc06a', -1.8); }
+  g.box(0, 1, 3, 0, 3, 3, '#4a3524');
+  const top = h + boden + 1, dach = stufe >= 3 ? ['#3f5675', '#36496a'] : ['#8d3b2a', '#7a3426'];
+  for (let i = 0; i <= 4; i++) g.box(-4, top + i, -4 + i, 3, top + i, 3 - i, i % 2 ? dach[0] : dach[1], 0, 0.1);
+  g.box(1, top, -2, 2, top + 5, -1, '#8a4a3a');
+  if (stufe >= 2) { g.box(-3, 5 + boden, 4, 2, 5 + boden, 4, '#6b4a2f'); for (const x of [-2, 0, 2]) g.set(x, 6 + boden, 4, x === 0 ? '#e5735f' : '#f2d36b'); }
+  if (stufe >= 3) for (const x of [-4, 3]) { g.box(x, 0, 4, x, 3, 4, '#6b4a2f'); g.set(x, 4, 4, '#ffb04a', -2.2); }
+}
+/** Bauernhof auf 6 × 6 Blöcken: Scheune, Heu, Beete; Stufe II Silo, Stufe III Windmühle */
+export function bauernhof(g: Grid, stufe = 1) {
+  g.box(-6, 0, -6, 5, 0, 5, '#7b5636', 0, 0.12);
+  for (let x = -6; x <= 5; x++) for (let z = 1; z <= 5; z += 2) g.set(x, 1, z, (x + z) % 3 ? '#c9b04a' : '#8fae4a', 0, 0.15);
+  // Scheune
+  g.box(-5, 1, -5, 1, 6, -1, (x, y) => (y === 6 || x === -5 || x === 1 ? '#6b2f24' : '#8a3a2c'), 0, 0.06);
+  g.box(-3, 1, -1, -1, 4, -1, '#4a3524'); g.box(-3, 5, -1, -1, 5, -1, '#d4c4a0');
+  for (let i = 0; i <= 3; i++) g.box(-6, 7 + i, -5 + i, 2, 7 + i, -1 - i, i % 2 ? '#5a3d24' : '#4d3522', 0, 0.08);
+  g.ell(3.5, 1.5, -3.5, 1.6, 1.4, 1.6, '#e0c060', 0, 0.12);
+  g.box(-6, 1, 0, 5, 1, 0, '#6b4a2f');
+  if (stufe >= 2) { g.cyl(4, -4, 1, 9, 1.6, '#b9b2a6', 0, 0.06); g.cone(4, -4, 10, 3, 2, '#7a3426'); }
+  if (stufe >= 3) {
+    g.cyl(-4, 3, 1, 12, 1.6, mauerwerk('#d4c4a0', '#c9b894'), 0, 0.06); g.cone(-4, 3, 13, 3, 2.2, '#5a3d24');
+    for (let i = -6; i <= 6; i++) { g.set(-4 + i, 12, 5, '#e8dcc0'); g.set(-4, 12 + i, 5, '#e8dcc0'); }
+    g.set(-4, 12, 5, '#6b4a2f');
+  }
+}
+/** Fischerhütte auf 4 × 4 Blöcken: Hütte auf Pfählen, Netze, Boot */
+export function fischerhuette(g: Grid, stufe = 1) {
+  g.box(-4, 0, -4, 3, 0, 3, '#8a6340', 0, 0.12);
+  for (const [x, z] of [[-3, -3], [2, -3], [-3, 2], [2, 2]]) g.box(x, 1, z, x, 2, z, '#5a3d24');
+  g.box(-3, 3, -3, 2, 7, 2, (x, y, z) => (y === 3 || Math.abs(x + 0.5) > 2 && Math.abs(z + 0.5) > 2 ? '#5a3d24' : '#8a6a4a'), 0, 0.06);
+  g.box(-1, 3, 2, -1, 5, 2, '#3a2a1e'); g.box(1, 5, 2, 1, 5, 2, '#ffc06a', -2);
+  for (let i = 0; i <= 3; i++) g.box(-4, 8 + i, -4 + i, 3, 8 + i, 3 - i, i % 2 ? '#7d6a4a' : '#6a5a3a', 0, 0.1);
+  g.box(3, 1, -3, 3, 5, -3, '#6b4a2f'); for (let y = 2; y <= 5; y++) for (let z = -2; z <= 0; z++) if ((y + z) % 2) g.set(3, y, z, '#c9c3b6');
+  g.box(-4, 1, 4, 0, 1, 5, '#7a5230'); g.box(-3, 2, 4, -1, 2, 4, '#8a6038');
+  if (stufe >= 2) { g.box(-4, 1, -4, -4, 6, -4, '#6b4a2f'); g.line(-4, 6, -4, 3, 6, -4, '#6b4a2f'); for (let x = -3; x <= 2; x += 2) g.box(x, 4, -4, x, 5, -4, '#c0c8d0'); }
+  if (stufe >= 3) { g.box(1, 9, -2, 2, 14, -1, '#8a4a3a'); for (const [x, y, z] of [[1, 15, -1], [2, 17, -2], [1, 19, -1]]) g.set(x, y, z, '#dcd9d3'); }
+}
+/** Schmuck der Ausbaustufen: Eckpfeiler mit Bannern (II), goldene Kappen und Runen (III) */
+export function stufenSchmuck(g: Grid, w: number, d: number, stufe: number) {
+  if (stufe < 2) return;
+  const hx = w - 1, hz = d - 1; // halbe Voxel: Fläche reicht von -w bis w-1
+  if (w <= 2) { // kleine Lichter: Goldringe am Mast
+    g.cyl(-0.5, -0.5, 4, 4, 2.2, '#d4a640', 0, 0.05, true);
+    if (stufe >= 3) { g.cyl(-0.5, -0.5, 9, 9, 2.2, '#d4a640', 0, 0.05, true); g.set(-2, 6, -0.5, '#9fe7ff', 1.6); g.set(1, 6, -0.5, '#9fe7ff', 1.6); }
+    return;
+  }
+  for (const [x, z] of [[-w, -d], [hx, -d], [-w, hz], [hx, hz]]) {
+    g.box(x, 0, z, x, 5, z, mauerwerk('#a59f95', '#8f897f'), 0, 0.06);
+    g.set(x, 6, z, stufe >= 3 ? '#d4a640' : '#8f897f');
+    if (stufe >= 3) g.set(x, 3, z, '#9fe7ff', 1.6);
+  }
+  // Banner vorne
+  for (const x of [-w + 1, hx - 1]) { g.box(x, 2, hz, x, 5, hz, stufe >= 3 ? '#3f5f9a' : '#9c2f2f'); g.set(x, 6, hz, '#d4a640'); }
+}
+/** sichtbare Schäden an Mauern: obere Blöcke fehlen */
+export function mauerSchaden(g: Grid, stufe: number) {
+  if (stufe <= 0) return;
+  const r = rng(77 + stufe);
+  for (const v of [...g.m.entries()]) { const [k, vox] = v; if (vox.y > 10 - stufe * 4 && r() < 0.45 + stufe * 0.2) g.m.delete(k); }
+}
+/** Burg: Ausbau in sechs Stufen, jede sichtbar anders */
+export function burg(g: Grid, stufe: number) {
+  const dach = stufe >= 5 ? ['#b87333', '#9a5f2a'] : ['#3f5675', '#36496a'];
+  hauptgebaeude(g, 0, 0, 0, dach);
+  const stein = mauerwerk('#b9b2a6', '#aea79b');
+  if (stufe < 2) { for (let y = 38; y <= 46; y++) for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) g.m.delete(g.key(x, y, z)); g.box(0, 33, 0, 0, 36, 0, '#6b4a2f'); g.box(1, 35, 0, 3, 36, 0, '#9c2f2f'); }
+  if (stufe >= 2) { g.cyl(0, 0, 16, 16, 10, '#d4a640', 0, 0.05, true); for (const s of [-1, 1]) for (const z of [-9, 9]) { g.box(s * 12, 2, z, s * 12, 12, z, '#6b4a2f'); g.box(s * 12, 8, z + 1, s * 12, 12, z + 1, '#9c2f2f'); } }
+  if (stufe >= 3) for (const [x, z] of [[-9, -9], [9, -9]]) { g.cyl(x, z, 23, 32, 2.6, stein, 0, 0.05); g.cone(x, z, 33, 8, 3.4, dach[0], 0, 0.08); g.set(x, 28, z + 3, '#ffc06a', -2); }
+  if (stufe >= 4) { // Ringmauer mit Toren und Ecktürmchen
+    for (let x = -12; x <= 11; x++) for (let z = -12; z <= 11; z++) {
+      const rand = x === -12 || x === 11 || z === -12 || z === 11; if (!rand) continue;
+      if (z === 11 && Math.abs(x) <= 3) continue;
+      g.box(x, 0, z, x, 4, z, stein, 0, 0.05); if ((x + z) % 2 === 0) g.set(x, 5, z, stein);
+    }
+    for (const [x, z] of [[-12, -12], [11, -12], [-12, 11], [11, 11]]) { g.box(x - 1, 0, z - 1, x + 1, 8, z + 1, stein); g.cone(x, z, 9, 4, 2.2, dach[1]); }
+  }
+  if (stufe >= 5) { // Dampf und Messing
+    for (const [x, z] of [[-5, -6], [5, -6]]) { g.box(x, 25, z, x + 1, 36, z + 1, '#6a5a4a'); for (let i = 0; i < 4; i++) g.ell(x + 0.5 + (i % 2), 38 + i * 2.2, z + 0.5, 1.2 + i * 0.4, 1, 1.2 + i * 0.4, '#dcd9d3', 0, 0.04); }
+    zahnrad(g, 0, 19, 8, 3.6, '#c9a043');
+    for (const [x, z] of [[-9, 9], [9, 9]]) g.cyl(x, z, 14, 14, 3.4, '#b87333', 0, 0.05, true);
+  }
+  if (stufe >= 6) { // Kristallzitadelle
+    for (let y = 38; y <= 46; y++) for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) g.m.delete(g.key(x, y, z));
+    for (let dx = -3; dx <= 3; dx++) for (let dy = -8; dy <= 8; dy++) for (let dz = -3; dz <= 3; dz++)
+      if (Math.abs(dx) / 3 + Math.abs(dz) / 3 + Math.abs(dy) / 8.5 <= 1) g.set(dx, 46 + dy, dz, dy > 2 ? '#ffffff' : '#bff7ff', 2.2);
+    for (const [x, z] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) { g.set(x, 33 + (z < 0 ? 9 : 0), z, '#c8fbff', 2.2); g.set(x, 34 + (z < 0 ? 9 : 0), z, '#ffffff', 2.4); }
+    g.cyl(0, 0, 24, 24, 9, '#6ff0ff', 1.4, 0.05, true);
+  }
+}
+/** Aschegeist: Rauchgestalt mit Glutaugen (schwebt) */
+export function aschegeist(g: Grid) {
+  const r = rng(13);
+  for (let i = 0; i < 9; i++) { const y = i * 1.2, s = 3.2 - Math.abs(i - 4) * 0.45; g.ell(Math.sin(i) * 0.6, y, Math.cos(i) * 0.5, s, 1, s * 0.9, (x, yy, z) => (h3(x, yy, z) > 0.75 ? '#5a5048' : '#3a3634'), 0, 0.15); }
+  for (let i = 0; i < 8; i++) g.set(Math.round((r() - 0.5) * 6), Math.round(r() * 9), Math.round((r() - 0.5) * 5), '#ff7a2a', 1.6);
+  g.set(-1, 8, 3, '#ffb347', 2.6); g.set(1, 8, 3, '#ffb347', 2.6);
+  for (let i = 0; i < 5; i++) g.set(0, -1 - i, -i, '#3a3634');
+}
+/** Steinwerfer: gebückter Riese mit Felsbrocken über dem Kopf */
+export function steinwerfer(g: Grid) {
+  g.box(-4, 0, -1, -2, 4, 1, '#5d5448'); g.box(2, 0, -1, 4, 4, 1, '#5d5448');
+  g.ell(0, 8, -1, 5, 4.5, 3.6, '#7a6e5e', 0, 0.1);
+  g.ell(0, 12, 1, 3, 2.6, 2.6, '#867a68', 0, 0.08);
+  g.set(-1, 12, 4, '#ffcf5a', 2.2); g.set(1, 12, 4, '#ffcf5a', 2.2);
+  for (const s of [-1, 1]) g.line(s * 4, 10, 0, s * 3, 17, 1, '#6e6352', 0, 0.08, 1);
+  g.ell(0, 20, 1, 3.4, 3, 3.2, mauerwerk('#8c867f', '#76716a'), 0, 0.12);
+  g.cyl(0, -1, 5, 6, 4.6, '#4a3a2a', 0, 0.1, true);
+}
+/** Moorschamane: hagere Gestalt mit Maske und leuchtendem Stab */
+export function schamane(g: Grid) {
+  g.box(-2, 0, 0, -1, 3, 0, '#4f6136'); g.box(1, 0, 0, 2, 3, 0, '#4f6136');
+  g.box(-3, 4, -2, 3, 11, 2, (x, y) => (y % 3 === 0 ? '#3d4a2a' : '#556b3a'), 0, 0.1);
+  for (let y = 4; y <= 11; y++) g.set(0, y, 3, y % 2 ? '#c9a043' : '#8a6a2a');
+  g.box(-2, 12, -1, 2, 15, 2, '#6f8a4a'); g.box(-2, 12, 3, 2, 15, 3, '#e8dcc0');
+  g.set(-1, 14, 4, '#7dff6a', 2.4); g.set(1, 14, 4, '#7dff6a', 2.4);
+  for (const s of [-1, 1]) { g.line(s * 2, 16, 0, s * 4, 19, -1, '#e8dcc0'); }
+  g.box(4, 0, 2, 4, 16, 2, '#5a3d24'); g.ell(4, 18, 2, 1.4, 1.4, 1.4, '#7dff6a', 2.2);
+}
+/** Borkenwächter: Baumwesen mit großem Borkenschild vorne */
+export function schildwaechter(g: Grid) {
+  g.box(-3, 0, -1, -2, 5, 1, '#4d3522'); g.box(2, 0, -1, 3, 5, 1, '#4d3522');
+  g.ell(0, 10, 0, 4.4, 5.4, 3.2, (x, y, z) => (h3(x, y, z) > 0.7 ? '#4d3522' : '#5e4128'), 0, 0.1);
+  g.ell(0, 16, 0, 3, 2.4, 2.6, '#5e4128', 0, 0.08);
+  for (let i = 0; i < 6; i++) g.ell(Math.round(Math.sin(i * 2) * 3), 19 + (i % 3), Math.round(Math.cos(i * 2) * 2), 1.8, 1.2, 1.8, '#4f8a3c', 0, 0.12);
+  g.set(-1, 16, 3, '#ffd34a', 2.2); g.set(1, 16, 3, '#ffd34a', 2.2);
+  for (let x = -5; x <= 5; x++) for (let y = 3; y <= 15; y++) { const q = (x / 5.5) ** 2 + ((y - 9) / 7) ** 2; if (q <= 1) g.set(x, y, 5, q > 0.75 ? '#3a2a1e' : (h3(x, y, 5) > 0.6 ? '#6b4a2f' : '#7a5532'), 0, 0.1); }
+  g.box(-1, 8, 6, 1, 10, 6, '#8c867f');
+}
+/** Rissfürst: großer gehörnter Herrscher aus dem Riss, Risse leuchten violett */
+export function rissfuerst(g: Grid) {
+  const haut = (x: number, y: number, z: number) => (h3(x, y, z) > 0.88 ? '#b07cff' : '#2d2838');
+  g.box(-6, 0, -2, -3, 7, 2, haut, 0, 0.08); g.box(3, 0, -2, 6, 7, 2, haut, 0, 0.08);
+  g.ell(0, 14, 0, 8, 8, 5, haut, 0, 0.08);
+  g.ell(0, 23, 1, 4, 3.6, 3.6, haut, 0, 0.06);
+  g.set(-2, 24, 5, '#efe2ff', 2.8); g.set(2, 24, 5, '#efe2ff', 2.8);
+  for (const s of [-1, 1]) { g.line(s * 3, 26, 0, s * 7, 31, -2, '#e8dcc0', 0, 0.05, 1); g.line(s * 7, 31, -2, s * 8, 34, 1, '#e8dcc0'); }
+  for (const s of [-1, 1]) { g.line(s * 8, 18, 0, s * 11, 8, 2, haut, 0, 0.06, 1); g.ell(s * 11, 7, 2, 2, 2, 2, '#2d2838'); }
+  g.box(-7, 6, -6, 7, 20, -6, (x, y) => (y % 4 === 0 ? '#5a2a7a' : '#3f1f5a'), 0, 0.08);
+  for (let i = 0; i < 6; i++) g.set(-3 + i, 14 + (i % 3), 5, '#c9a2ff', 2);
+  g.line(11, 8, 2, 11, 30, 4, '#3a3442', 0, 0.06); g.ell(11, 32, 4, 2, 2, 2, '#b07cff', 2.4);
+}
+/** Wegweiser für Verbesserungen: kleiner goldener Pfeil nach oben */
+export function pfeilHoch(g: Grid) {
+  for (let i = 0; i < 4; i++) g.box(-3 + i, i, 0, 3 - i, i, 0, '#e8b84a');
+  g.box(-1, -4, 0, 1, -1, 0, '#e8b84a');
 }

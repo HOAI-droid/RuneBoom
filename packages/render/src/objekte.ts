@@ -5,25 +5,23 @@ import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT } from './grafik.
 import {
   hauptgebaeude, werkstatt, turmHolz, turmAlchemie, leuchtFackel, leuchtFeuer, haus, holzstapel, steinbruch, kristallmine, mauerStueck,
   moorwicht, wolf, troll, drachling, nebelrochen, figur8, turmUhrwerk, turmKristall,
-  turmSchuetzen, turmKanone, turmBlitz, lichtFeuerKlein, lichtSpiegelKlein, lichtKristallKlein, turmFusion, ruine, trollPanzer, drachenFeuer
+  turmSchuetzen, turmKanone, turmBlitz, lichtFeuerKlein, lichtSpiegelKlein, lichtKristallKlein, turmFusion, ruine, trollPanzer, drachenFeuer,
+  wohnhaus, bauernhof, fischerhuette, stufenSchmuck, mauerSchaden, burg, aschegeist, steinwerfer, schamane, schildwaechter, rissfuerst, pfeilHoch
 } from './modelle.ts';
 import { rng, type Ruine } from '@runeboom/core';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
-function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1): THREE.Group {
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0): THREE.Group {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
-  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe;
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden;
   let m = modellCache.get(key);
   if (!m) {
     const g = new Grid();
-    if (typ === 'haupt') {
-      hauptgebaeude(g, 0, 0, 0);
-      // Ausbaustufen: Goldring, Banner, großer Kristall
-      if (stufe >= 2) g.cyl(0, 0, 36, 36, 3, '#d4a640', 0, 0.05, true);
-      if (stufe >= 3) for (const s of [-1, 1]) { g.box(s * 10, 18, 10, s * 10, 26, 10, '#3f5f9a'); g.set(s * 10, 27, 10, '#d4a640'); }
-      if (stufe >= 4) { g.ell(0, 44, 0, 2.6, 4.6, 2.6, '#c8fbff', 2.2); g.cyl(0, 0, 40, 40, 4.4, '#d4a640', 0, 0.05, true); }
-    }
+    if (typ === 'haupt') burg(g, stufe);
+    if (typ === 'haus') wohnhaus(g, stufe);
+    if (typ === 'hof') bauernhof(g, stufe);
+    if (typ === 'fischer') fischerhuette(g, stufe);
     if (typ === 'schuetzenturm') turmSchuetzen(g, 0, 0, 0, zw);
     if (typ === 'repetierer') turmUhrwerk(g, 0, 0, 0);
     if (typ === 'laser') turmKristall(g, 0, 0, 0);
@@ -40,18 +38,21 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1): TH
     if (typ === 'holz') { haus(g, 0, 0, -0.5, 0, '#cdb894', '#7a3426'); holzstapel(g, -4, 0, -6); }
     if (typ === 'stein') steinbruch(g, 0, 0, 0);
     if (typ === 'kristall') kristallmine(g, 0, 0, 0);
-    if (typ === 'mauer') mauerStueck(g, 0, 0, 0, stahl);
+    if (typ === 'mauer') { mauerStueck(g, 0, 0, 0, stahl); mauerSchaden(g, schaden); }
+    if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer') stufenSchmuck(g, GEBAEUDE[typ].w, GEBAEUDE[typ].d, stufe);
     m = gridZuGruppe(g, 0.5);
     modellCache.set(key, m);
   }
   return m;
 }
 export function gebMitte(g: { x: number; z: number; w: number; d: number }): [number, number] { return [g.x + g.w / 2, g.z + g.d / 2]; }
-const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
+const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, haus: 9, hof: 7, fischer: 7, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
   schuetzenturm: 16, repetierer: 18, laser: 20, kanone: 12, blitzspule: 15, brandturm: 19, leuchtpfeil: 21, doppelturm: 18, glutmoerser: 13 };
 /** Höhe, aus der Strahlen und Blitze kommen */
 function spitze(g: Geb): number { return g.y + (GEB_HOEHE[g.typ] || 10) - 1; }
-const WESEN_HOEHE: Record<GegTyp, number> = { moorwicht: 2.8, wolf: 3.1, troll: 5.6, drachling: 2.2, rochen: 1.6 };
+const WESEN_HOEHE: Record<GegTyp, number> = { moorwicht: 2.8, wolf: 3.1, troll: 5.6, drachling: 2.2, rochen: 1.6, aschegeist: 3, steinwerfer: 7, schamane: 4.4, schildwaechter: 6, rissfuerst: 16 };
+/** Schadensstufe einer Mauer für das Modell */
+const mauerStufe = (g: Geb) => (g.hp > g.max * 0.66 ? 0 : g.hp > g.max * 0.33 ? 1 : 2);
 
 // ---------- Instanzen für viele gleiche Dinge ----------
 class Schar {
@@ -173,9 +174,10 @@ class Wegvorschau {
 }
 
 const FARBEN: Record<GegTyp, string[]> = {
-  moorwicht: ['#6f8a4a', '#5a4630', '#4f6136'], wolf: ['#2f2a3d', '#251f33', '#a070ff'], troll: ['#6f7a5e', '#4f7a3a', '#8c867f'], drachling: ['#9e2b25', '#d9813a', '#7a2420'], rochen: ['#3b4f6b', '#2c3b52', '#9fe7ff']
+  moorwicht: ['#6f8a4a', '#5a4630', '#4f6136'], wolf: ['#2f2a3d', '#251f33', '#a070ff'], troll: ['#6f7a5e', '#4f7a3a', '#8c867f'], drachling: ['#9e2b25', '#d9813a', '#7a2420'], rochen: ['#3b4f6b', '#2c3b52', '#9fe7ff'],
+  aschegeist: ['#3a3634', '#5a5048', '#ff7a2a'], steinwerfer: ['#7a6e5e', '#8c867f', '#5d5448'], schamane: ['#556b3a', '#7dff6a', '#e8dcc0'], schildwaechter: ['#5e4128', '#7a5532', '#4f8a3c'], rissfuerst: ['#2d2838', '#b07cff', '#efe2ff']
 };
-const SPAENE: Record<Res, string[]> = { holz: ['#c9a36a', '#8a6340', '#b48a5a'], stein: ['#a8a29a', '#8c867f'], kristall: ['#9fe7ff', '#d8fdff'] };
+const SPAENE: Record<Res, string[]> = { holz: ['#c9a36a', '#8a6340', '#b48a5a'], stein: ['#a8a29a', '#8c867f'], kristall: ['#9fe7ff', '#d8fdff'], nahrung: ['#c9b04a', '#8fae4a', '#e0c060'] };
 
 /** Alles, was sich bewegt oder gebaut wird: Gebäude, Wesen, Arbeiter, Bogenschützen, Geschosse, Teilchen, Balken, Vorschau. */
 export class Objekte {
@@ -193,6 +195,11 @@ export class Objekte {
   private wackeln = new Map<number, number>(); private rueckstoss = new Map<number, number>();
   private zeit = 0; private gewaehlt: Geb | null = null;
   private ruinen = new Map<number, THREE.Group>();
+  private buergerSchar: Schar[]; private pfeilSchar: Schar; private steine: THREE.InstancedMesh;
+  private buerger: { x: number; z: number; ziel: [number, number]; warte: number; art: number; tempo: number; richtung: number }[] = [];
+  /** goldene Pfeile über verbesserbaren Gebäuden zeigen */
+  zeigePfeile = true;
+  private pfeilListe: Geb[] = []; private pfeilZeit = 0; private mauerStufen = new Map<number, number>();
   private feuer: Schar; private panzer: Schar;
   private strahlen: THREE.InstancedMesh; private blitze: { a: THREE.Vector3; b: THREE.Vector3; t: number }[] = []; private blitzMesh: THREE.InstancedMesh;
   private schild: THREE.Mesh; private kegel: THREE.Mesh[] = [];
@@ -205,17 +212,31 @@ export class Objekte {
       wolfDunkel: new Schar(mk((g) => wolf(g, 0, 0, 0, 0, true)), 0.22, 150, scene),
       troll: new Schar(mk((g) => troll(g, 0, 0, 0, 0)), 0.3, 60, scene),
       drachling: new Schar(mk((g) => drachling(g)), 0.3, 60, scene),
-      rochen: new Schar(mk((g) => nebelrochen(g)), 0.3, 40, scene)
+      rochen: new Schar(mk((g) => nebelrochen(g)), 0.3, 40, scene),
+      aschegeist: new Schar(mk((g) => aschegeist(g)), 0.25, 60, scene),
+      steinwerfer: new Schar(mk((g) => steinwerfer(g)), 0.3, 60, scene),
+      schamane: new Schar(mk((g) => schamane(g)), 0.25, 40, scene),
+      schildwaechter: new Schar(mk((g) => schildwaechter(g)), 0.28, 60, scene),
+      rissfuerst: new Schar(mk((g) => rissfuerst(g)), 0.45, 6, scene)
     };
     const leute = (kleid: string, werkzeug: string, haar: string) => mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid, haut: '#e0b48c', haar, werkzeug }));
-    this.arbeiter = { holz: new Schar(leute('#5d7f9e', 'axt', '#5a3d24'), 0.125, 200, scene), stein: new Schar(leute('#8a4d3a', 'hacke', '#2e2620'), 0.125, 200, scene), kristall: new Schar(leute('#6b5a8a', 'hacke', '#a0703a'), 0.125, 100, scene) };
+    this.arbeiter = { holz: new Schar(leute('#5d7f9e', 'axt', '#5a3d24'), 0.125, 200, scene), stein: new Schar(leute('#8a4d3a', 'hacke', '#2e2620'), 0.125, 200, scene), kristall: new Schar(leute('#6b5a8a', 'hacke', '#a0703a'), 0.125, 100, scene),
+      nahrung: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#5a4a30', kleid: '#8a9a4a', haut: '#e0b48c', helm: '#d9c27a', werkzeug: 'sack' })), 0.125, 200, scene) };
+    this.buergerSchar = [
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#9c5f6a', haut: '#e8c09a', haar: '#3a2a1e', schuerze: '#d4c4a0' })), 0.125, 60, scene),
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#4f6b8a', haut: '#d9a77c', haar: '#8a5a2a' })), 0.125, 60, scene),
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#b8733f', haut: '#c99a72', haar: '#d9c27a', bart: '#d9c27a' })), 0.125, 60, scene)
+    ];
+    this.pfeilSchar = new Schar(mk((g) => pfeilHoch(g)), 0.22, 120, scene, false);
     this.baumeister = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#b8733f', haut: '#d9a77c', helm: '#9aa0a6', werkzeug: 'hacke', schuerze: '#5a3d24' })), 0.125, 80, scene);
     this.schuetzen = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#4f6b3a', haut: '#e0b48c', kapuze: '#3f5a30' })), 0.125, 120, scene);
     const box = (x: number, y: number, z: number, farbe: string, leucht = false) => new THREE.InstancedMesh(new THREE.BoxGeometry(x, y, z), leucht ? new THREE.MeshBasicMaterial({ color: new THREE.Color(farbe).multiplyScalar(1.6), toneMapped: false }) : new THREE.MeshStandardMaterial({ color: farbe, roughness: 0.9 }), 200);
-    this.traglast = { holz: box(0.28, 0.28, 1.1, '#8a6038'), stein: box(0.5, 0.42, 0.5, '#a8a29a'), kristall: box(0.3, 0.5, 0.3, '#7fe9ff', true) };
+    this.traglast = { holz: box(0.28, 0.28, 1.1, '#8a6038'), stein: box(0.5, 0.42, 0.5, '#a8a29a'), kristall: box(0.3, 0.5, 0.3, '#7fe9ff', true), nahrung: box(0.6, 0.45, 0.6, '#c9a04a') };
     // Pfeile: hell und leicht leuchtend, damit man sie auch nachts verfolgen kann
     this.pfeile = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.12, 1.5), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffe9c0').multiplyScalar(1.25), toneMapped: false }), 500);
     this.steckpfeile = new THREE.InstancedMesh(new THREE.BoxGeometry(0.09, 0.09, 1.2), new THREE.MeshStandardMaterial({ color: '#c9b48f' }), 300);
+    this.steine = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.6, 0), new THREE.MeshStandardMaterial({ color: '#8c867f', roughness: 1, flatShading: true }), 100);
+    this.steine.count = 0; this.steine.frustumCulled = false; this.steine.castShadow = true; scene.add(this.steine);
     this.toepfe = new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff9a3c').multiplyScalar(2), toneMapped: false }), 100);
     const fg = new THREE.CircleGeometry(1, 20); fg.rotateX(-Math.PI / 2);
     this.brand = new THREE.InstancedMesh(fg, new THREE.MeshBasicMaterial({ color: '#1a1410', transparent: true, opacity: 0.55, depthWrite: false }), 80);
@@ -260,7 +281,8 @@ export class Objekte {
 
   private neuesGeb(g: Geb): void {
     const alt = this.gebaeude.get(g.id); if (alt) this.scene.remove(alt);
-    const m = gebModell(g.typ, g.typ === 'mauer' && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe).clone();
+    const ms = g.typ === 'mauer' ? mauerStufe(g) : 0; this.mauerStufen.set(g.id, ms);
+    const m = gebModell(g.typ, g.typ === 'mauer' && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms).clone();
     const [cx, cz] = gebMitte(g); m.position.set(cx, g.y, cz);
     m.userData.y = g.y; this.scene.add(m); this.gebaeude.set(g.id, m);
   }
@@ -270,6 +292,7 @@ export class Objekte {
     for (const e of liste) {
       if (e.art === 'gebaut') { this.neuesGeb(e.geb); const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y, z, 14, ['#b9b2a6', '#8a6340', '#7b5636'], 3); T.wurf(x, e.geb.y, z, 8, ['#d8cfc0'], 1, 2, 0.8); }
       if (e.art === 'weg') { const m = this.gebaeude.get(e.geb.id); if (m) { this.scene.remove(m); this.gebaeude.delete(e.geb.id); } const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 2, z, e.zerstoert ? 70 : 20, ['#a59f95', '#8a6340', '#5a3d24', '#3a3836'], e.zerstoert ? 6 : 3); T.wurf(x, e.geb.y + 1, z, e.zerstoert ? 16 : 6, ['#6a625a', '#8a837b'], 1, 2, 1.4); }
+      if (e.art === 'schaden' && e.geb.typ === 'mauer' && mauerStufe(e.geb) !== this.mauerStufen.get(e.geb.id) && this.gebaeude.has(e.geb.id)) { this.neuesGeb(e.geb); T.wurf(e.geb.x + 0.5, e.geb.y + 4, e.geb.z + 0.5, 10, ['#a59f95', '#8a837b'], 3); }
       if (e.art === 'schaden') { this.wackeln.set(e.geb.id, 0.25); const [x, z] = gebMitte(e.geb); T.wurf(x + (Math.random() - 0.5) * e.geb.w, e.geb.y + 1 + Math.random() * 3, z + (Math.random() - 0.5) * e.geb.d, 4, ['#a59f95', '#8a6340'], 2.5); }
       if (e.art === 'tod' && this.spiel.erkundetAn(e.x, e.z)) { T.wurf(e.x, e.y + 1, e.z, e.typ === 'troll' ? 44 : 20, FARBEN[e.typ], e.typ === 'troll' ? 5 : 4); T.wurf(e.x, e.y + 1, e.z, 6, ['#ffe2a0'], 3, 1, 0.15); }
       if (e.art === 'explosion') {
@@ -285,6 +308,9 @@ export class Objekte {
       if (e.art === 'hieb') T.wurf(e.x, e.y + 0.6, e.z, 4, SPAENE[e.res], 2.4, 0, 0.14);
       if (e.art === 'abwurf') T.wurf(e.x, e.y, e.z, 20, ['#9fe7ff', '#3b4f6b'], 3, 1, 0.2);
       if (e.art === 'schuss') this.rueckstoss.set(e.geb.id, 0.25);
+      if (e.art === 'heilung') T.wurf(e.x, e.y, e.z, 2, ['#9dff8a', '#d0ffc0'], 1.2, 1, 0.12);
+      if (e.art === 'riss') { T.wurf(e.x, hoehe(e.x, e.z) + 4, e.z, 60, ['#b07cff', '#efe2ff', '#8a5cff'], 7, 1, 0.3); T.wurf(e.x, hoehe(e.x, e.z) + 2, e.z, 20, ['#2d2838', '#3a3442'], 2, 2, 1.6); }
+      if (e.art === 'brand') { const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 3, z, 12, ['#ff8a2a', '#ffb347'], 3, 1, 0.2); }
       if (e.art === 'umgebaut') { this.neuesGeb(e.geb); const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 3, z, 24, ['#ffe2a0', '#d4a640', '#ffffff'], 4, 1, 0.16); T.wurf(x, e.geb.y, z, 10, ['#d8cfc0'], 1, 2, 0.9); }
       if (e.art === 'ruine') {
         if (e.neu) this.neueRuine(e.ruine);
@@ -323,7 +349,8 @@ export class Objekte {
       if (e.feuer > 0 && e.typ === 'drachling') this.feuer.setze(e.x, e.y, e.z, e.richtung, Math.sin(t * 2 + e.id) * 0.08, 0, 0.7 + Math.min(1, e.feuer) * 0.4);
       if (e.panzer && !dunkel) this.panzer.setze(e.x, e.y + lauf, e.z, e.richtung);
       if (e.brand > 0 && Math.random() < dt * 8) this.teilchen.wurf(e.x, e.y + WESEN_HOEHE[e.typ] * 0.6, e.z, 1, ['#ff8a2a', '#ffb347'], 0.8, 1, 0.16);
-      if (e.hp < e.max && !dunkel) this.balken.setze(e.x, e.y + WESEN_HOEHE[e.typ] + 0.4, e.z, e.typ === 'troll' ? 2.4 : 1.4, e.hp / e.max, '#e5735f');
+      if (e.bossSchild > 0 && Math.random() < dt * 30) { const a = Math.random() * 6.28; this.teilchen.wurf(e.x + Math.cos(a) * 4, e.y + 2 + Math.random() * 8, e.z + Math.sin(a) * 4, 1, ['#c9a2ff', '#efe2ff'], 0.4, 1, 0.2); }
+      if (e.hp < e.max && !dunkel) this.balken.setze(e.x, e.y + WESEN_HOEHE[e.typ] + 0.4, e.z, e.typ === 'rissfuerst' ? 6 : e.typ === 'troll' || e.typ === 'steinwerfer' || e.typ === 'schildwaechter' ? 2.4 : 1.4, e.hp / e.max, e.typ === 'rissfuerst' ? '#b07cff' : '#e5735f');
     }
     for (const s of Object.values(this.wesen)) s.ende();
     this.feuer.ende(); this.panzer.ende();
@@ -346,6 +373,17 @@ export class Objekte {
     }
     for (const s of Object.values(this.arbeiter)) s.ende();
     for (const m of Object.values(this.traglast)) m.instanceMatrix.needsUpdate = true;
+    this.bewegeBuerger(dt, t);
+    // Pfeile über Gebäuden, die sich gerade verbessern lassen (nur am Tag)
+    this.pfeilZeit -= dt; if (this.pfeilZeit <= 0) { this.pfeilZeit = 0.5; this.pfeilListe = S.phase === 'tag' && this.zeigePfeile ? S.gebaeude.filter((g) => g.typ !== 'mauer' && S.verbesserbar(g)) : []; }
+    this.pfeilSchar.beginn();
+    for (const g of this.pfeilListe) { if (!S.gebaeude.includes(g)) continue; const [cx, cz] = gebMitte(g); this.pfeilSchar.setze(cx, g.y + (GEB_HOEHE[g.typ] || 8) + 3 + Math.sin(t * 2.5 + g.id) * 0.3, cz, t * 1.2 + g.id); }
+    this.pfeilSchar.ende();
+    for (const g of S.gebaeude) if (g.brand > 0) {
+      const [cx, cz] = gebMitte(g), hh = (GEB_HOEHE[g.typ] || 8) * 0.6;
+      if (Math.random() < dt * 14) this.teilchen.wurf(cx + (Math.random() - 0.5) * g.w * 0.8, g.y + hh * Math.random(), cz + (Math.random() - 0.5) * g.d * 0.8, 1, ['#ff8a2a', '#ffb347', '#ff6a1a'], 1.2, 1, 0.3);
+      if (Math.random() < dt * 5) this.teilchen.wurf(cx, g.y + hh, cz, 1, ['#4a4440', '#2f2a28'], 0.6, 2, 1.4);
+    }
     this.baumeister.beginn(); this.schuetzen.beginn();
     let ns = 0; const fw0 = new THREE.Vector3(0, 0, 1);
     for (const g of S.gebaeude) {
@@ -399,8 +437,9 @@ export class Objekte {
     for (let i = nk; i < this.kegel.length; i++) this.kegel[i].visible = false;
     for (const [id, r] of this.rueckstoss) { const n = r - dt; if (n <= 0) this.rueckstoss.delete(id); else this.rueckstoss.set(id, n); }
     // ---- Geschosse ----
-    let np = 0, nt = 0; const fw = new THREE.Vector3(0, 0, 1);
+    let np = 0, nt = 0, nst = 0; const fw = new THREE.Vector3(0, 0, 1);
     for (const p of S.geschosse) {
+      if (p.art === 'stein') { if (nst < 100 && p.t >= 0) { mtx.makeRotationFromEuler(new THREE.Euler(t * 4, t * 3, 0)).setPosition(p.x, p.y, p.z); this.steine.setMatrixAt(nst++, mtx); } continue; }
       if (p.art !== 'topf') {
         const f = Math.min(1, p.t / p.dauer), dy = (p.ty - p.sy) + Math.cos(Math.PI * f) * Math.PI * p.bogen;
         v.set(p.tx - p.sx, dy, p.tz - p.sz).normalize(); q.setFromUnitVectors(fw, v);
@@ -412,6 +451,7 @@ export class Objekte {
         if (Math.random() < 0.5) this.teilchen.wurf(p.x, p.y, p.z, 1, ['#5a5048'], 0.2, 2, 0.6);
       }
     }
+    this.steine.count = nst; this.steine.instanceMatrix.needsUpdate = true;
     this.pfeile.count = np; this.toepfe.count = nt; this.pfeile.instanceMatrix.needsUpdate = true; this.toepfe.instanceMatrix.needsUpdate = true;
     this.steckend = this.steckend.filter((s) => (s.t += dt) < 6);
     this.steckend.forEach((s, i) => this.steckpfeile.setMatrixAt(i, s.m)); this.steckpfeile.count = this.steckend.length; this.steckpfeile.instanceMatrix.needsUpdate = true;
@@ -427,6 +467,24 @@ export class Objekte {
     this.balken.ende();
     this.weg.setze(S, wegStaerke);
     this.teilchen.schritt(dt);
+  }
+  /** Einwohner ohne Arbeit schlendern am Tag zwischen Häusern, Burg, Hof und Werkstatt */
+  private bewegeBuerger(dt: number, t: number): void {
+    const S = this.spiel, tag = S.phase === 'tag', soll = tag ? Math.min(150, S.leerlauf()) : 0;
+    const ziele = S.gebaeude.filter((g) => g.typ === 'haus' || g.typ === 'haupt' || g.typ === 'werkstatt' || g.typ === 'hof' || g.typ === 'fischer');
+    const zielVon = (g: Geb): [number, number] => [g.x + g.w / 2 + (Math.random() - 0.5) * 2, g.z + g.d + 0.8 + Math.random()];
+    while (this.buerger.length < soll && ziele.length) { const g = ziele[Math.floor(Math.random() * ziele.length)], [x, z] = zielVon(g); this.buerger.push({ x, z, ziel: zielVon(ziele[Math.floor(Math.random() * ziele.length)]), warte: Math.random() * 3, art: this.buerger.length % 3, tempo: 1.6 + Math.random() * 0.8, richtung: 0 }); }
+    if (this.buerger.length > soll) this.buerger.length = soll;
+    for (const s of this.buergerSchar) s.beginn();
+    for (const b of this.buerger) {
+      const dx = b.ziel[0] - b.x, dz = b.ziel[1] - b.z, d = Math.hypot(dx, dz);
+      let geht = false;
+      if (b.warte > 0) b.warte -= dt;
+      else if (d < 0.4) { b.warte = 2 + Math.random() * 5; if (ziele.length) b.ziel = zielVon(ziele[Math.floor(Math.random() * ziele.length)]); }
+      else { const sp = Math.min(d, b.tempo * dt); b.x += dx / d * sp; b.z += dz / d * sp; b.richtung = Math.atan2(dx, dz); geht = true; }
+      this.buergerSchar[b.art].setze(b.x, hoehe(b.x, b.z) + (geht ? Math.abs(Math.sin(t * 8 + b.tempo * 10)) * 0.07 : 0), b.z, b.richtung);
+    }
+    for (const s of this.buergerSchar) s.ende();
   }
   hiebAn(x: number, y: number, z: number, res: Res): void { this.teilchen.wurf(x, y, z, 3, SPAENE[res], 2, 0, 0.12); }
 

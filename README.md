@@ -12,8 +12,8 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.3.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
-> Nacht, Bauen, sichtbare Arbeiter, alle vier Zeitalter mit Turmzweigen, Umrüsten und Verschmelzen, Licht, Wellen, Ruinen, Reparieren, Erfindungen, Klänge, Musik und Speichern. Das Konzeptbuch mit den
+> **Stand: Version 0.4.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
+> Nacht, Bevölkerung mit Wohnhäusern und Höfen, Ausbaustufen, eine Burg in sechs Stufen, Erfindungsbaum mit 37 Erfindungen, alle vier Zeitalter mit Turmzweigen, Umrüsten und Verschmelzen, Runenkraft, neue Risse und Wesen, Rissfürsten, Feuer, Schwierigkeitsgrade, Klänge, Musik und Spielstände. Das Konzeptbuch mit den
 > Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
 
 ## Spielen
@@ -28,16 +28,35 @@ einem gemeinsamen Code.
 |---|---|
 | Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
 | W A S D · Q E | verschieben · drehen |
-| 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
-| Klick auf Turm | Reparieren, Umrüsten (zwei Zweige), Verschmelzen mit dem Nachbarturm |
+| 1 – 8 · H · F | Gebäude wählen (4 Wohnhaus, H Bauernhof, F Fischerhütte), Klick setzt es; Mauern durch Ziehen |
+| Klick auf Gebäude | Ausbauen (Stufe I–III), Reparieren, Umrüsten (zwei Zweige), Verschmelzen mit dem Nachbarturm |
 | Klick auf Trümmer | Wiederaufbauen (halbe Kosten) oder Räumen |
 | 9 | Gelände ebnen (Fläche aufziehen) |
 | X | Späher in den Nebel schicken (15 Holz) |
-| T | Erfinderwerkstatt |
+| T | Erfindungsbaum |
 | N · Leertaste | Nacht einläuten · Pause |
 | Esc · Rechtsklick | abbrechen |
 
-Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.4
+
+- **Neues Hauptmenü** über einer lebenden Feste, die zwischen Tag und Nacht wechselt. Mit Spielständen (automatisch und drei Plätze),
+  Einstellungen schon vor dem Start und der Wahl der Schwierigkeit (Leicht, Normal, Schwer).
+- **Bevölkerung:** Wohnhäuser geben Wohnraum, Bauernhöfe und Fischerhütten bringen Nahrung. Einwohner essen jeden Tag; mit Vorrat und
+  Platz zieht die Feste neue Leute an, bei Hunger oder ohne Dach ziehen sie fort. Arbeitsgebäude brauchen Arbeiter aus der Bevölkerung,
+  wer keine Arbeit hat, läuft in der Feste herum.
+- **Ausbaustufen I–III** für Türme, Lichter, Wirtschaft und Wohnhäuser (Steinmetzkunst, Meisterbau): mehr Schaden, Haltbarkeit, Ertrag,
+  Arbeiter und Wohnraum, sichtbar an Pfeilern, Bannern, Runen, Silo und Windmühle. Goldene Pfeile zeigen, was sich gerade verbessern lässt.
+- **Die Burg in sechs Stufen:** Wehrhof, Steinfeste, Turmburg, Wehrburg, Dampfzitadelle, Kristallzitadelle, jede mit eigener Gestalt und
+  Fähigkeit (neu: Sturmglocke und Dampfstoß). Die Stufe bestimmt, wie viele Türme erlaubt sind.
+- **Runenkraft:** Jeder Turm verbraucht nachts Kristall. Fehlt er, feuern die äußeren Türme nur halb so schnell.
+- **Erfindungsbaum** mit 37 Erfindungen in sechs Wissenszweigen (Kriegskunst, Baukunst, Wirtschaft, Lichtkunde, Runenkunde, Alchemie)
+  über vier Zeitalter. Schlüsselerfindungen brauchen Vorwissen aus dem eigenen Zeitalter.
+- **Die Wildnis antwortet:** Bei Nacht 12 und 20 öffnen sich neue Risse (mit Warnung am Tag davor), die Welle sucht die schwächste Seite.
+  Neue Wesen: Aschegeist (legt Feuer bei der Wirtschaft), Steinwerfer (Fernangriff auf Türme), Moorschamane (heilt), Borkenwächter
+  (Schild gegen Pfeile). Jede fünfte Nacht kommt ein Rissfürst. Brände springen auf Nachbarn über, Mauern verlieren sichtbar Blöcke.
+- **Bericht nach jeder Nacht** mit Beute, Schäden und den besten Türmen.
 
 ### Neu in 0.3
 

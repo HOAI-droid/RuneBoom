@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
-  Spiel, DT, B, WR, CH, EBNEN_STEIN, HAUPT_STUFEN, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
-  type GebTyp, type Geb, type Ruine, type Res, type Baustein, type ErfId, type Spielstand
+  Spiel, DT, B, WR, CH, EBNEN_STEIN, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
+  type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Baustein, type ErfId, type Spielstand
 } from '@runeboom/core';
 import { neuerRenderer, Beleuchtung, Nachbearbeitung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-2';
-const RES_NAME: Record<Res, string> = { holz: 'Holz', stein: 'Stein', kristall: 'Kristall' };
-const MEHRZAHL: Record<string, string> = { moorwicht: 'Moorwichte', wolf: 'Schattenwölfe', troll: 'Steintrolle', drachling: 'Drachlinge', rochen: 'Nebelrochen' };
-const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${n} ${RES_NAME[r as Res]}`).join(' · ');
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.4.0';
+const RES_NAME: Record<Res, string> = RES_NAMEN;
+const MEHRZAHL: Record<string, string> = { moorwicht: 'Moorwichte', wolf: 'Schattenwölfe', troll: 'Steintrolle', drachling: 'Drachlinge', rochen: 'Nebelrochen', aschegeist: 'Aschegeister', steinwerfer: 'Steinwerfer', schamane: 'Moorschamanen', schildwaechter: 'Borkenwächter', rissfuerst: 'Rissfürsten' };
+const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${RES_NAME[r as Res]}`).join(' · ');
 
 // ================= Grundgerüst: Leinwand, Szene, Kamera =================
 const canvas = $<HTMLCanvasElement>('leinwand');
@@ -55,10 +55,10 @@ let panelArt: 'geb' | 'werkstatt' | 'einst' | 'ruine' | null = null;
 function panelSetzen(html: string): boolean { const p = $('panel'); if (p.dataset.html === html && !p.hidden) return false; p.dataset.html = html; p.innerHTML = html; p.hidden = false; return true; }
 let einfuehrungSchritt = -1, spaeherGeschickt = false;
 
-function starte(code: string, stand?: Spielstand): void {
-  aufraeumen();
+function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit = 'normal'): void {
+  aufraeumen(); imMenue = false; $('start').hidden = true;
   $('laden').hidden = false; klang.start();
-  spiel = new Spiel(code, stand);
+  spiel = new Spiel(code, stand, { schwierigkeit });
   welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet);
   const sp = spiel, wa = welt;
   welt.aenderungen = (cx, cz) => sp.dekoAenderungen(cx, cz, CH);
@@ -76,22 +76,117 @@ function starte(code: string, stand?: Spielstand): void {
   spiel.ereignisse.length = 0;
   melde(stand ? `Willkommen zurück. Tag ${spiel.nacht}.` : 'Tag 1. Baue Türme vor dem Tor, bevor die Nacht kommt. Der Pfad zeigt, woher die Wesen kommen.', 'info');
 }
-function aufraeumen(): void { obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; }
-function speichern(): void { if (!spiel || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
+function aufraeumen(): void { obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; }
+function speichern(): void { if (!spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
+interface Platz { name: string; datum: number; stand: Spielstand }
+function plaetze(): (Platz | null)[] { try { const p = JSON.parse(localStorage.getItem(PLAETZE) || '[]'); return [0, 1, 2].map((i) => p[i] || null); } catch { return [null, null, null]; } }
+function platzSpeichern(i: number): boolean {
+  if (!spiel || imMenue) return false;
+  if (spiel.phase === 'nacht') { melde('In der Nacht lässt sich nicht speichern.', 'schlecht'); return false; }
+  const p = plaetze(); p[i] = { name: `${spiel.code} · Tag ${spiel.nacht}`, datum: Date.now(), stand: spiel.speichern() };
+  try { localStorage.setItem(PLAETZE, JSON.stringify(p)); melde(`Gespeichert in Platz ${i + 1}.`, 'gut'); return true; } catch { melde('Speichern nicht möglich.', 'schlecht'); return false; }
+}
+function platzLoeschen(i: number): void { const p = plaetze(); p[i] = null; try { localStorage.setItem(PLAETZE, JSON.stringify(p)); } catch { /* */ } }
+const standInfo = (st: Spielstand) => `Tag ${st.nacht} · ${st.code} · ${SCHWIERIGKEIT[st.schwierigkeit || 'normal'].name} · ${(st.erfindungen || []).length} Erfindungen`;
 function geladen(): Spielstand | null { try { const s = localStorage.getItem(SPEICHER); return s ? JSON.parse(s) : null; } catch { return null; } }
 
-// ================= Startmenü =================
-const codeFeld = $<HTMLInputElement>('code');
-codeFeld.value = neuerWeltcode();
-$('wuerfeln').onclick = () => { codeFeld.value = neuerWeltcode(); };
-$('neu').onclick = () => starte(codeFeld.value.trim().toUpperCase() || neuerWeltcode());
+// ================= Hauptmenü mit lebender Welt =================
+let imMenue = false, menueZeit = 0, neuSchwer: Schwierigkeit = 'normal', neuCode = neuerWeltcode();
+/** Feste für den Hintergrund des Menüs: echte Welt, ausgebaut, voller Leben */
+function baueMenueWelt(): void {
+  const code = 'NEBELKRAKE-4127';
+  const s = new Spiel(code, undefined, { schwierigkeit: 'leicht' });
+  s.res.holz = s.res.stein = s.res.kristall = 99999; s.res.nahrung = 9999;
+  for (const id of ['steinmetz', 'sprengpulver', 'leuchtfeuer', 'meisterbau'] as ErfId[]) s.erfindungen.add(id);
+  s.aufdecken(B.x, B.z, 140);
+  const ring = (typ: GebTyp, r: number, n: number, a0 = 0, a1 = Math.PI) => { for (let i = 0; i < n; i++) { const a = a0 + (a1 - a0) * (i + 0.5) / n, p = s.findePlatz(typ, Math.round(B.x + Math.cos(a) * r), Math.round(B.z + 6 + Math.sin(a) * r), 4); if (p) s.bauen(typ, p[0], p[1], true); } };
+  ring('wachturm', 20, 4, 0.3, 2.8); ring('feuertopf', 28, 2, 0.8, 2.3); ring('fackel', 15, 5, 0.2, 2.9);
+  ring('haus', 24, 6, 3.5, 5.9); ring('hof', 40, 2, 3.7, 5.6); ring('haus', 33, 4, 3.4, 6.1);
+  for (const g of s.gebaeude) { if (GEBAEUDE[g.typ].kampf && g.typ !== 'haupt') { g.stufe = 2 + (g.id % 2); if (g.typ === 'wachturm' && g.id % 3 === 0) { g.typ = 'schuetzenturm'; g.zweig = 'weit'; } } if (g.typ === 'haus') g.stufe = 1 + (g.id % 3); if (g.typ === 'fackel' && g.id % 2) g.typ = 'leuchtfeuer'; }
+  const h = s.haupt!; h.stufe = 4;
+  s.einwohner = 70; s.verteileArbeiter();
+  s.ereignisse.length = 0;
+  spiel = s;
+  welt = new WeltAnsicht(scene, s.seed, s.erkundet);
+  const wa = welt;
+  welt.aenderungen = (cx, cz) => s.dekoAenderungen(cx, cz, CH);
+  welt.hoehen = () => [];
+  welt.onUebersicht = () => { $('laden').hidden = true; void wa; };
+  obj = new Objekte(scene, s); obj.zeigePfeile = false;
+  lichtkarteSetzen(s.lichtquellen());
+  imMenue = true; menueZeit = 0;
+}
+function menueKamera(dt: number): void {
+  menueZeit += dt;
+  const a = menueZeit * 0.035 + 0.6, r = 92, ziel = new THREE.Vector3(B.x, 9, B.z + 4);
+  controls.target.copy(ziel); camera.position.set(ziel.x + Math.cos(a) * r, 52 + Math.sin(menueZeit * 0.05) * 6, ziel.z + Math.sin(a) * r); camera.lookAt(ziel);
+}
+function seite(name: string | null): void {
+  const el = $('seite');
+  document.querySelectorAll<HTMLButtonElement>('[data-seite]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.seite === name)));
+  if (!name) { el.hidden = true; return; }
+  klang.start();
+  if (name === 'neu') {
+    el.innerHTML = `<h2>Neues Spiel</h2><p>Jeder Weltcode ergibt genau eine Welt. Teile ihn, damit andere dieselbe Welt versuchen können.</p>
+      <div class="feld"><label for="code">Weltcode</label><input id="code" maxlength="24" spellcheck="false" autocomplete="off" value="${neuCode}"><button type="button" id="wuerfeln">Neu würfeln</button></div>
+      <div class="feld"><label>Schwierigkeit</label></div>
+      <div class="stufen-wahl">${(Object.keys(SCHWIERIGKEIT) as Schwierigkeit[]).map((k) => `<button type="button" data-schwer="${k}" aria-pressed="${k === neuSchwer}"><b>${SCHWIERIGKEIT[k].name}</b><small>${k === 'leicht' ? 'Kleinere Wellen, mehr Vorrat. Zum Kennenlernen.' : k === 'normal' ? 'Ab Nacht 10 wird es ernst.' : 'Große Wellen, wenig Vorrat. Jeder Fehler zählt.'}</small></button>`).join('')}</div>
+      <label class="regler"><span><input type="checkbox" id="mit-einf" ${einst.einfuehrung ? 'checked' : ''}> Einführung zeigen</span></label>
+      <div class="reihe"><button type="button" class="knopf haupt" id="los">Welt betreten</button></div>`;
+    const c = $<HTMLInputElement>('code');
+    c.oninput = () => { neuCode = c.value; };
+    $('wuerfeln').onclick = () => { neuCode = c.value = neuerWeltcode(); };
+    el.querySelectorAll<HTMLButtonElement>('[data-schwer]').forEach((b) => { b.onclick = () => { neuSchwer = b.dataset.schwer as Schwierigkeit; seite('neu'); }; });
+    $<HTMLInputElement>('mit-einf').onchange = (e) => { einst.einfuehrung = (e.target as HTMLInputElement).checked; einstSpeichern(); };
+    $('los').onclick = () => starte(c.value.trim().toUpperCase() || neuerWeltcode(), undefined, neuSchwer);
+  }
+  if (name === 'plaetze') {
+    const auto = geladen();
+    el.innerHTML = `<h2>Spielstände</h2><p>Zu Beginn jedes Tages wird automatisch gespeichert. Im Spiel lässt sich über ☰ zusätzlich in einen der drei Plätze speichern.</p>
+      <div class="platz"><b>Automatisch</b><small>${auto && auto.phase !== 'verloren' ? standInfo(auto) : 'leer'}</small><div class="knoepfe2"><button type="button" class="haupt" data-laden="auto" ${auto && auto.phase !== 'verloren' ? '' : 'disabled'}>Laden</button></div></div>
+      ${plaetze().map((p, i) => `<div class="platz"><b>Platz ${i + 1}</b><small>${p ? `${standInfo(p.stand)} · ${new Date(p.datum).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` : 'leer'}</small><div class="knoepfe2"><button type="button" class="haupt" data-laden="${i}" ${p ? '' : 'disabled'}>Laden</button><button type="button" data-loeschen="${i}" ${p ? '' : 'disabled'}>Löschen</button></div></div>`).join('')}`;
+    el.querySelectorAll<HTMLButtonElement>('[data-laden]').forEach((b) => { b.onclick = () => { const k = b.dataset.laden!; const st = k === 'auto' ? geladen() : plaetze()[Number(k)]?.stand; if (st) starte(st.code, st, st.schwierigkeit); }; });
+    el.querySelectorAll<HTMLButtonElement>('[data-loeschen]').forEach((b) => { b.onclick = () => { if (confirm('Diesen Spielstand wirklich löschen?')) { platzLoeschen(Number(b.dataset.loeschen)); seite('plaetze'); } }; });
+  }
+  if (name === 'einst') {
+    el.innerHTML = `<h2>Einstellungen</h2>${einstellungenHtml()}`;
+    einstellungenVerbinden(el, () => seite('einst'));
+  }
+  if (name === 'steuerung') {
+    el.innerHTML = `<h2>Steuerung</h2><div class="hilfe">
+      <kbd>Ziehen · Rad</kbd><span>Karte verschieben (linke oder mittlere Maustaste) · zoomen; rechte Maustaste oder zwei Finger: drehen</span>
+      <kbd>W A S D · Q E</kbd><span>verschieben · drehen</span>
+      <kbd>1 – 8 · H · F</kbd><span>Gebäude wählen, Klick setzt es; Mauern durch Ziehen</span>
+      <kbd>Klick auf Gebäude</kbd><span>Ausbauen (Stufe I–III), Umrüsten, Verschmelzen, Reparieren</span>
+      <kbd>X · 9</kbd><span>Späher in den Nebel (15 Holz) · Gelände ebnen</span>
+      <kbd>T</kbd><span>Erfindungsbaum</span>
+      <kbd>N · Leertaste</kbd><span>Nacht einläuten · Pause</span>
+      <kbd>Esc · Rechtsklick</kbd><span>abbrechen</span></div>`;
+  }
+  el.hidden = false;
+}
+function einstellungenHtml(): string {
+  return `<label class="regler">Musik <input type="range" id="e-musik" min="0" max="1" step="0.05" value="${einst.musik}"></label>
+    <label class="regler">Klänge <input type="range" id="e-effekte" min="0" max="1" step="0.05" value="${einst.effekte}"></label>
+    <div class="zeile"><span>Grafik</span><span class="wahl">${(['hoch', 'mittel', 'niedrig'] as const).map((g) => `<button type="button" data-grafik="${g}" aria-pressed="${einst.grafik === g}">${g[0].toUpperCase() + g.slice(1)}</button>`).join('')}</span></div>
+    <p>Niedrig: ohne Schatten und Nachbearbeitung, für schwächere Geräte.</p>`;
+}
+function einstellungenVerbinden(p: HTMLElement, neu: () => void): void {
+  const m = p.querySelector<HTMLInputElement>('#e-musik')!, f = p.querySelector<HTMLInputElement>('#e-effekte')!;
+  m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
+  p.querySelectorAll<HTMLButtonElement>('[data-grafik]').forEach((b) => { b.onclick = () => { einst.grafik = b.dataset.grafik as typeof einst.grafik; einstSpeichern(); grafikSetzen(); neu(); }; });
+}
+document.querySelectorAll<HTMLButtonElement>('[data-seite]').forEach((b) => { b.onclick = () => seite(b.getAttribute('aria-pressed') === 'true' ? null : b.dataset.seite!); });
 function zeigeStart(): void {
-  aufraeumen(); $('hud').hidden = true; $('ende').hidden = true; $('start').hidden = false;
+  aufraeumen(); $('hud').hidden = true; $('ende').hidden = true; $('baum').hidden = true; $('bericht').hidden = true; $('start').hidden = false;
+  $('version').textContent = VERSION;
   const s = geladen(); const w = $('weiter');
-  if (s && s.phase !== 'verloren') { w.hidden = false; w.textContent = `Fortsetzen · Tag ${s.nacht} · ${s.code}`; w.onclick = () => starte(s.code, s); } else w.hidden = true;
+  if (s && s.phase !== 'verloren') { w.hidden = false; $('weiter-info').textContent = standInfo(s); w.onclick = () => starte(s.code, s, s.schwierigkeit); } else w.hidden = true;
+  seite(null);
+  baueMenueWelt();
 }
 $('zummenue').onclick = zeigeStart;
-$('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c); };
+$('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 zeigeStart();
 // für Tests und Neugierige in der Konsole
@@ -174,11 +269,23 @@ function panelGeb(): void {
   const kampf = k ? `<div class="zeile"><span>Reichweite · Schaden</span><span>${Math.round(k.reichweite)} · ${Math.round(k.schaden)}${k.flaeche ? ' (Fläche)' : ''}${k.ziele && k.ziele > 1 ? ` · ${k.ziele} Ziele` : ''}</span></div>` : '';
   const lichtZ = d.licht > 4 ? `<div class="zeile"><span>Lichtkreis</span><span>${d.licht + (zweig?.licht || 0)} Blöcke</span></div>` : '';
   const zw = zweig ? `<div class="zeile"><span>Zweig</span><span>${zweig.name}</span></div>` : '';
+  const arbW = s.arbeit(g), zug = s.zugeteilt(g);
+  const arbZ = arbW ? `<div class="zeile"><span>Arbeiter</span><span${zug < arbW.arbeiter ? ' style="color:var(--rot)"' : ''}>${zug} / ${arbW.arbeiter}${zug < arbW.arbeiter ? ' · zu wenig Einwohner' : ''}</span></div>` : '';
+  const wohn = g.typ === 'haus' ? `<div class="zeile"><span>Wohnraum</span><span>${[0, 4, 7, 10][g.stufe] + (s.erfindungen.has('sternenkorn') ? 2 : 0)} Einwohner</span></div>` : '';
+  const rkr = runenkraft(g.typ, g.stufe);
+  const kraftZ = rkr ? `<div class="zeile"><span>Runenkraft je Nacht</span><span>${rkr} Kristall${s.phase === 'nacht' && !g.kraft ? ' · <b style="color:var(--rot)">fehlt</b>' : ''}</span></div>` : '';
+  const brandZ = g.brand > 0 ? '<div class="zeile"><span style="color:var(--rot)">Brennt!</span><span>' + Math.ceil(g.brand) + ' s</span></div>' : '';
+  let stufeZ = '';
+  if (Spiel.hatStufen(g.typ)) {
+    stufeZ = `<div class="zeile"><span>Stufe</span><span>${STUFE_NAME[g.stufe]} von III</span></div>`;
+    const o = s.stufeOption(g);
+    if (o && !g.umbau) stufeZ += `<div class="rezept"><h3>Ausbau auf Stufe ${STUFE_NAME[o.stufe]}</h3><p>${GEBAEUDE[g.typ].arbeit ? 'Mehr Arbeiter, mehr Ertrag, größerer Umkreis.' : g.typ === 'haus' ? 'Mehr Wohnraum.' : 'Mehr Schaden, Haltbarkeit und Reichweite.'}</p><button type="button" class="aktion" data-tat="stufe" ${o.grund ? 'disabled' : ''}>Ausbauen · ${kostenHtml(o.kosten)}</button>${o.grund ? `<p class="grund">${o.grund}</p>` : ''}</div>`;
+  }
   // Umrüsten: je Zeitalter zwei Zweige
   let umr = '';
   if (!g.umbau && !g.rep) for (const nach of s.umruestOptionen(g)) {
     const nd = GEBAEUDE[nach], frei = s.freigeschaltet(nach), geld = s.kannBezahlen(nd.kosten);
-    const grund = !frei ? `braucht ${ERFINDUNGEN[nd.braucht!].name}` : !tag ? 'nur am Tag' : !geld ? 'zu wenig Rohstoffe' : '';
+    const grund = !frei ? `braucht ${ERFINDUNGEN[nd.braucht!].name}` : !tag ? 'nur am Tag' : !geld ? s.fehlt(nd.kosten).replace(/\.$/, '') : '';
     umr += `<div class="rezept"><h3>Umrüsten: ${nd.name}</h3><p>${nd.kurz}</p><div class="zeile"><span>Kosten</span><span>${kostenHtml(nd.kosten)}</span></div>`;
     if (nd.zweige) umr += `<div class="zweige">${nd.zweige.map((z) => `<button type="button" class="aktion" data-tat="umr" data-nach="${nach}" data-zweig="${z.id}" title="${z.kurz}" ${grund ? 'disabled' : ''}><b>${z.name}</b><br><small>${z.kurz}</small></button>`).join('')}</div>`;
     else umr += `<button type="button" class="aktion" data-tat="umr" data-nach="${nach}" ${grund ? 'disabled' : ''}>Umrüsten</button>`;
@@ -197,18 +304,20 @@ function panelGeb(): void {
   // Hauptgebäude: Ausbau und Fähigkeiten
   let haupt = '';
   if (g.typ === 'haupt') {
-    haupt = `<div class="zeile"><span>Stufe</span><span>${g.stufe} / ${HAUPT_STUFEN.length}</span></div>`;
+    haupt = `<div class="zeile"><span>Stufe</span><span>${HAUPT_STUFEN[g.stufe - 1].name} (${g.stufe} / ${HAUPT_STUFEN.length})</span></div>
+      <div class="zeile"><span>Türme erlaubt</span><span>${s.turmZahl()} / ${s.turmGrenze()}</span></div>`;
     const st = s.hauptAusbau();
     if (st && !g.umbau) {
       const frei = !st.braucht || s.erfindungen.has(st.braucht);
-      haupt += `<div class="rezept"><h3>Ausbau auf Stufe ${st.stufe}</h3><p>${st.kurz} Mehr Haltbarkeit (${st.hp}) und Licht.</p><button type="button" class="aktion" data-tat="ausbau" ${frei && tag && s.kannBezahlen(st.kosten) ? '' : 'disabled'}>Ausbauen · ${kostenHtml(st.kosten)}</button>${!frei ? `<p class="grund">Braucht ${ERFINDUNGEN[st.braucht!].name}.</p>` : ''}</div>`;
+      const grund = !frei ? `Braucht die Erfindung ${ERFINDUNGEN[st.braucht!].name}.` : !tag ? 'Ausgebaut wird nur am Tag.' : s.fehlt(st.kosten);
+      haupt += `<div class="rezept"><h3>Ausbau zur ${st.name}</h3><p>${st.kurz} Haltbarkeit ${st.hp}, bis zu ${st.tuerme} Türme, Wohnraum ${st.wohnraum}.</p><button type="button" class="aktion" data-tat="ausbau" ${grund ? 'disabled' : ''}>Ausbauen · ${kostenHtml(st.kosten)}</button>${grund ? `<p class="grund">${grund}</p>` : ''}</div>`;
     }
     const f = s.faehigkeiten();
     if (f.length) haupt += `<div class="zeile"><span>Fähigkeiten (nachts, je einmal)</span><span>${f.map((n) => FAEHIGKEIT_NAME[n]).join(' · ')}</span></div>`;
   }
   const html = `<button class="schliessen" type="button" aria-label="Schließen">×</button><h2>${d.name}</h2><p>${d.kurz}</p>
     <div class="zeile"><span>Haltbarkeit</span><span>${Math.ceil(g.hp)} / ${g.max}</span></div><div class="hp"><div style="width:${(100 * g.hp) / g.max}%"></div></div>
-    ${zw}${ertrag}${kampf}${lichtZ}${werk}${haupt}${umr}${vs}
+    ${brandZ}${stufeZ}${zw}${arbZ}${wohn}${ertrag}${kampf}${lichtZ}${kraftZ}${werk}${haupt}${umr}${vs}
     ${g.typ !== 'haupt' ? '<button type="button" class="aktion" data-tat="abreissen">Abreißen (halbe Kosten zurück)</button>' : ''}`;
   if (!panelSetzen(html)) return;
   const p = $('panel');
@@ -221,6 +330,7 @@ function panelGeb(): void {
       if (t === 'umr' && s.umruesten(g, b.dataset.nach as GebTyp, b.dataset.zweig)) klang.spiele('bau', 0.8);
       if (t === 'vs') { const o = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (o && s.verschmelzen(g, o.partner)) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const z = s.gebaeude.find((x) => x.umbau?.nach === o.ergebnis); waehle(z || null); return; } } }
       if (t === 'ausbau' && s.hauptAusbauen()) klang.spiele('bau', 0.8);
+      if (t === 'stufe' && s.stufeAusbauen(g)) klang.spiele('bau', 0.8);
       panelGeb();
     };
   });
@@ -244,46 +354,78 @@ function panelRuine(): void {
     };
   });
 }
+// ================= Erfindungsbaum =================
+let baumReiter: 'baum' | 'buch' | 'beute' = 'baum', baumWahl: ErfId | null = null;
+const ZA_NAMEN = ['', 'Holz & Runen', 'Glut & Alchemie', 'Uhrwerk & Dampf', 'Blitz & Kristall'];
+function baumZu(): void { $('baum').hidden = true; $('baum-detail').hidden = true; obj?.waehle(null); if (panelArt === 'werkstatt') panelArt = null; }
 function zeigeWerkstatt(): void {
   if (!spiel) return;
-  if (panelArt !== 'werkstatt') $('panel').dataset.html = '';
-  panelArt = 'werkstatt'; obj?.waehle(spiel.gebaeude.find((g) => g.typ === 'werkstatt') || null);
-  const s = spiel;
-  const hat = (e: (typeof ERFINDUNGEN)[ErfId]) => Object.entries(e.zutaten).every(([b, n]) => s.bausteine[b as Baustein] >= (n as number));
-  const karte = (id: ErfId) => {
-    const e = ERFINDUNGEN[id], fertig = s.erfindungen.has(id);
-    // Geheime Rezepte: erst sichtbar, wenn alle Bausteine einmal beisammen sind
-    const verborgen = e.geheim && !fertig && !hat(e);
-    if (verborgen) return `<div class="rezept geheim"><h3>??? · geheimes Rezept</h3><p>Ein Rezept, das sich erst zeigt, wenn die richtigen Bausteine beisammen sind.</p></div>`;
-    const zut = Object.entries(e.zutaten).map(([b, n]) => `<span class="${s.bausteine[b as Baustein] < (n as number) && !fertig ? 'fehlt' : ''}"><i class="${b}"></i>${n} ${BAUSTEIN_NAME[b as Baustein]}</span>`).join('')
-      + `<span class="${s.res.kristall < e.kristall && !fertig ? 'fehlt' : ''}"><i class="kristall"></i>${e.kristall} Kristall</span>`;
-    const vor = e.braucht && !s.erfindungen.has(e.braucht);
-    const kann = !fertig && !vor && hat(e) && s.res.kristall >= e.kristall;
-    const titel = e.zeitalter ? `<span class="zeitalter">Schlüssel · ${ZEITALTER_NAME[e.zeitalter]}</span>` : e.geheim ? '<span class="zeitalter">geheim</span>' : '';
-    return `<div class="rezept ${fertig ? 'fertig' : ''} ${e.zeitalter ? 'schluessel' : ''}"><h3>${e.name}${fertig ? ' · erfunden' : ''}</h3>${titel}<p>${e.wirkung}</p><div class="zutaten">${zut}</div>${vor ? `<p class="grund">Braucht zuerst ${ERFINDUNGEN[e.braucht!].name}.</p>` : ''}${fertig ? '' : `<button type="button" class="aktion" data-erf="${id}" ${kann ? '' : 'disabled'}>Erfinden</button>`}</div>`;
-  };
-  const ids = Object.keys(ERFINDUNGEN) as ErfId[];
-  const offen = ids.filter((i) => !s.erfindungen.has(i)), fertig = ids.filter((i) => s.erfindungen.has(i));
-  const buch = VERSCHMELZUNGEN.map((v) => {
-    const bek = s.entdeckt.has(v.ergebnis), LN = { fern: 'Fernkampf', flaeche: 'Fläche', licht: 'Licht' };
-    return `<div class="zeile"><span>${LN[v.a]} + ${LN[v.b]}</span><span>${bek ? GEBAEUDE[v.ergebnis].name : '???'}</span></div>`;
-  }).join('');
-  const html = `<button class="schliessen" type="button" aria-label="Schließen">×</button><h2>Erfinderwerkstatt</h2>
-    <div class="zeile"><span>Zeitalter</span><span>${s.zeitalterName()}</span></div>
-    <p>Bausteine lassen die Wesen fallen. Zusammen mit Kristall entstehen daraus Erfindungen. Schlüsselerfindungen öffnen ein neues Zeitalter.</p>
-    <div class="rezept"><h3>Woher die Bausteine kommen</h3>${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="zeile"><span><i class="${bs}" style="width:8px;height:8px;display:inline-block;transform:rotate(45deg);border-radius:2px;margin-right:6px"></i>${BAUSTEIN_NAME[bs]}</span><span>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).filter((t) => GEGNER[t].beute.some(([x]) => x === bs)).map((t) => `${GEGNER[t].name} ${Math.round(100 * GEGNER[t].beute.find(([x]) => x === bs)![1])} %`).join(' · ')}</span></div>`).join('')}<p>Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile.</p></div>
-    ${offen.map(karte).join('')}
-    <h3 class="buch">Rezeptbuch</h3><p>Verschmelzungen benachbarter Türme. Was einmal gelungen ist, bleibt hier vermerkt.</p>${buch}
-    ${fertig.length ? `<h3 class="buch">Erfunden</h3>${fertig.map(karte).join('')}` : ''}`;
-  if (!panelSetzen(html)) return;
-  const p = $('panel');
-  p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = () => { schliessePanel(); obj?.waehle(null); };
-  p.querySelectorAll<HTMLButtonElement>('[data-erf]').forEach((b) => { b.onclick = () => { if (s.erfinden(b.dataset.erf as ErfId)) { klang.spiele('glocke', 0.8); zeigeWerkstatt(); leisteAktualisieren(); } }; });
+  schliessePanel(); panelArt = 'werkstatt'; $('baum').hidden = false;
+  baumZeichnen(true);
 }
+function erfStatus(id: ErfId): 'fertig' | 'kann' | 'fehlt' | 'zu' | 'geheim' {
+  const s = spiel!, e = ERFINDUNGEN[id];
+  if (s.erfindungen.has(id)) return 'fertig';
+  const hat = Object.entries(e.zutaten).every(([b, n]) => s.bausteine[b as Baustein] >= (n as number));
+  if (e.geheim && !hat) return 'geheim';
+  if (s.vorwissenFehlt(id)) return 'zu';
+  return hat && s.res.kristall >= e.kristall ? 'kann' : 'fehlt';
+}
+let baumHtmlAlt = '';
+function baumZeichnen(neu = false): void {
+  const s = spiel; if (!s || $('baum').hidden) return;
+  $('baum-za').textContent = `Zeitalter ${s.zeitalter()} · ${s.zeitalterName()} · ${s.erfindungen.size} von ${Object.keys(ERFINDUNGEN).length} erfunden`;
+  $('baum-bst').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span><i class="${b}"></i>${BAUSTEIN_NAME[b]} ${s.bausteine[b]}</span>`).join('') + `<span><i class="kristall"></i>Kristall ${Math.floor(s.res.kristall)}</span>`;
+  document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.reiter === baumReiter)));
+  let html = '';
+  if (baumReiter === 'baum') {
+    const z = s.zeitalter();
+    html = `<div class="baum-gitter"><div></div>${[1, 2, 3, 4].map((a) => `<div class="zkopf ${a === z ? 'jetzt' : a > z ? 'zu' : ''}">${ZA_NAMEN[a]}<small>${a < z ? 'erreicht' : a === z ? 'jetziges Zeitalter' : 'noch verschlossen'}</small></div>`).join('')}`;
+    for (const w of Object.keys(WISSEN_NAME) as Wissen[]) {
+      html += `<div class="wkopf">${WISSEN_NAME[w]}</div>`;
+      for (const a of [1, 2, 3, 4]) {
+        const ids = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].wissen === w && ERFINDUNGEN[i].ab === a);
+        html += `<div class="zelle">${ids.map((id) => {
+          const e = ERFINDUNGEN[id], st = erfStatus(id);
+          if (st === 'geheim') return `<button type="button" class="ekarte geheim" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>???</b><span>geheimes Rezept</span></button>`;
+          const zut = Object.entries(e.zutaten).map(([b, n]) => `<span class="${st !== 'fertig' && s.bausteine[b as Baustein] < (n as number) ? 'fehlt' : ''}"><i class="${b}"></i>${n}</span>`).join('') + `<span class="${st !== 'fertig' && s.res.kristall < e.kristall ? 'fehlt' : ''}"><i class="kristall"></i>${e.kristall}</span>`;
+          return `<button type="button" class="ekarte ${st} ${e.zeitalter ? 'schluessel' : ''}" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>${e.zeitalter ? '◆ ' : ''}${e.name}${st === 'fertig' ? ' ✓' : ''}</b><span class="zut">${zut}</span></button>`;
+        }).join('')}</div>`;
+      }
+    }
+    html += '</div>';
+  } else if (baumReiter === 'buch') {
+    const LN = { fern: 'Fernkampf', flaeche: 'Fläche', licht: 'Licht' };
+    html = `<div class="baum-liste"><p>Zwei benachbarte Türme lassen sich am Tag verschmelzen. Was einmal gelungen ist, bleibt hier vermerkt.</p>${VERSCHMELZUNGEN.map((v) => { const bek = s.entdeckt.has(v.ergebnis); return `<div class="zeile"><span>${LN[v.a]} + ${LN[v.b]}</span><span>${bek ? `<b>${GEBAEUDE[v.ergebnis].name}</b> · ${GEBAEUDE[v.ergebnis].kurz}` : '???'}</span></div>`; }).join('')}</div>`;
+  } else {
+    html = `<div class="baum-liste"><p>Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.</p>${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="zeile"><span><i class="${bs}" style="width:8px;height:8px;display:inline-block;transform:rotate(45deg);border-radius:2px;margin-right:6px"></i>${BAUSTEIN_NAME[bs]}</span><span>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).filter((t) => GEGNER[t].beute.some(([x]) => x === bs)).map((t) => { const bt = GEGNER[t].beute.find(([x]) => x === bs)!; return `${GEGNER[t].name} ${Math.round(100 * bt[1])} %${bt[2] ? ` (×${bt[2]})` : ''}`; }).join(' · ')}</span></div>`).join('')}
+      <p>Die Wesen der Wildnis:</p>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).map((t) => `<div class="zeile"><span>${GEGNER[t].name}</span><span>${GEGNER[t].kurz}</span></div>`).join('')}</div>`;
+  }
+  if (neu || html !== baumHtmlAlt) {
+    baumHtmlAlt = html; $('baum-inhalt').innerHTML = html;
+    $('baum-inhalt').querySelectorAll<HTMLButtonElement>('[data-erf]').forEach((b) => { b.onclick = () => { baumWahl = b.dataset.erf as ErfId; baumZeichnen(); }; });
+  }
+  // Einzelheiten der gewählten Erfindung
+  const d = $('baum-detail');
+  if (!baumWahl || baumReiter !== 'baum') { d.hidden = true; return; }
+  const e = ERFINDUNGEN[baumWahl], st = erfStatus(baumWahl);
+  const grund = st === 'fertig' ? '' : st === 'geheim' ? 'Ein geheimes Rezept. Es zeigt sich, sobald die richtigen Bausteine beisammen sind.' : s.vorwissenFehlt(baumWahl) || (st === 'fehlt' ? 'Es fehlen noch Bausteine oder Kristall.' : '');
+  const dhtml = `<h3>${st === 'geheim' ? '???' : e.name}</h3><div class="baum-za">${WISSEN_NAME[e.wissen]} · ${ZA_NAMEN[e.ab]}${e.zeitalter ? ` · Schlüssel zu ${ZA_NAMEN[e.zeitalter]}` : ''}</div>${st === 'geheim' ? '' : `<p>${e.wirkung}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>Erfinden</button>`}`;
+  if (d.dataset.html !== dhtml || d.hidden) {
+    d.dataset.html = dhtml; d.innerHTML = dhtml; d.hidden = false;
+    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { if (s.erfinden(baumWahl!)) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); } };
+  }
+}
+document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => { b.onclick = () => { baumReiter = b.dataset.reiter as typeof baumReiter; baumZeichnen(true); }; });
+$('baum-zu').onclick = baumZu;
 
 // ================= Meldungen =================
 function melde(text: string, ton: 'gut' | 'schlecht' | 'info' = 'info'): void {
-  const box = $('meldungen'), m = document.createElement('div');
+  const box = $('meldungen');
+  // gleiche Meldung kurz hintereinander: nur zählen statt doppelt zeigen
+  const alt = [...box.children].find((c) => (c as HTMLElement).dataset.text === text && !c.classList.contains('aus')) as HTMLElement | undefined;
+  if (alt) { const n = Number(alt.dataset.n || 1) + 1; alt.dataset.n = String(n); alt.textContent = `${text} (×${n})`; return; }
+  const m = document.createElement('div'); m.dataset.text = text;
   m.className = `meldung tafel ${ton}`; m.textContent = text; box.prepend(m);
   while (box.children.length > 4) box.lastElementChild!.remove();
   setTimeout(() => m.classList.add('aus'), 4800); setTimeout(() => m.remove(), 5500);
@@ -365,14 +507,14 @@ canvas.addEventListener('pointerup', (e) => {
 // ================= Tastatur =================
 const tasten = new Set<string>();
 addEventListener('keydown', (e) => {
-  if (!spiel || (e.target as HTMLElement).tagName === 'INPUT') return;
+  if (!spiel || imMenue || (e.target as HTMLElement).tagName === 'INPUT') return;
   const k = e.key.toLowerCase(); tasten.add(k);
-  const typ = BAULEISTE.find((t) => GEBAEUDE[t].taste === e.key);
+  const typ = BAULEISTE.find((t) => GEBAEUDE[t].taste?.toLowerCase() === k);
   if (typ) werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ });
-  if (k === 'escape') { werkzeugSetzen(null); waehle(null); schliessePanel(); }
+  if (k === 'escape') { werkzeugSetzen(null); waehle(null); schliessePanel(); baumZu(); $('bericht').hidden = true; }
   if (k === '9') werkzeugSetzen(werkzeug?.art === 'ebnen' ? null : { art: 'ebnen' });
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
-  if (k === 't') panelArt === 'werkstatt' ? schliessePanel() : zeigeWerkstatt();
+  if (k === 't') $('baum').hidden ? zeigeWerkstatt() : baumZu();
   if (k === 'n') spiel.nachtEinlaeuten();
   if (k === ' ') { e.preventDefault(); setzeTempo(tempo === 0 ? 1 : 0); }
   if (k === 'delete' && gewaehlt) { spiel.abreissen(gewaehlt); waehle(null); }
@@ -416,7 +558,9 @@ $('karte').addEventListener('click', (e) => {
 function anzeige(): void {
   if (!spiel) return;
   const s = spiel;
-  $('res').innerHTML = (['holz', 'stein', 'kristall'] as Res[]).map((r) => `<span title="${RES_NAME[r]}"><i class="${r}"></i>${Math.floor(s.res[r])}</span>`).join('');
+  $('res').innerHTML = (['holz', 'stein', 'kristall', 'nahrung'] as Res[]).map((r) => `<span title="${RES_NAME[r]}"><i class="${r}"></i>${Math.floor(s.res[r])}</span>`).join('');
+  const bed = s.arbeiterBedarf(), arb = s.arbeiter.length, essen = s.essen(), rk = s.runenkraftBedarf();
+  $('bewohner').innerHTML = `<span>Einwohner <b>${s.einwohner}</b> / ${s.wohnraum()}</span><span${arb < bed ? ' class="warn"' : ''}>Arbeiter <b>${arb}</b> / ${bed}</span><span${s.res.nahrung < essen ? ' class="warn"' : ''}>Essen je Tag <b>${essen}</b></span><span>Türme <b>${s.turmZahl()}</b> / ${s.turmGrenze()}</span><span${s.res.kristall < rk ? ' class="warn"' : ''}>Runenkraft <b>${rk}</b></span>`;
   $('bausteine').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span class="${s.bausteine[b] ? '' : 'null'}" title="${BAUSTEIN_NAME[b]}"><i class="${b}"></i>${BAUSTEIN_NAME[b]} ${s.bausteine[b]}</span>`).join('');
   const u = $('uhr');
   u.classList.toggle('nacht', s.phase === 'nacht');
@@ -431,7 +575,7 @@ function anzeige(): void {
     const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
     const f = s.faehigkeiten();
-    const html = `<div class="titel">Nacht ${s.nacht}</div><div class="unter">Die Welle kommt · ${s.gegner.length} Wesen unterwegs</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.genutzt.has(n) ? 'disabled' : ''}>${FAEHIGKEIT_NAME[n]}</button>`).join(' ')}</div>` : ''}`;
+    const html = `<div class="titel">Nacht ${s.nacht}</div><div class="unter">Die Welle kommt · ${s.gegner.length} Wesen unterwegs</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${FAEHIGKEIT_NAME[n]}</button>`).join(' ')}</div>` : ''}`;
     if (u.dataset.html !== html) {
       u.dataset.html = html; u.innerHTML = html;
       u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.faehigkeit(n)) klang.spiele('glocke', 0.8); }; });
@@ -440,7 +584,7 @@ function anzeige(): void {
   leisteAktualisieren(); einfuehrung();
   if (panelArt === 'geb' && gewaehlt) { if (!s.gebaeude.includes(gewaehlt)) waehle(null); else panelGeb(); }
   if (panelArt === 'ruine') panelRuine();
-  if (panelArt === 'werkstatt') zeigeWerkstatt();
+  baumZeichnen();
   if (werkzeug?.art === 'feuerregen' && s.phase !== 'nacht') werkzeugSetzen(null);
 }
 
@@ -469,6 +613,8 @@ function zeigeEinstellungen(): void {
     <label class="regler">Klänge <input type="range" id="e-effekte" min="0" max="1" step="0.05" value="${einst.effekte}"></label>
     <div class="zeile"><span>Grafik</span><span class="wahl">${(['hoch', 'mittel', 'niedrig'] as const).map((g) => `<button type="button" data-grafik="${g}" aria-pressed="${einst.grafik === g}">${g[0].toUpperCase() + g.slice(1)}</button>`).join('')}</span></div>
     <p>Niedrig: ohne Schatten und Nachbearbeitung, für schwächere Geräte.</p>
+    <h3 style="margin:6px 0 0;font-family:var(--display);color:var(--ember)">Spielstand speichern</h3>
+    ${plaetze().map((pl, i) => `<button type="button" class="aktion" data-platz="${i}">Platz ${i + 1}${pl ? ` · überschreibt ${pl.name}` : ' · leer'}</button>`).join('')}
     <button type="button" class="aktion" id="e-einf">Einführung neu zeigen</button>
     <button type="button" class="aktion" id="e-menue">Speichern und zum Menü</button>`;
   p.hidden = false;
@@ -476,8 +622,25 @@ function zeigeEinstellungen(): void {
   const m = $<HTMLInputElement>('e-musik'), f = $<HTMLInputElement>('e-effekte');
   m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
   p.querySelectorAll<HTMLButtonElement>('[data-grafik]').forEach((b) => { b.onclick = () => { einst.grafik = b.dataset.grafik as typeof einst.grafik; einstSpeichern(); grafikSetzen(); zeigeEinstellungen(); }; });
+  p.querySelectorAll<HTMLButtonElement>('[data-platz]').forEach((b) => { b.onclick = () => { if (platzSpeichern(Number(b.dataset.platz))) zeigeEinstellungen(); }; });
   $('e-einf').onclick = () => { einst.einfuehrung = true; einstSpeichern(); einfuehrungSchritt = 0; schliessePanel(); einfuehrung(); };
   $('e-menue').onclick = () => { speichern(); schliessePanel(); zeigeStart(); };
+}
+
+// ================= Bericht der Nacht =================
+function zeigeBericht(b: import('@runeboom/core').Nachtbericht): void {
+  const el = $('bericht');
+  el.innerHTML = `<h2>Bericht der ${b.nacht}. Nacht</h2>
+    <div class="zeile"><span>Besiegte Wesen</span><span>${b.besiegt}</span></div>
+    <div class="zeile"><span>Beute</span><span>${b.beute}</span></div>
+    <div class="zeile"><span>Schaden an Gebäuden</span><span>${b.schaden}</span></div>
+    ${b.zerstoert.length ? `<div class="zeile"><span>Zerstört</span><span style="color:var(--rot)">${[...new Set(b.zerstoert)].map((n) => `${b.zerstoert.filter((x) => x === n).length}× ${n}`).join(', ')}</span></div>` : ''}
+    ${b.kraftFehlt ? `<div class="zeile"><span>Runenkraft</span><span style="color:var(--rot)">${b.kraftFehlt} Kristall fehlten</span></div>` : ''}
+    ${b.tuerme.length ? `<div class="zeile"><span>Beste Türme</span><span></span></div><ol>${b.tuerme.map((t) => `<li>${t.name} · ${t.schaden} Schaden</li>`).join('')}</ol>` : ''}
+    <button type="button" id="bericht-zu">Weiter</button>`;
+  el.hidden = false;
+  $('bericht-zu').onclick = () => { el.hidden = true; };
+  setTimeout(() => { el.hidden = true; }, 25000);
 }
 
 // ================= Hauptschleife =================
@@ -486,6 +649,20 @@ renderer.setAnimationLoop(() => {
   const jetzt = performance.now(), dt = Math.min(0.1, (jetzt - letzte) / 1000); letzte = jetzt;
   ZEIT.value += dt;
   if (spiel && welt && obj) {
+    if (imMenue) { // Menü: die Feste lebt, Tag und Nacht wechseln langsam, keine Wellen
+      if (spiel.phase !== 'tag' || spiel.zeit > TAGD - 12) { spiel.phase = 'tag'; spiel.zeit = 5; }
+      try { spiel.schritt(); } catch (err) { console.error(err); }
+      obj.ereignisse(spiel.ereignisse.splice(0).filter((e) => e.art !== 'meldung'));
+      const d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
+      licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
+      obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
+      menueKamera(dt);
+      const dist = camera.position.distanceTo(controls.target);
+      licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45; licht.folge(controls.target, camera);
+      planZeit -= dt; if (planZeit <= 0) { welt.planen(controls.target, dist, camera); planZeit = 0.25; }
+      if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
+      return;
+    }
     akku += dt * tempo; let n = 0;
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     while (akku >= DT && n < 12) {
@@ -516,6 +693,8 @@ renderer.setAnimationLoop(() => {
       if (e.art === 'phase' && e.phase === 'morgen') klang.spiele('glocke', 0.8);
       if (e.art === 'erkundet') { welt.nebelAktualisieren(); zeichneKartenGrund(); }
       if (e.art === 'meldung') melde(e.text, e.ton);
+      if (e.art === 'bericht') zeigeBericht(e.bericht);
+      if (e.art === 'riss') klang.spiele('horn', 0.9);
       if (e.art === 'phase' && e.phase === 'tag') speichern();
       if (e.art === 'phase' && e.phase === 'verloren') { $('ende-text').textContent = `Nach ${spiel.nacht - 1} überstandenen Nächten und ${spiel.besiegt} besiegten Wesen hat die Welt ${spiel.code} gesiegt. Mit demselben Weltcode lässt sich genau diese Welt noch einmal versuchen.`; setTimeout(() => { $('ende').hidden = false; }, 1600); try { localStorage.removeItem(SPEICHER); } catch { /* */ } }
     }
@@ -537,9 +716,6 @@ renderer.setAnimationLoop(() => {
     licht.folge(tg, camera);
     planZeit -= dt; if (planZeit <= 0) { welt.planen(tg, dist, camera); planZeit = 0.25; }
     uiZeit -= dt; if (uiZeit <= 0) { anzeige(); zeichneKarte(); uiZeit = 0.15; }
-  } else {
-    // Menü: langsamer Flug über einer leeren Szene
-    controls.update();
-  }
+  } else controls.update();
   if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
 });

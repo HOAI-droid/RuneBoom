@@ -66,7 +66,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
 
 - `window.runeboom.spiel` gibt in der Konsole Zugriff auf die laufende Partie (für Tests).
 - Einzeldatei-Fassung für eine Vorschau: `npm run build:artifact` → `dist-single/runeboom.html`.
-- Spielstand: `localStorage` `runeboom-spielstand-2`, gespeichert zu Beginn jedes Tages (nachts nicht).
+- Spielstand: `localStorage` `runeboom-spielstand-3` (automatisch zu Beginn jedes Tages, nachts nicht) und `runeboom-plaetze-1` (3 Plätze).
+- Gleichgewicht prüfen: `node --experimental-strip-types tools/balance.ts WELTCODE NÄCHTE` (Bot, Schwierigkeit als 4. Parameter in `botPartie`).
 
 ## Stufenplan
 
@@ -86,5 +87,13 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   geheime Erfindungen, Bot `tools/balance.ts` im Test.
   Robustheit: Wasser watbar (Kosten 3,5), Entstehen nur an erreichbaren Stellen, Festhänge-Erkennung (`bester`/`stillstand`),
   `NACHT_MAX` beendet jede Nacht, `spiel.schritt()` in `main.ts` per try/catch abgesichert. **Eine Runde darf nie das Spiel anhalten.**
-- [ ] 0.4 Wildnis: Rissfürst, Feuer, Mauern verlieren Blöcke · 0.5 Völker · 0.6 Weltreise · 0.7 Apps · 1.0 Veröffentlichung
+- [x] 0.4 Wachstum: Bevölkerung (`einwohner`, `wohnraum()`, `essen()`, `verteileArbeiter()`, Nahrung als Rohstoff, Haus/Hof/Fischer),
+  Stufen I–III (`stufeOption()`/`stufeAusbauen()`, `STUFE_WERT`), Burg in 6 Stufen (`HAUPT_STUFEN`, `burg()` in modelle.ts), Turmgrenze,
+  Runenkraft (`runenkraft()`, `g.kraft`), 37 Erfindungen mit `wissen`/`ab` und `SCHLUESSEL_VORWISSEN`, Risse aus `RISSE` (welt.ts),
+  Welle gegen die schwächste Seite (`abwehrAmWeg`), neue Wesen + Rissfürst, Feuer (`zuende()`, `braende()`), Schwierigkeit, Nachtbericht.
+  Hauptmenü über lebender Feste (`baueMenueWelt()`), Spielstände (Auto + 3 Plätze), Erfindungsbaum als eigene Ansicht.
+  Wegfeld nutzt zwischengespeicherte Geländekosten (`grund`), Rohstoffquellen sind zwischengespeichert (`quellVersion`).
+- [ ] 0.5 Die lange Partie: vier Akte (~60 Nächte) mit Versiegeln der Risse als Sieg, Außenposten, Omen, Wunder, Verarbeitungsketten,
+  Leitsätze, fünftes Zeitalter „Äther & Sterne“
+- [ ] 0.6 Völker · 0.7 Weltreise · 0.8 Apps · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
