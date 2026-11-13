@@ -704,5 +704,6 @@ export const ES: Record<string, string> = {
  "Nachbearbeitung": "Posprocesado",
  "Ferner Wald": "Bosque lejano",
  "Kacheln": "Teselas",
- "Karte ein- und ausblenden": "Mostrar u ocultar el mapa"
+ "Karte ein- und ausblenden": "Mostrar u ocultar el mapa",
+ "Karte (M)": "Mapa (M)"
 };

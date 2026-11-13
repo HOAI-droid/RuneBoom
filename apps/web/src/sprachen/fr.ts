@@ -704,5 +704,6 @@ export const FR: Record<string, string> = {
  "Nachbearbeitung": "Post-traitement",
  "Ferner Wald": "Forêt lointaine",
  "Kacheln": "Tuiles",
- "Karte ein- und ausblenden": "Afficher ou masquer la carte"
+ "Karte ein- und ausblenden": "Afficher ou masquer la carte",
+ "Karte (M)": "Carte (M)"
 };
