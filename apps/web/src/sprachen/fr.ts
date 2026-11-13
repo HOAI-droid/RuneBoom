@@ -685,5 +685,17 @@ export const FR: Record<string, string> = {
  "Tempo": "Vitesse",
  "Pause (Leertaste)": "Pause (espace)",
  "Einstellungen und Menü": "Paramètres et menu",
- "Hauptmenü": "Menu principal"
+ "Hauptmenü": "Menu principal",
+ "Hoch": "Élevée",
+ "Mittel": "Moyenne",
+ "Niedrig": "Basse",
+ "Darstellung": "Rendu",
+ "Jetzt: {a}.": "Actuel : {a}.",
+ "Die Änderung gilt ab dem nächsten Start.": "Le changement prendra effet au prochain démarrage.",
+ "Auflösung automatisch anpassen": "Ajuster la résolution automatiquement",
+ "Bildrate und Messwerte anzeigen": "Afficher la fréquence d’images et les mesures",
+ "Spiel": "Jeu",
+ "Zeichenaufrufe": "appels de dessin",
+ "Mio. Dreiecke": "M triangles",
+ "Auflösung": "Résolution"
 };

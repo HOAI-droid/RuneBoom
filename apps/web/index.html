@@ -239,16 +239,17 @@
 
   /* ---------- Bauleiste in Gruppen ---------- */
   .unten { overflow: visible; flex-direction: column; align-items: center; background: none; border: 0; box-shadow: none; padding: 0; gap: 8px; }
-  .gruppen { display: flex; gap: 6px; padding: 6px; background: var(--stone); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.35); max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center; }
-  .gruppe { width: 132px; background: var(--stone-2); border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; display: grid; gap: 1px; text-align: left; position: relative; }
+  .gruppen { display: grid; grid-template-columns: repeat(12, 1fr); width: min(520px, calc(100vw - 24px)); gap: 6px; padding: 6px; background: var(--stone); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.35); max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center; }
+  .gruppe { grid-column: span 3; min-width: 0; background: var(--stone-2); border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; display: grid; gap: 1px; text-align: left; position: relative; }
   .gruppe b { font-family: var(--display); font-size: 15px; }
   .gruppe span { font-size: 11px; color: var(--muted); line-height: 1.2; }
   .gruppe kbd { position: absolute; right: 6px; top: 5px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
   .gruppe[aria-pressed="true"] { border-color: var(--ember); box-shadow: inset 0 0 0 1px var(--ember); }
-  .gruppe.sonder { background: #2b2440; width: 110px; }
+  .gruppe.sonder { background: #2b2440; grid-column: span 4; padding: 5px 22px 5px 9px; display: flex; align-items: baseline; gap: 6px; }
+  .gruppe.sonder b { font-size: 14px; } .gruppe.sonder span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gruppe.teuer span { color: var(--rot); }
   .aufklapp { display: flex; gap: 6px; padding: 6px; flex-wrap: wrap; justify-content: center; max-width: min(900px, calc(100vw - 24px)); }
-  @media (max-width: 760px) { .gruppe { width: 96px; padding: 5px 7px; } .gruppe span { display: none; } .aufklapp .bau { width: 84px; } }
+  @media (max-width: 760px) { .gruppe { padding: 5px 7px; } .gruppe span { display: none; } .aufklapp .bau { width: 84px; } }
   /* ---------- Akt, Omen, Leitsatz, Abspann ---------- */
   .uhr .akt-zeile { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--rune); }
   .uhr .omen { font-size: 13px; color: #ffb3a6; }
@@ -314,7 +315,6 @@
   .baum-kopf { flex-wrap: nowrap; padding-right: 40px; position: relative; }
   .baum .schliessen { position: absolute; right: 0; top: 0; }
   .baum-bst { flex: 1; min-width: 0; }
-  .gruppe.sonder { width: 124px; }
   i.erz { background: #8a6a4a; } i.balken { background: #c9a36a; } i.stahl { background: #c0c8d0; } i.linsen { background: #c8fbff; box-shadow: 0 0 5px #9fe7ff; }
   @media (max-width: 1100px) { .baum-kopf { flex-wrap: wrap; } }
 
@@ -372,7 +372,7 @@
   }
   @media (max-width: 760px) {
     .panel { top: auto; bottom: 150px; left: 8px; right: 8px; width: auto; max-height: 52vh; overflow-y: auto; }
-    .gruppen { gap: 4px; padding: 4px; } .gruppe { width: 74px; } .gruppe kbd { display: none; }
+    .gruppen { gap: 4px; padding: 4px; } .gruppe kbd { display: none; }
   }
 
   /* Gebäudefenster unter Karte und Tempo, damit beides bedienbar bleibt */

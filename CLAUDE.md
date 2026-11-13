@@ -106,5 +106,16 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Desktop-Apps: `src-tauri/` (Tauri 2, `frontendDist: ../dist`), Action `.github/workflows/apps.yml` baut Mac/Windows/Linux und legt ein
   Release `v<version>` mit festen Dateinamen an (`runeBOOM-mac.dmg`, `runeBOOM-windows-setup.exe`, `runeBOOM-linux.AppImage`, `.deb`);
   Release-Text aus `RELEASE_NOTES.md`. Version steht in `package.json`, `src-tauri/Cargo.toml` und `src-tauri/tauri.conf.json`.
-- [ ] 0.7 Weltreise · 0.8 Steam, Android, iPhone, Xbox · 1.0 Veröffentlichung
+- [x] 0.7 Flüssiger: Three.js 0.187, **WebGPU mit WebGL-Rückfall** (`neuerRenderer(canvas, einst.darstellung)` per Top-Level-await,
+  Build-Ziel es2022). Alle eigenen Materialien entstehen über `FABRIK` in `grafik.ts` (WebGL-Shader); `knoten.ts` (nur bei WebGPU
+  geladen) ersetzt sie durch TSL-Fassungen und die Nachbearbeitung durch `RenderPipeline`. **Neue Shader immer in beiden Fassungen.**
+  Leistung: Kachel = ein Netz je Material (`vereine()` in chunk.ts), grober Wald in Bereichen 256 × 256 ohne Schatten, Nebel 5/3 Schichten
+  (`nebelLagen`, frühes `discard` über Erkundetem), Nachbearbeitung Szene → Bloom → Tilt waagrecht → Abschluss (Tilt senkrecht, Farbe,
+  Vignette, ACES, sRGB), Schatten `autoUpdate = false` (`schattenPlanen()`), Lichtkarte mit festem Teil, Scheinwerfer nur nachts,
+  automatische Auflösung (`auflSchritt()`), Messwerte in der Bildrate-Anzeige und `window.runeboom.leistung()`.
+  Bauleiste: Gruppen oben, Späher/Ebnen/Erfindungen in eigener Zeile (Raster 12 Spalten).
+  Testen: Im Testbrowser stellt WebGPU keine Leinwand dar (Gerät geht verloren). Leinwand per Init-Skript auf eine Textur umleiten
+  (`GPUCanvasContext.configure/getCurrentTexture` ersetzen), dann laufen WebGPU-Shader echt; Bilder über `darstellung: 'knoten-webgl'`
+  (TSL über die WebGL-Schiene, nur für Tests).
+- [ ] 0.8 Steam, Android, iPhone, Xbox · Weltreise später · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

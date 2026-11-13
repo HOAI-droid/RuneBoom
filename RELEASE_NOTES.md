@@ -1,4 +1,4 @@
-## runeBOOM 0.6 · Sprachen, Apps und Feinschliff
+## runeBOOM 0.7 · Flüssiger
 
 **Jetzt auch als App für Mac, Windows und Linux** – oder weiterhin direkt im Browser: <https://hoai-droid.github.io/RuneBoom/>
 
@@ -6,6 +6,32 @@
 
 | System | Datei |
 |---|---|
+| macOS (Apple Silicon und Intel) | `runeBOOM-mac.dmg` |
+| Windows 10/11 | `runeBOOM-windows-setup.exe` (oder `runeBOOM-windows.msi`) |
+| Linux | `runeBOOM-linux.AppImage` (ausführbar machen und starten) oder `runeBOOM-linux.deb` |
+
+Die Apps sind noch nicht signiert:
+- **macOS:** Beim ersten Start Rechtsklick auf die App → „Öffnen“. Meldet macOS „beschädigt“, hilft im Terminal einmal
+  `xattr -cr /Applications/runeBOOM.app`.
+- **Windows:** Bei der SmartScreen-Warnung auf „Weitere Informationen“ → „Trotzdem ausführen“ klicken.
+
+### Neu in 0.7
+
+- **WebGPU:** Wo Browser oder App es können (Mac ab macOS 26, Windows, iPhone/iPad ab iOS 26, viele Android-Geräte), zeichnet
+  runeBOOM über WebGPU. Überall sonst, etwa unter Linux und auf dem Steam Deck, wie bisher über WebGL. Umschaltbar unter
+  Einstellungen → Darstellung (Automatisch, WebGPU, WebGL), wirksam ab dem nächsten Start.
+- **Flüssiger auf allen Geräten:**
+  - Boden und Pflanzen einer Kachel in einem Netz, halb so viele Zeichenaufrufe
+  - der ferne Wald wird nur gezeichnet, wo man hinschaut, und wirft keine unnötigen Schatten mehr
+  - Bodennebel mit weniger, dafür dichteren Schichten, über erkundetem Land fast ohne Rechenarbeit
+  - Nachbearbeitung in vier statt sechs Durchgängen
+  - Schatten nur bei Bewegung jedes Bild neu
+  - die Lichtkarte malt Scheinwerfer nur nachts nach
+- **Automatische Auflösung:** Sinkt die Bildrate unter 50, zeichnet das Spiel mit weniger Bildpunkten (bis 60 %). Hat es wieder Luft, geht es zurück. Abschaltbar.
+- **Messwerte:** Die Bildrate-Anzeige zeigt jetzt auch die Rechenzeit von Spiel und Grafik, Zeichenaufrufe, Dreiecke, Auflösung und den Zeichenweg (WebGPU oder WebGL).
+- **Schmalere Bauleiste:** Späher, Ebnen und Erfindungen stehen in einer eigenen unteren Zeile.
+
+---|---|
 | macOS (Apple Silicon und Intel) | `runeBOOM-mac.dmg` |
 | Windows 10/11 | `runeBOOM-windows-setup.exe` (oder `runeBOOM-windows.msi`) |
 | Linux | `runeBOOM-linux.AppImage` (ausführbar machen und starten) oder `runeBOOM-linux.deb` |
@@ -32,13 +58,13 @@ Die Apps sind noch nicht signiert:
 
 ---
 
-## runeBOOM 0.6 · Languages, apps and polish (English)
+## runeBOOM 0.7 · Smoother (English)
 
-Now also available as an app for Mac, Windows and Linux – or play right in your browser: <https://hoai-droid.github.io/RuneBoom/>
+Play in your browser: <https://hoai-droid.github.io/RuneBoom/> or download the app for Mac, Windows or Linux.
 
-- Four languages (German, English, French, Spanish), following your system language.
-- The world loads completely in the background and is revealed from the centre outwards.
-- Longer days (2:20), the night report pauses the game until you confirm it.
-- New eight-step tutorial, help window (F1), touch controls, frame-rate display, new sounds.
+- WebGPU where available (macOS 26, Windows, iOS 26, many Android devices), WebGL everywhere else. Choose under Settings → Renderer.
+- Smoother everywhere: fewer draw calls, a lighter ground fog, fewer post-processing passes, smarter shadow and light-map updates.
+- Automatic resolution keeps the frame rate up; the frame-rate display now shows game and graphics timings, draw calls and triangles.
+- Narrower build bar: scout, level terrain and inventions moved to their own row.
 
 The apps are not signed yet. On macOS right-click → Open (or run `xattr -cr /Applications/runeBOOM.app`), on Windows choose “More info” → “Run anyway”.

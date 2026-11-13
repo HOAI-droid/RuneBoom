@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GEBAEUDE, type Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
-import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT } from './grafik.ts';
+import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT, FABRIK } from './grafik.ts';
 import {
   hauptgebaeude, werkstatt, turmHolz, turmAlchemie, leuchtFackel, leuchtFeuer, haus, holzstapel, steinbruch, kristallmine, mauerStueck,
   moorwicht, wolf, troll, drachling, nebelrochen, figur8, turmUhrwerk, turmKristall,
@@ -166,11 +166,7 @@ class Wegvorschau {
   constructor(scene: THREE.Scene) {
     const geo = new THREE.PlaneGeometry(0.5, 1.0); geo.rotateX(-Math.PI / 2);
     this.phase = new THREE.InstancedBufferAttribute(new Float32Array(2400), 1); geo.setAttribute('aPhase', this.phase);
-    const mat = new THREE.ShaderMaterial({
-      uniforms: this.u, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      vertexShader: 'attribute float aPhase; varying float vP; void main(){ vP = aPhase; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform float uZeit, uStaerke; varying float vP; void main(){ float a = 0.5 + 0.5 * sin(vP * 0.9 - uZeit * 5.0); a = smoothstep(0.3, 1.0, a); gl_FragColor = vec4(vec3(1.0, 0.45, 0.25) * 1.6, a * uStaerke); }'
-    });
+    const mat = FABRIK.wegLeuchten(this.u);
     this.mesh = new THREE.InstancedMesh(geo, mat, 2400); this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 20; scene.add(this.mesh);
   }
   setze(spiel: Spiel, staerke: number): void {
@@ -298,11 +294,7 @@ export class Objekte {
   private kegelMesh(i: number): THREE.Mesh {
     if (!this.kegel[i]) {
       const geo = new THREE.ConeGeometry(1, 1, 24, 1, true); geo.translate(0, -0.5, 0); geo.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-        vertexShader: 'varying float vZ; void main(){ vZ = position.z; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: 'varying float vZ; void main(){ float a = (1.0 - clamp(vZ, 0.0, 1.0)) * 0.05; gl_FragColor = vec4(1.0, 0.9, 0.65, a); }'
-      }));
+      const m = new THREE.Mesh(geo, FABRIK.kegel());
       m.renderOrder = 22; this.scene.add(m); this.kegel[i] = m;
     }
     return this.kegel[i];

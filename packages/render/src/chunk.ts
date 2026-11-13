@@ -50,7 +50,22 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   }
   const innen: Voxel[] = [];
   for (const v of g.m.values()) if (v.x >= 0 && v.x < CH && v.z >= 0 && v.z < CH) innen.push(v);
-  return { grob: meshVoxels(g, innen), fein: meshVoxels(F, F.m.values()), wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
+  // Boden und Pflanzen je Material in ein Netz: halb so viele Zeichenaufrufe
+  const grob = meshVoxels(g, innen), feinM = meshVoxels(F, F.m.values());
+  return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
+}
+
+/** zwei Netze zu einem; das zweite wird dabei um sb verkleinert (halbe Voxel) */
+export function vereine(a: MeshDaten | null, b: MeshDaten | null, sb: number): MeshDaten | null {
+  if (!b) return a;
+  if (!a) { const p = b.p.slice(); for (let k = 0; k < p.length; k++) p[k] *= sb; return { p, n: b.n, c: b.c, i: b.i }; }
+  const p = new Float32Array(a.p.length + b.p.length), n = new Int8Array(a.n.length + b.n.length), c = new Float32Array(a.c.length + b.c.length), i = new Uint32Array(a.i.length + b.i.length);
+  p.set(a.p); n.set(a.n); c.set(a.c); i.set(a.i);
+  const vo = a.p.length / 3;
+  for (let k = 0; k < b.p.length; k++) p[a.p.length + k] = b.p[k] * sb;
+  n.set(b.n, a.n.length); c.set(b.c, a.c.length);
+  for (let k = 0; k < b.i.length; k++) i[a.i.length + k] = b.i[k] + vo;
+  return { p, n, c, i };
 }
 
 export interface UebersichtDaten { p: Float32Array; n: Int8Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
