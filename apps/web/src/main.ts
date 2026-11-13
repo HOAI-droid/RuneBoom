@@ -432,12 +432,12 @@ function panelGeb(): void {
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
       const t = b.dataset.tat;
-      if (t === 'abreissen') { s.abreissen(g); waehle(null); return; }
-      if (t === 'reparieren' && s.reparieren(g)) klang.spiele('bau', 0.8);
-      if (t === 'umr' && s.umruesten(g, b.dataset.nach as GebTyp, b.dataset.zweig)) klang.spiele('bau', 0.8);
-      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && s.verschmelzen(g, v.partner)) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
-      if (t === 'ausbau' && s.hauptAusbauen()) klang.spiele('bau', 0.8);
-      if (t === 'stufe' && s.stufeAusbauen(g)) klang.spiele('bau', 0.8);
+      if (t === 'abreissen') { s.befehl({ art: 'abreissen', geb: g.id }); waehle(null); return; }
+      if (t === 'reparieren' && s.befehl({ art: 'reparieren', geb: g.id })) klang.spiele('bau', 0.8);
+      if (t === 'umr' && s.befehl({ art: 'umruesten', geb: g.id, nach: b.dataset.nach as GebTyp, zweig: b.dataset.zweig })) klang.spiele('bau', 0.8);
+      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && s.befehl({ art: 'verschmelzen', geb: g.id, partner: v.partner.id })) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
+      if (t === 'ausbau' && s.befehl({ art: 'burg' })) klang.spiele('bau', 0.8);
+      if (t === 'stufe' && s.befehl({ art: 'stufe', geb: g.id })) klang.spiele('bau', 0.8);
       panelGeb();
     };
   });
@@ -456,8 +456,8 @@ function panelRuine(): void {
   p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = schliessePanel;
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.tat === 'auf') { if (s.wiederaufbauen(r)) { klang.spiele('bau'); schliessePanel(); } }
-      else { s.raeumen(r); schliessePanel(); }
+      if (b.dataset.tat === 'auf') { if (s.befehl({ art: 'wiederaufbau', ruine: r.id })) { klang.spiele('bau'); schliessePanel(); } }
+      else { s.befehl({ art: 'raeumen', ruine: r.id }); schliessePanel(); }
     };
   });
 }
@@ -582,7 +582,7 @@ function baumZeichnen(neu = false): void {
   const dhtml = `${st === 'geheim' ? '' : `<div class="detail-skizze sk-papier">${skizze(erfGebaeude(baumWahl), 300, 150, 2, s.volk)}</div>`}<h3>${st === 'geheim' ? '???' : t(e.name)}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
   if (d.dataset.html !== dhtml || d.hidden) {
     d.dataset.html = dhtml; d.innerHTML = dhtml; d.hidden = false;
-    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (s.erfinden(id)) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
+    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (s.befehl({ art: 'erfinden', erf: id })) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
   }
 }
 document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => { b.onclick = () => { baumReiter = b.dataset.reiter as typeof baumReiter; baumZeichnen(true); }; });
@@ -664,18 +664,18 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   const u = unten; unten = null; controls.enabled = true;
   if (!u || !spiel || e.button !== 0) return;
-  if (u.ebene && mauerZiel) { if (spiel.ebnen(u.ebene[0], u.ebene[1], mauerZiel[0], mauerZiel[1])) klang.spiele('hieb_stein'); mauerZiel = null; return; }
+  if (u.ebene && mauerZiel) { if (spiel.befehl({ art: 'ebnen', x0: u.ebene[0], z0: u.ebene[1], x1: mauerZiel[0], z1: mauerZiel[1] })) klang.spiele('hieb_stein'); mauerZiel = null; return; }
   if (u.mauer && mauerZiel) {
     const typ = werkzeug?.art === 'bau' ? werkzeug.typ : 'mauer';
-    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.bauen(typ, x, z, true)) n++;
+    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.befehl({ art: 'bauen', typ, x, z, still: true })) n++;
     if (!n) melde(`${t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) })}`, 'schlecht'); else if (!e.shiftKey) werkzeugSetzen(null);
     mauerZiel = null; obj?.zeigeLinie(null); return;
   }
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
-  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (spiel.bauen(werkzeug.typ, x0, z0) && !e.shiftKey) werkzeugSetzen(null); return; }
-  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (spiel.spaeher(p.x, p.z)) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
-  if (werkzeug?.art === 'feuerregen') { if (spiel.faehigkeit('feuerregen', p.x, p.z)) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (spiel.befehl({ art: 'bauen', typ: werkzeug.typ, x: x0, z: z0 }) && !e.shiftKey) werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (spiel.befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
+  if (werkzeug?.art === 'feuerregen') { if (spiel.befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
   const g = spiel.gebAn(p.x, p.z);
   if (!g) { const ru = spiel.ruineAn(p.x, p.z); if (ru) { waehle(null); ruineGew = ru; panelArt = 'ruine'; $('panel').dataset.html = ''; panelRuine(); return; } }
   waehle(g || null);
@@ -696,9 +696,9 @@ addEventListener('keydown', (e) => {
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
   if (k === 't') $('baum').hidden ? zeigeWerkstatt() : baumZu();
   if (k === 'm') karteSetzen(!einst.karte);
-  if (k === 'n') spiel.nachtEinlaeuten();
+  if (k === 'n') spiel.befehl({ art: 'nacht' });
   if (k === ' ') { e.preventDefault(); setzeTempo(tempo === 0 ? 1 : 0); }
-  if (k === 'delete' && gewaehlt) { spiel.abreissen(gewaehlt); waehle(null); }
+  if (k === 'delete' && gewaehlt) { spiel.befehl({ art: 'abreissen', geb: gewaehlt.id }); waehle(null); }
 });
 addEventListener('keyup', (e) => tasten.delete(e.key.toLowerCase()));
 addEventListener('blur', () => tasten.clear());
@@ -754,7 +754,7 @@ function anzeige(): void {
     const siegelInfo = akt.nr === 4 ? ` · ${t('Risse versiegelt {a} / {b}', { a: s.versiegelt.size, b: s.alleRisse().length })}` : '';
     u.innerHTML = `<div class="akt-zeile">${t('Akt {a} · {b} · Nacht {c} von {d}{e}', { a: akt.nr, b: t(akt.name), c: s.nacht, d: ENDE_NACHT, e: siegelInfo })}</div>${om ? `<div class="omen">${t('Omen heute Nacht:')} <b>${t(OMEN[om].name)}</b> · ${t(OMEN[om].kurz)}</div>` : ''}<div class="titel">${t('Tag {a}', { a: s.nacht })}</div><div class="balken"><div style="width:${(100 * s.zeit) / TAG_DAUER}%"></div></div>
       <div class="unter">${s.abend() ? `${t('Heute Nacht: {a}', { a: vorschau })}` : `${t('Ruhig. Nacht in {a}:{b}', { a: mm, b: ss })}`}</div><div><button type="button" id="einlaeuten">${t('Nacht einläuten')}</button>${s.beschaedigt().length ? ` <button type="button" id="allerep" ${s.kannBezahlen(s.alleReparaturKosten()) ? '' : 'disabled'}>${t('Alles reparieren · {a}', { a: kostenHtml(s.alleReparaturKosten()) })}</button>` : ''}</div>`;
-    $('einlaeuten').onclick = () => s.nachtEinlaeuten();
+    $('einlaeuten').onclick = () => s.befehl({ art: 'nacht' });
     const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
     const f = s.faehigkeiten();
@@ -762,7 +762,7 @@ function anzeige(): void {
     const html = `<div class="akt-zeile">${t('Akt {a} · {b}', { a: s.akt().nr, b: t(s.akt().name) })}</div>${om ? `<div class="omen"><b>${t(OMEN[om].name)}</b></div>` : ''}<div class="titel">${t('Nacht {a}', { a: s.nacht })}</div><div class="unter">${t('Die Welle kommt · {a} Wesen unterwegs', { a: s.gegner.length })}</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${t(FAEHIGKEIT_NAME[n])}</button>`).join(' ')}</div>` : ''}`;
     if (u.dataset.html !== html) {
       u.dataset.html = html; u.innerHTML = html;
-      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.faehigkeit(n)) klang.spiele('glocke', 0.8); }; });
+      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.befehl({ art: 'faehigkeit', name: n })) klang.spiele('glocke', 0.8); }; });
     }
   } else if (s.phase === 'morgen') u.dataset.html = '', u.innerHTML = `<div class="titel">${t('Morgen')}</div><div class="unter">${t('Die Nacht ist überstanden')}</div>`;
   leisteAktualisieren(); einfuehrung();
@@ -831,7 +831,7 @@ function zeigeLeitsatz(): void {
     <div class="leit-wahl">${LEITSAETZE[z].map((l) => `<button type="button" data-leit="${l.id}"><b>${t(l.name)}</b><span>${t(l.kurz)}</span></button>`).join('')}</div>
     <button type="button" class="spaeter" id="leit-spaeter">${t('Später entscheiden')}</button>`;
   el.hidden = false;
-  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (s.waehleLeitsatz(b.dataset.leit!)) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
+  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (s.befehl({ art: 'leitsatz', id: b.dataset.leit! })) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
   $('leit-spaeter').onclick = () => { el.hidden = true; };
 }
 function zeigeAbspann(): void {
