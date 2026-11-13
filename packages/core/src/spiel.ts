@@ -18,7 +18,7 @@ export const DT = 1 / 20;
 export const NZ = 8, NN = (2 * WR) / NZ;
 
 export interface Geb { id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
-  zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number }; strahlen: number[]; schild: number;
+  zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number; kurz?: boolean }; strahlen: number[]; schild: number;
   /** brennt noch so viele Sekunden · danach eine Weile geschützt */ brand: number; brandSchutz?: number; /** hat in dieser Nacht Runenkraft */ kraft: boolean; /** Schaden in dieser Nacht */ leistung: number;
   /** Siegel: wartet auf die Nacht des Ansturms */ ritual?: boolean }
 /** Trümmer eines zerstörten Gebäudes: lässt sich günstig wieder aufbauen */
@@ -361,7 +361,7 @@ export class Spiel {
   essen(): number { return Math.ceil(this.einwohner * ESSEN * (this.erfindungen.has('kornspeicher') ? 0.75 : 1) * (this.hatWunder('w_kornkammer') ? 0.7 : 1)); }
   /** Einwohner auf die Arbeitsgebäude verteilen: zuerst Nahrung, dann der Reihe nach */
   verteileArbeiter(): void {
-    const liste = this.gebaeude.filter((g) => this.arbeiterZahl(g) > 0 && !(g.umbau && GEBAEUDE[g.typ].bauzeit));
+    const liste = this.gebaeude.filter((g) => this.arbeiterZahl(g) > 0 && !Spiel.imBau(g));
     const essen = (g: Geb) => (GEBAEUDE[g.typ].arbeit?.res === 'nahrung' ? 1 : 0);
     liste.sort((a, b) => essen(b) - essen(a) || a.id - b.id);
     // erste Runde: jedem Gebäude einen, dann auffüllen
@@ -442,9 +442,16 @@ export class Spiel {
     if (!p.ok) { if (!still) this.melde(p.grund!, 'schlecht'); return false; }
     if (!this.kannBezahlen(def.kosten)) { if (!still) this.melde(tr('{a} kostet {b}. {c}', { a: tr(def.name), b: kostenText(def.kosten), c: this.fehlt(def.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(def.kosten)) this.res[r as Res] -= n as number;
-    this.setze(typ, x0, z0);
+    const g = this.setze(typ, x0, z0);
+    if (!def.bauzeit) this.bauBeginnen(g);
     return true;
   }
+  /** Bauzeit eines neuen Gebäudes ohne eigene Bauzeit: je nach Grundfläche wenige Sekunden */
+  static bauDauer(typ: GebTyp): number { const d = GEBAEUDE[typ]; return d.bauzeit ?? Math.min(12, 1.6 + d.w * d.d * 0.26); }
+  /** Gebäude entsteht erst: kämpft nicht, arbeitet nicht, wird Schicht für Schicht sichtbar */
+  private bauBeginnen(g: Geb): void { g.umbau = { t: 0, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: true }; this.verteileArbeiter(); }
+  /** steht das Gebäude noch im Bau (neu gebaut, nicht umgerüstet)? */
+  static imBau(g: Geb): boolean { return !!g.umbau && g.umbau.nach === g.typ && !g.umbau.stufe && (!!g.umbau.kurz || !!GEBAEUDE[g.typ].bauzeit); }
   abreissen(g: Geb): void {
     if (g.typ === 'haupt' || g.typ === 'werkstatt') { this.melde(tr('Das bleibt stehen.'), 'schlecht'); return; }
     for (const [r, n] of Object.entries(GEBAEUDE[g.typ].kosten)) this.res[r as Res] += Math.floor((n as number) * 0.5 * g.hp / g.max);
@@ -501,12 +508,17 @@ export class Spiel {
     if (this.phase === 'verloren' || this.phase === 'gewonnen') return;
     this.zeit += DT;
     if (this.feldAlt) this.feldNeu();
+    // kurze Bauten wachsen auch nachts weiter
+    for (const g of this.gebaeude) if (g.umbau?.kurz) {
+      g.umbau.t += DT;
+      if (g.umbau.t >= g.umbau.dauer) { g.umbau = undefined; g.max = this.grundHp(g); g.hp = g.max; g.cd = 0; this.lichterNeu(); this.verteileArbeiter(); this.feldAlt = true; this.ereignisse.push({ art: 'umgebaut', geb: g }); }
+    }
     if (this.phase === 'tag') {
       for (const g of this.gebaeude) if (g.rep) {
         g.rep.t += DT; const f = Math.min(1, g.rep.t / g.rep.dauer); g.hp = g.rep.von + (g.max - g.rep.von) * f;
         if (f >= 1) { g.rep = undefined; g.hp = g.max; this.ereignisse.push({ art: 'reparatur', geb: g, fertig: true }); }
       }
-      for (const g of this.gebaeude) if (g.umbau) {
+      for (const g of this.gebaeude) if (g.umbau && !g.umbau.kurz) {
         g.umbau.t += DT;
         if (g.umbau.t >= g.umbau.dauer) {
           const u = g.umbau; g.umbau = undefined;
@@ -1073,6 +1085,7 @@ export class Spiel {
     for (const [res, n] of Object.entries(k)) this.res[res as Res] -= n as number;
     this.ruinen = this.ruinen.filter((o) => o !== r); this.ereignisse.push({ art: 'ruine', ruine: r, neu: false });
     const g = this.setze(r.typ, r.x, r.z); g.zweig = r.zweig;
+    if (!GEBAEUDE[r.typ].bauzeit) this.bauBeginnen(g);
     return true;
   }
   raeumen(r: Ruine): void { this.ruinen = this.ruinen.filter((o) => o !== r); this.ereignisse.push({ art: 'ruine', ruine: r, neu: false }); }
@@ -1308,7 +1321,7 @@ export class Spiel {
   }
   private lichterNeu(): void {
     const E = this.erfindungen, plus = (E.has('sternenstaub') ? 4 : 0) + (E.has('prismenlinse') ? 4 : 0);
-    this.lichter = this.gebaeude.filter((g) => GEBAEUDE[g.typ].licht > 0).map((g) => {
+    this.lichter = this.gebaeude.filter((g) => GEBAEUDE[g.typ].licht > 0 && !Spiel.imBau(g)).map((g) => {
       const d = GEBAEUDE[g.typ], st = g.typ === 'haupt' ? HAUPT_STUFEN[g.stufe - 1] : null, gross = d.licht > 6 || g.typ === 'haupt';
       const r = (st ? st.licht : d.licht + (gross ? STUFE_WERT.licht[g.stufe] : 0)) + (gross ? plus + (E.has('spiegelschliff') ? 3 : 0) : 0);
       return { x: g.x + g.w / 2, z: g.z + g.d / 2, r, enthuellt: !!d.enthuellt || (g.typ === 'haupt' && g.stufe >= 5) || (gross && E.has('prismenlinse')), kegel: d.kegel ? d.kegel * (E.has('spiegelschliff') ? 1.35 : 1) : undefined, geb: d.kegel ? g : undefined };
@@ -1351,7 +1364,7 @@ export class Spiel {
     let s = ''; for (let i = 0; i < this.erkundet.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) b |= this.erkundet[i + k] << k; s += String.fromCharCode(b); }
     return { v: 4, volk: this.volk, leitsaetze: [...this.leitsaetze], leitsatzOffen: this.leitsatzOffen, versiegelt: [...this.versiegelt], stat: this.stat, einwohner: this.einwohner, schwierigkeit: this.schwierigkeit, gefaellt: [...this.gefaellt], abgebaut: [...this.abgebaut], gaenge: [...this.gaenge], hoehen: hoehenListe(), code: this.code, nacht: this.nacht, phase: this.phase === 'verloren' ? 'verloren' : 'tag', zeit: this.phase === 'tag' ? this.zeit : 0,
       res: { ...this.res }, bausteine: { ...this.bausteine }, erfindungen: [...this.erfindungen],
-      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: g.umbau && GEBAEUDE[g.typ].bauzeit && g.umbau.nach === g.typ && !g.umbau.stufe ? g.umbau.t : undefined, ritual: g.ritual })), erkundet: btoa(s), besiegt: this.besiegt,
+      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: Spiel.imBau(g) ? g.umbau!.t : undefined, ritual: g.ritual })), erkundet: btoa(s), besiegt: this.besiegt,
       ruinen: this.ruinen.map((r) => ({ typ: r.typ, x: r.x, z: r.z, zweig: r.zweig })), entdeckt: [...this.entdeckt] };
   }
   private laden(st: Spielstand): void {
@@ -1365,7 +1378,7 @@ export class Spiel {
     for (const [k, h] of st.hoehen || []) setzeHoehe(Math.floor(k / 2048) - 600, (k % 2048) - 600, h);
     const bin = atob(st.erkundet); for (let i = 0; i < bin.length; i++) { const b = bin.charCodeAt(i); for (let k = 0; k < 8; k++) this.erkundet[i * 8 + k] = (b >> k) & 1; }
     this.entdeckt = new Set(st.entdeckt || []);
-    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; if (g.bau !== undefined && GEBAEUDE[g.typ].bauzeit) n.umbau = { t: g.bau, dauer: GEBAEUDE[g.typ].bauzeit!, nach: g.typ }; }
+    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; if (g.bau !== undefined) n.umbau = { t: g.bau, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: !GEBAEUDE[g.typ].bauzeit }; }
     for (const r of st.ruinen || []) { const d = GEBAEUDE[r.typ]; if (d) this.ruinen.push({ id: this.naechsteId++, typ: r.typ, x: r.x, z: r.z, w: d.w, d: d.d, y: this.pruefeRoh(r.typ, r.x, r.z), zweig: r.zweig }); }
     this.laedt = false;
     this.lichterNeu(); this.verteileArbeiter();

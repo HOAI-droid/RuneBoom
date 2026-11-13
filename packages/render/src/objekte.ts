@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GEBAEUDE, trockenerWeg, trocken, type Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
+import { GEBAEUDE, trockenerWeg, trocken, Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
 import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT, FABRIK } from './grafik.ts';
 import {
@@ -14,14 +14,14 @@ import { rng, type Ruine } from '@runeboom/core';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
-function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', bau = false): THREE.Group {
+/** schicht 1–5: Gebäude im Bau, nur die unteren Schichten stehen, dazu ein Gerüst */
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', schicht = 0): THREE.Group {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
-  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (bau ? '/bau' : '');
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (schicht ? '/bau' + schicht : '');
   let m = modellCache.get(key);
   if (!m) {
     const g = new Grid(), def = GEBAEUDE[typ];
     Grid.tausch = VOLK_FARBEN[volk] || null;
-    if (bau) { geruest(g, def.w, def.d); Grid.tausch = null; m = gridZuGruppe(g, 0.5); modellCache.set(key, m); return m; }
     if (def.wunder) wunder(g, typ);
     if (def.zeitalter === 5) turmZeitalter5(g, typ);
     if (typ === 'aussenposten') aussenposten(g);
@@ -55,6 +55,13 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
     if (typ === 'mauer') { mauerStueck(g, 0, 0, 0, stahl); mauerSchaden(g, schaden); }
     if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer' && !def.wunder && !def.falle && typ !== 'tor' && typ !== 'siegel') stufenSchmuck(g, def.w, def.d, stufe);
     Grid.tausch = null;
+    if (schicht) { // im Bau: oberhalb der Schicht nichts, ringsum ein Gerüst
+      let hoch = 0; for (const v of g.m.values()) hoch = Math.max(hoch, v.y);
+      const grenze = Math.ceil(((hoch + 1) * schicht) / 6) - 1;
+      for (const [k, v] of g.m) if (v.y > grenze) g.m.delete(k);
+      const gr = new Grid(); geruest(gr, def.w, def.d);
+      for (const [k, v] of gr.m) if (!g.m.has(k) && v.y <= grenze + 3) g.m.set(k, v);
+    }
     m = gridZuGruppe(g, 0.5);
     modellCache.set(key, m);
   }
@@ -364,6 +371,38 @@ export class Objekte {
     const g = new Grid(); siegelstein(g, false); const m = gridZuGruppe(g, 1.1); m.position.set(q.x, hoehe(q.x, q.z), q.z); this.scene.add(m); this.ruinen.set(-1 - RISSE.indexOf(q), m);
     if (neu) this.teilchen.wurf(q.x, hoehe(q.x, q.z) + 8, q.z, 60, ['#efe2ff', '#b07cff', '#d4a640'], 7, 1, 0.3);
   }
+  /** Fall der Feste: die Burg bebt, neigt sich, sinkt ruckweise ein, Brocken und Staub; am Ende bleibt ein Trümmerhaufen */
+  private sturz: { m: THREE.Object3D; t: number; y0: number; x: number; z: number; w: number; d: number; neig: number; staub: number; haufen: boolean } | null = null;
+  einsturz(): void {
+    const h = this.spiel.haupt; if (!h) return; const m = this.gebaeude.get(h.id); if (!m) return;
+    const [x, z] = gebMitte(h); this.sturz = { m, t: 0, y0: m.position.y, x, z, w: h.w, d: h.d, neig: h.id % 2 ? 1 : -1, staub: 0, haufen: false };
+  }
+  /** läuft der Einsturz noch? (für die Kamera) */
+  get sturzZeit(): number { return this.sturz ? this.sturz.t : -1; }
+  private sturzSchritt(dt: number): void {
+    const S = this.sturz; if (!S) return;
+    S.t += dt; const t = S.t, T = this.teilchen, H = 24;
+    const steine = ['#a59f95', '#8f897f', '#6b4a2f', '#5a3d24', '#3a3836'];
+    if (t < 0.7) { // Beben
+      S.m.position.set(S.x + (Math.random() - 0.5) * 0.25, S.y0, S.z + (Math.random() - 0.5) * 0.25);
+    } else if (t < 4.2) { // ruckweise Einsinken mit Neigung
+      const f = (t - 0.7) / 3.5, ruck = f + Math.sin(f * 18) * 0.025;
+      S.m.position.set(S.x + (Math.random() - 0.5) * 0.15, S.y0 - Math.pow(Math.max(0, ruck), 1.6) * H, S.z + (Math.random() - 0.5) * 0.15);
+      S.m.rotation.z = S.neig * f * 0.16; S.m.rotation.x = -S.neig * f * 0.07;
+    } else if (S.m.visible) { S.m.visible = false; }
+    S.staub -= dt;
+    if (t < 4.4 && S.staub <= 0) {
+      S.staub = 0.12;
+      const oben = S.m.position.y + Math.max(2, H - (S.y0 - S.m.position.y));
+      for (let i = 0; i < 3; i++) T.wurf(S.x + (Math.random() - 0.5) * S.w, oben * (0.4 + Math.random() * 0.6), S.z + (Math.random() - 0.5) * S.d, 4, steine, 5, 0, 0.45);
+      T.wurf(S.x + (Math.random() - 0.5) * S.w * 1.2, S.y0 + 0.5, S.z + (Math.random() - 0.5) * S.d * 1.2, 3, ['#8a837b', '#a59f95', '#6a625a'], 1.6, 2, 2.4);
+    }
+    if (t > 3.6 && !S.haufen) { // Trümmerhaufen bleibt
+      S.haufen = true; const g = new Grid(); ruine(g, S.w, S.d, rng(97));
+      const r = gridZuGruppe(g, 0.5); r.position.set(S.x, S.y0, S.z); this.scene.add(r);
+      T.wurf(S.x, S.y0 + 2, S.z, 90, steine, 7, 0, 0.5); T.wurf(S.x, S.y0 + 1, S.z, 30, ['#8a837b', '#6a625a'], 2, 2, 3);
+    }
+  }
   private neueRuine(ru: Ruine): void {
     const g = new Grid(); ruine(g, ru.w, ru.d, rng(ru.id * 7 + 3));
     const m = gridZuGruppe(g, 0.5); m.position.set(ru.x + ru.w / 2, ru.y, ru.z + ru.d / 2);
@@ -379,11 +418,14 @@ export class Objekte {
     return this.kegel[i];
   }
 
+  /** Bauschicht 1–5 eines Gebäudes im Bau, 0 = fertig */
+  private bauSchichten = new Map<number, number>();
+  private bauSchicht(g: Geb): number { return Spiel.imBau(g) ? 1 + Math.min(4, Math.floor((g.umbau!.t / g.umbau!.dauer) * 5)) : 0; }
   private neuesGeb(g: Geb): void {
     const alt = this.gebaeude.get(g.id); if (alt) this.scene.remove(alt);
     const ms = g.typ === 'mauer' ? mauerStufe(g) : 0; this.mauerStufen.set(g.id, ms);
-    const bau = !!(g.umbau && GEBAEUDE[g.typ].bauzeit && g.umbau.nach === g.typ && !g.umbau.stufe);
-    const m = gebModell(g.typ, (g.typ === 'mauer' || g.typ === 'tor') && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms, this.spiel.volk, bau).clone();
+    const schicht = this.bauSchicht(g); this.bauSchichten.set(g.id, schicht);
+    const m = gebModell(g.typ, (g.typ === 'mauer' || g.typ === 'tor') && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms, this.spiel.volk, schicht).clone();
     const [cx, cz] = gebMitte(g); m.position.set(cx, g.y, cz);
     m.userData.y = g.y; this.scene.add(m); this.gebaeude.set(g.id, m);
   }
@@ -508,6 +550,7 @@ export class Objekte {
     let ns = 0; const fw0 = new THREE.Vector3(0, 0, 1);
     for (const g of S.gebaeude) {
       const [cx, cz] = gebMitte(g);
+      { const sch = this.bauSchicht(g); if (sch !== (this.bauSchichten.get(g.id) ?? 0)) this.neuesGeb(g); }
       if (g.rep || g.umbau) {
         for (let i = 0; i < (g.umbau ? 3 : 2); i++) {
           const a = i * Math.PI + g.id, x = cx + Math.cos(a) * (g.w / 2 + 0.8), z = cz + Math.sin(a) * (g.d / 2 + 0.8);
@@ -586,6 +629,7 @@ export class Objekte {
     }
     this.balken.ende();
     this.weg.setze(S, wegStaerke);
+    this.sturzSchritt(dt);
     this.teilchen.schritt(dt);
   }
   /** Einwohner ohne Arbeit schlendern am Tag zwischen Häusern, Burg, Hof und Werkstatt */

@@ -148,3 +148,19 @@ if (fehler) process.exit(1);
   const st = v.speichern(); pruefe(st.v === 4 && st.volk === 'glutborn', 'Spielstand v4 mit Volk');
 }
 if (fehler) process.exit(1);
+// ---- 0.8: Bauen braucht Zeit ----
+{
+  const w = new Spiel('NEBELKRAKE-4127'); w.res.holz = w.res.stein = 999;
+  let ort: [number, number] | null = null;
+  for (let r = 10; r < 40 && !ort; r += 2) for (let a = 0; a < 6.28 && !ort; a += 0.4) { const x = Math.round(B.x + Math.cos(a) * r), z = Math.round(B.z + Math.sin(a) * r); if (w.pruefe('wachturm', x, z).ok) ort = [x, z]; }
+  pruefe(!!ort && w.bauen('wachturm', ort[0], ort[1], true), 'Wachturm lässt sich setzen');
+  const g = w.gebaeude[w.gebaeude.length - 1];
+  pruefe(Spiel.imBau(g), 'neues Gebäude steht erst im Bau');
+  const dauer = Spiel.bauDauer('wachturm');
+  pruefe(dauer >= 2 && dauer <= 14, `Bauzeit Wachturm ${dauer.toFixed(1)} s`);
+  for (let i = 0; i < Math.ceil(dauer / DT) + 2; i++) w.schritt();
+  pruefe(!Spiel.imBau(g), 'nach der Bauzeit fertig');
+  const st2 = w.speichern(); const w2 = new Spiel(st2.code, JSON.parse(JSON.stringify(st2)));
+  pruefe(!w2.gebaeude.some((o) => Spiel.imBau(o) && o.typ === 'wachturm' && o.x === g.x && o.z === g.z), 'fertiger Turm bleibt nach dem Laden fertig');
+  if (fehler) process.exit(1);
+}

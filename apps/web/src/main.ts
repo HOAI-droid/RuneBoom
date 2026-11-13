@@ -70,7 +70,7 @@ const naehe = (x: number, z: number) => Math.max(0, 1 - Math.hypot(x - controls.
 // ================= Zustand =================
 let spiel: Spiel | null = null, welt: WeltAnsicht | null = null, obj: Objekte | null = null;
 let tempo = 1, werkzeug: { art: 'bau'; typ: GebTyp } | { art: 'spaeher' } | { art: 'ebnen' } | { art: 'feuerregen' } | null = null, gewaehlt: Geb | null = null, ruineGew: Ruine | null = null;
-let fehlerGemeldet = 0, kegelZeit = 0, kegelWarAn = false, berichtPause = false;
+let sturzKamera = 0, fehlerGemeldet = 0, kegelZeit = 0, kegelWarAn = false, berichtPause = false;
 let anzeigeDunkel = 0, akku = 0, planZeit = 0, uiZeit = 0;
 let panelArt: 'geb' | 'werkstatt' | 'einst' | 'ruine' | null = null;
 /** Panel nur neu schreiben, wenn sich der Inhalt ändert (sonst gehen Klicks verloren) */
@@ -892,7 +892,7 @@ renderer.setAnimationLoop(() => {
     let lichtNeu = false;
     for (const e of ev) {
       if (e.art === 'gebaut' || e.art === 'weg' || e.art === 'umgebaut') lichtNeu = true;
-      if (e.art === 'umgebaut') klang.spiele('glocke', naehe(e.geb.x, e.geb.z) * 0.5);
+      if (e.art === 'umgebaut' && e.geb.typ !== 'mauer' && !GEBAEUDE[e.geb.typ].falle) klang.spiele('glocke', naehe(e.geb.x, e.geb.z) * 0.5);
       if (e.art === 'blitz') klang.spiele('blitz', naehe(e.punkte[0][0], e.punkte[0][2]) * 0.6);
       if (e.art === 'feuer') klang.spiele('feuer', naehe(e.x, e.z) * 0.5);
       if (e.art === 'brand') klang.spiele('feuer', naehe(e.geb.x, e.geb.z) * 0.6);
@@ -924,7 +924,8 @@ renderer.setAnimationLoop(() => {
       if (e.art === 'phase' && e.phase === 'gewonnen') { try { localStorage.removeItem(SPEICHER); } catch { /* */ } setTimeout(zeigeAbspann, 2500); }
       if (e.art === 'riss') klang.spiele('horn', 0.9);
       if (e.art === 'phase' && e.phase === 'tag') speichern();
-      if (e.art === 'phase' && e.phase === 'verloren') { $('ende-text').textContent = `${t('Nach {a} überstandenen Nächten und {b} besiegten Wesen hat die Welt {c} gesiegt. Mit demselben Weltcode lässt sich genau diese Welt noch einmal versuchen.', { a: spiel.nacht - 1, b: spiel.besiegt, c: spiel.code })}`; setTimeout(() => { $('ende').hidden = false; }, 1600); try { localStorage.removeItem(SPEICHER); } catch { /* */ } }
+      if (e.art === 'phase' && e.phase === 'verloren') { obj.einsturz(); sturzKamera = 0; klang.spiele('einsturz', 1); setTimeout(() => klang.spiele('einsturz', 0.9), 900); setTimeout(() => klang.spiele('explosion', 0.7), 2200); setTimeout(() => klang.spiele('einsturz', 1), 3300); }
+      if (e.art === 'phase' && e.phase === 'verloren') { $('ende-text').textContent = `${t('Nach {a} überstandenen Nächten und {b} besiegten Wesen hat die Welt {c} gesiegt. Mit demselben Weltcode lässt sich genau diese Welt noch einmal versuchen.', { a: spiel.nacht - 1, b: spiel.besiegt, c: spiel.code })}`; setTimeout(() => { $('ende').hidden = false; }, 5600); try { localStorage.removeItem(SPEICHER); } catch { /* */ } }
     }
     obj.ereignisse(ev);
     kegelZeit -= dt;
@@ -936,7 +937,16 @@ renderer.setAnimationLoop(() => {
     const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
     obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);
     { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.stimmung(spiel.phase === 'nacht', nah / 25); }
-    if (imAbspann) menueKamera(dt); else { tastenBewegung(dt); controls.update(); }
+    if (imAbspann) menueKamera(dt);
+    else if (obj.sturzZeit >= 0 && obj.sturzZeit < 6 && spiel.haupt) { // Fall der Feste: langsam um die Burg, leichtes Beben
+      const h = spiel.haupt, ziel = new THREE.Vector3(h.x + h.w / 2, h.y + 6, h.z + h.d / 2), tg = controls.target;
+      tg.lerp(ziel, Math.min(1, dt * 1.5)); sturzKamera += dt;
+      const off = camera.position.clone().sub(tg); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.22);
+      const soll = THREE.MathUtils.clamp(off.length() - dt * 6, 70, 400); off.setLength(soll);
+      camera.position.copy(tg).add(off);
+      if (obj.sturzZeit < 4.2) camera.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.35, (Math.random() - 0.5) * 0.35, 0));
+      camera.lookAt(tg);
+    } else { tastenBewegung(dt); controls.update(); }
     const tg = controls.target, cx = THREE.MathUtils.clamp(tg.x, -WR + 20, WR - 20), cz = THREE.MathUtils.clamp(tg.z, -WR + 20, WR - 20);
     if (cx !== tg.x || cz !== tg.z) { const d = new THREE.Vector3(cx - tg.x, 0, cz - tg.z); tg.add(d); camera.position.add(d); }
     const dist = camera.position.distanceTo(tg);
