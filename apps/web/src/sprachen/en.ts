@@ -727,5 +727,6 @@ export const EN: Record<string, string> = {
  "verborgen": "hidden",
  "Anführer": "leader",
  "Gamepad": "Gamepad",
- "Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte": "Left stick moves, right stick rotates and zooms, A clicks at the crosshair (hold to draw walls), B cancels, D-pad picks build groups and buildings, X invention tree, Y map"
+ "Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte": "Left stick moves, right stick rotates and zooms, A clicks at the crosshair (hold to draw walls), B cancels, D-pad picks build groups and buildings, X invention tree, Y map",
+ "Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.": "Sound effects by Kenney (CC0). Instruments from the FluidR3 GM SoundFont by Frank Wen (CC BY 3.0). The music is composed anew for each people."
 };

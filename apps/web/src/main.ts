@@ -952,6 +952,7 @@ function zeigeHilfe(): void {
       ${karte(t('Ausbauen'), t('Klicke ein Gebäude an: Stufe II und III, Umrüsten mit zwei Zweigen, Verschmelzen mit dem Nachbarturm, Reparieren. Goldene Pfeile zeigen, was gerade geht. Je Zeitalter gibt es ein Wunder aus zweien.'))}
       ${karte(t('Die Partie'), t('40 Nächte in vier Akten. Alle fünf Nächte kommt ein Rissfürst, Omen kündigen besondere Nächte an. In Akt IV versiegeln Siegelsteine die Risse: Sind alle versiegelt oder ist die 40. Nacht überstanden, ist die Partie gewonnen.'))}
       ${karte(t('Tasten'), t('Ziehen: verschieben · Rad: zoomen · rechte Maustaste: drehen · Z R V B: Bauleiste · T: Erfindungsbaum · X: Späher · 9: Ebnen · N: Nacht · Leertaste: Pause · Umschalt + Klick: Auswahl behalten · F1: Hilfe'))}
+      ${karte(t('Klänge'), t('Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.'))}
     </div>`;
   el.hidden = false;
   $('hilfe-zu').onclick = () => { el.hidden = true; };
@@ -1103,7 +1104,7 @@ renderer.setAnimationLoop(() => {
     licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
     const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
     obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);
-    { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.stimmung(spiel.phase === 'nacht', nah / 25); }
+    { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.setzeVolk(spiel.volk); klang.stimmung(spiel.phase === 'nacht', nah / 25, spiel.abend(), spiel.phase === 'nacht' && spiel.gegner.some((e) => e.typ === 'rissfuerst')); }
     if (imAbspann) menueKamera(dt);
     else if (obj.sturzZeit >= 0 && obj.sturzZeit < 6 && spiel.haupt) { // Fall der Feste: langsam um die Burg, leichtes Beben
       const h = spiel.haupt, ziel = new THREE.Vector3(h.x + h.w / 2, h.y + 6, h.z + h.d / 2), tg = controls.target;
