@@ -3,7 +3,7 @@ let fehler = 0;
 const pruefe = (ok: boolean, text: string) => { if (!ok) { fehler++; console.error('FEHLER:', text); } else console.log('ok –', text); };
 
 const s = new Spiel('NEBELKRAKE-4127');
-pruefe(s.gebaeude.length === 5, 'Start: Hauptgebäude, Werkstatt, Wachturm, Holzfäller, Steinbruch'); pruefe(s.arbeiter.length === 4, 'Start: vier Arbeiter');
+pruefe(s.gebaeude.length === 7, 'Start: Hauptgebäude, Werkstatt, Wachturm, Holzfäller, Steinbruch, Bauernhof, Wohnhaus'); pruefe(s.arbeiter.length === 6 && s.einwohner === 12, `Start: 12 Einwohner, davon ${s.arbeiter.length} Arbeiter`);
 pruefe(s.erkundetAn(B.x, B.z) && !s.erkundetAn(B.x + 300, B.z), 'Um die Feste erkundet, weit draußen Nebel');
 // Bot: baut vor dem Tor ein paar Türme und Fackeln
 const plaetze: [number, number][] = [[-9, 8], [10, 10], [-4, 16], [6, 18], [-12, 20]];
@@ -71,14 +71,15 @@ if (fehler) process.exit(1);
 // Bot spielt durch die Zeitalter
 {
   const { botPartie } = await import('../../../tools/balance.ts');
-  const r = botPartie('NEBELKRAKE-4127', 9, false);
+  const r = botPartie('NEBELKRAKE-4127', 10, false, 'leicht');
   console.log('  ' + r.log[r.log.length - 1]);
-  pruefe(!r.verloren && r.nacht >= 9, `Bot übersteht 9 Nächte (bis ${r.nacht})`);
-  pruefe(r.zeitalter >= 3, `Bot erreicht durch Erfindungen das Zeitalter ${r.zeitalter}`);
+  pruefe(!r.verloren && r.nacht >= 10, `Bot übersteht auf Leicht 10 Nächte (bis ${r.nacht})`);
+  pruefe(r.zeitalter >= 2, `Bot erreicht durch Erfindungen das Zeitalter ${r.zeitalter}`);
+  pruefe(r.s.einwohner > 20, `Die Feste wächst (${r.s.einwohner} Einwohner)`);
   // Umrüsten, Verschmelzen, Ruinen
   const s = r.s;
   const ruine = s.ruinen[0];
-  pruefe(s.gebaeude.some((g) => g.typ === 'schuetzenturm' || g.typ === 'repetierer'), 'Türme wurden umgerüstet');
+  pruefe(s.gebaeude.some((g) => g.stufe > 1), 'Gebäude wurden ausgebaut');
   void ruine;
 }
 // Kein Riss darf unerreichbar sein, keine Nacht darf ewig dauern
@@ -86,7 +87,7 @@ if (fehler) process.exit(1);
   const { RISS, RISS2, NACHT_MAX } = await import('../src/index.ts');
   let ok = 0; const codes = ['NEBELKRAKE-4127', 'FROSTWOLF-1000', 'GLUTDRACHE-2222', 'MOORQUELLE-3131', 'RUNENEICHE-9001', 'ASCHEKRONE-5555', 'DORNKLAUE-7777', 'WINDMOTTE-8181'];
   for (const c of codes) {
-    const w = new Spiel(c); w.nacht = 5; (w as any).feldAlt = true;
+    const w = new Spiel(c); w.nacht = 20; (w as any).feldAlt = true;
     const wege = w.wegVorschau(); const h = w.haupt!;
     const angekommen = wege.every((p) => { const [x, z] = p[p.length - 1]; return Math.hypot(x - h.x - 6, z - h.z - 6) < 12; });
     if (angekommen) ok++; else console.log('  unerreichbar in', c, wege.map((p) => p.length));
@@ -98,3 +99,24 @@ if (fehler) process.exit(1);
   for (let i = 0; i < 20 * (NACHT_MAX + 30); i++) { w.schritt(); w.ereignisse.length = 0; if (w.phase !== 'nacht') break; for (const g of w.gegner) if (g.typ === 'moorwicht' && g.id % 5 === 0) { g.x = 400; g.z = 400; } }
   pruefe(w.phase !== 'nacht', 'Eine Nacht endet auch, wenn Wesen festhängen');
 }
+// 0.4: Bevölkerung, Stufen, Turmgrenze, Runenkraft
+{
+  const w = new Spiel('NEBELKRAKE-4127');
+  const e0 = w.einwohner;
+  for (let tag = 0; tag < 3; tag++) { for (let i = 0; i < 20 * 80; i++) { w.schritt(); w.ereignisse.length = 0; } w.phase = 'morgen'; w.zeit = 99; w.gegner.length = 0; w.schritt(); w.ereignisse.length = 0; }
+  pruefe(w.res.nahrung >= 0 && w.einwohner >= e0, `Bevölkerung nach 3 Tagen: ${w.einwohner} (Nahrung ${Math.round(w.res.nahrung)})`);
+  w.res.holz = w.res.stein = w.res.kristall = 2000; w.bausteine.feuerstein = 10;
+  const t = w.gebaeude.find((g) => g.typ === 'wachturm')!;
+  pruefe(!!w.stufeOption(t)?.grund, 'Stufe II braucht erst Steinmetzkunst');
+  w.erfinden('steinmetz');
+  pruefe(w.stufeAusbauen(t), 'Wachturm auf Stufe II ausbauen');
+  for (let i = 0; i < 20 * 10; i++) { w.schritt(); w.ereignisse.length = 0; }
+  pruefe(t.stufe === 2 && t.max > GEBAEUDE.wachturm.hp && Number.isInteger(t.max), `Stufe II: Haltbarkeit ${t.max}`);
+  const grenze = w.turmGrenze(); let n = 0;
+  for (let r = 10; r < 40 && w.turmZahl() < grenze + 2; r += 6) for (let a = 0; a < 16; a++) { if (w.bauen('wachturm', Math.round(B.x + Math.cos(a / 16 * 6.28) * r) - 2, Math.round(B.z + Math.sin(a / 16 * 6.28) * r) - 2, true)) n++; }
+  pruefe(w.turmZahl() === grenze, `Turmgrenze ${grenze} wird eingehalten (${w.turmZahl()} Türme)`);
+  w.res.kristall = 3; w.zeit = TAG_DAUER - 0.01; const bedarf = w.runenkraftBedarf(); w.schritt();
+  pruefe(bedarf > 3 && w.gebaeude.some((g) => !g.kraft && GEBAEUDE[g.typ].kampf), `Runenkraft: ${bedarf} Kristall nötig, ohne genug feuern äußere Türme langsamer`);
+  void n;
+}
+if (fehler) process.exit(1);

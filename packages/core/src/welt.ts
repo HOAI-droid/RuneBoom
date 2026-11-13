@@ -9,6 +9,11 @@ export const WR = 512, CH = 32;
 export const B = { x: 0, z: -40 };                       // Hauptgebäude (Mitte)
 export const RISS = { x: 6, z: B.z + 124 };               // erster Riss, durch den Pfad verbunden
 export const RISS2 = { x: B.x + 150, z: B.z + 30 };       // öffnet sich später
+/** alle Risse mit der Nacht, in der sie sich öffnen */
+export const RISSE: { x: number; z: number; ab: number; name: string }[] = [
+  { ...RISS, ab: 1, name: 'Südriss' }, { ...RISS2, ab: 5, name: 'Ostriss' },
+  { x: B.x - 145, z: B.z + 75, ab: 12, name: 'Westriss' }, { x: B.x + 55, z: B.z - 150, ab: 20, name: 'Nordriss' }
+];
 export const GLUT = { x: B.x + 30, z: B.z + 16 }, TEICH = { x: B.x - 24, z: B.z + 6 };
 export const PAL = {
   gras: ['#4f8234', '#5d8f3c', '#6a9a42', '#7ea74c'], erde: '#7b5636', stein: '#8a837b', stein2: '#7d766f', tief: '#575260',
@@ -46,7 +51,7 @@ function rohBerechnen(x: number, z: number) {
   let h = 6 + Math.round((Math.max(0, v - 0.46) * 18 + berg) * t);
   if (amPfad(x, z, 3)) h = Math.min(h, 7);
   let a: Art = 'gras';
-  const dg = Math.hypot(x - GLUT.x, z - GLUT.z), dr = Math.min(Math.hypot(x - RISS.x, z - RISS.z), Math.hypot(x - RISS2.x, z - RISS2.z));
+  const dg = Math.hypot(x - GLUT.x, z - GLUT.z); let dr = Infinity; for (const q of RISSE) dr = Math.min(dr, Math.hypot(x - q.x, z - q.z));
   if ((fbm(x, z, 0.011, SEED + 50) > 0.63 && t > 0.8) || dg < 8) a = 'asche';
   let pool: Art | null = null;
   if (a === 'gras' && t > 0.7 && dr > 14 && !amPfad(x, z, 4) && (v < 0.32 || lo < 0.3)) pool = 'w';
@@ -82,7 +87,7 @@ export function spalte(x: number, z: number): Spalte | null {
 }
 export function orte(): Ort[] {
   if (ORTE) return ORTE;
-  const L: Ort[] = [{ typ: 'riss', x: RISS.x, z: RISS.z, r: 10 }, { typ: 'riss', x: RISS2.x, z: RISS2.z, r: 10, spaeter: true }];
+  const L: Ort[] = RISSE.filter((q) => roh(q.x, q.z)).map((q) => ({ typ: 'riss' as const, x: q.x, z: q.z, r: 10, spaeter: q.ab > 1 }));
   for (const [x, z] of [[400, 60], [-350, -220], [-120, 400]]) if (roh(x, z)) L.push({ typ: 'riss', x, z, r: 10, spaeter: true });
   for (const [x, z] of [[B.x + 34, B.z - 18], [B.x - 16, B.z - 34], [B.x - 46, B.z + 30]]) L.push({ typ: 'kristall', x, z, r: 8 });
   const r = rng(SEED + 5);
