@@ -22,7 +22,7 @@ orientieren sich an dessen Zweig `grafik`.
   schweben über dem Boden und werfen Schatten.
 - Modi: **Weltreise** (Regionen 256 × 256, 5–20 Min.) und **Stammfeste** (1024 × 1024, nicht endlos, speichern/fortsetzen).
 - Welt prozedural aus **Weltcode** (z. B. NEBELKRAKE-4127), deterministisch, offline teilbar.
-- **Nebel** über Unerkundetem; Späher/Außenposten decken auf; einmal erspäht bleibt sichtbar.
+- **Nebel** über Unerkundetem als dichter Bodennebel (ca. 7–8 m hoch): Gelände und Wesen verborgen, Baumkronen und Bergkuppen ragen heraus. Späher/Außenposten decken auf; einmal erspäht bleibt sichtbar.
 - **Licht:** nachts sieht man ohne Licht nur Umrisse/Augen; Leuchttürme geben Bonus auf Reichweite und
   Treffsicherheit; höhere Stufe erkennt Verborgenes besser (Fackelmast, Leuchtfeuer, Spiegel-Scheinwerfer,
   Kristall-Leuchtfeuer).
@@ -35,7 +35,7 @@ orientieren sich an dessen Zweig `grafik`.
 - Licht: Tag = goldene Stunde, Nacht = Mondlicht mit leuchtenden Fenstern, Fackeln, Runen, Kristallen.
   Leuchtflächen gedämpft, **keine schwebenden Lichtpunkte/Teilchen**.
 - Nachbearbeitung wie overBOOM `grafik`: weiche Schatten, Bloom, warme Lichter/kühle Schatten, Vignette,
-  leichter Tilt-Shift. **Keine Umrisslinien.**
+  leichter Tilt-Shift. **Keine Umrisslinien.** Lichtkegel von Scheinwerfern nur als Hauch sichtbar, die Aufhellung der angestrahlten Flächen trägt die Wirkung.
 - Kamera schräg von oben, frei drehbar und zoombar, auf allen Geräten.
 - Wasser- und Lavabecken leicht abgesenkt und animiert (Lava nach `render/src/lava.ts` aus overBOOM).
 - Große Welt: Kacheln 32 × 32, im Web Worker gebaut, Detailstufen (nah fein, fern Übersicht), ferne Kacheln

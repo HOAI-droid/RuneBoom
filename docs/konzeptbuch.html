@@ -287,7 +287,7 @@ footer { padding-block: 30px 50px; color: var(--muted); font-size: .9rem; border
 
   <section>
     <h2>Welt und Weltcode</h2>
-    <p class="lead">Die Stammfeste spielt auf einer Welt von 1024 × 1024 Blöcken, eine Region der Weltreise misst 256 × 256. Die Welt ist nicht endlos, aber so groß, dass man sie erst erkunden muss. Unerkundetes liegt im Nebel. Späher und Außenposten decken es auf, und was einmal erspäht ist, bleibt sichtbar. Jede Welt entsteht aus einem Weltcode. Gleicher Code ergibt gleiche Landschaft, gleiche Rohstofffelder, gleiche Risse und gleiche Wellen. So lassen sich Welten teilen: „Probier mal diese, die ist fies.“ Das klappt ohne Server und offline.</p>
+    <p class="lead">Die Stammfeste spielt auf einer Welt von 1024 × 1024 Blöcken, eine Region der Weltreise misst 256 × 256. Die Welt ist nicht endlos, aber so groß, dass man sie erst erkunden muss. Unerkundetes liegt unter dichtem Bodennebel: Baumkronen und Bergkuppen ragen heraus, aber was am Boden geschieht, etwa anrückende Wesen, bleibt verborgen. Späher und Außenposten decken es auf, und was einmal erspäht ist, bleibt sichtbar. Jede Welt entsteht aus einem Weltcode. Gleicher Code ergibt gleiche Landschaft, gleiche Rohstofffelder, gleiche Risse und gleiche Wellen. So lassen sich Welten teilen: „Probier mal diese, die ist fies.“ Das klappt ohne Server und offline.</p>
     <div class="code" aria-label="Beispiel für einen Weltcode">NEBELKRAKE-4127</div>
     <p class="lead">Die Simulation von overBOOM arbeitet schon mit Seed und festem Takt. Das übernehmen wir, damit ein Code auf jedem Gerät exakt dieselbe Welt erzeugt. Die Karte oben ist genau so entstanden: aus einem Seed, in deinem Browser.</p>
     <div class="raster">
@@ -339,7 +339,7 @@ footer { padding-block: 30px 50px; color: var(--muted); font-size: .9rem; border
       <div><span class="status fest">entschieden</span><h3>Licht: Tag und Nacht</h3><p>Der Tag ist warm, golden und ruhig. Die Nacht ist kühl im Mondlicht, dann leuchten Fackeln, Fenster, Runen, Kristalle und der Riss. Umschalten oben unter der Karte.</p></div>
       <div><span class="status fest">entschieden</span><h3>Feinere Voxel, richtige Größen</h3><p>Ein Block entspricht etwa einem Meter. Der Boden besteht aus ganzen Blöcken, Türme, Gebäude und Bäume aus halben Voxeln. Menschen sind rund 1,8 Blöcke groß und aus Achtel-Voxeln gebaut, die Wesen aus Viertel- bis Fünftel-Voxeln.</p></div>
       <div><span class="status fest">entschieden</span><h3>Becken</h3><p>Wasser und Lava liegen leicht abgesenkt und bewegen sich. Die Lava ist nach dem Vorbild des Lavabeckens aus dem Grafik-Zweig gebaut.</p></div>
-      <div><span class="status fest">entschieden</span><h3>Flieger, große Welt, Nebel</h3><p>Flieger schweben über dem Boden und werfen Schatten. Die Welt misst 1024 × 1024 Blöcke, nah fein und fern grob, und lädt nach. Unerkundetes liegt im Nebel, Erspähtes bleibt sichtbar.</p></div>
+      <div><span class="status fest">entschieden</span><h3>Flieger, große Welt, Nebel</h3><p>Flieger schweben über dem Boden und werfen Schatten. Die Welt misst 1024 × 1024 Blöcke, nah fein und fern grob, und lädt nach. Unerkundetes liegt unter Bodennebel, aus dem nur Baumkronen und Berge ragen. Erspähtes bleibt sichtbar.</p></div>
       <div><span class="status fest">entschieden</span><h3>Licht in der Nacht</h3><p>Leuchttürme geben einen Bonus, ohne sie erahnt man die Gegner. Höhere Stufen erkennen Verborgenes besser.</p></div>
       <div><span class="status fest">entschieden</span><h3>Kamera</h3><p>Schräg von oben, frei drehbar und zoombar, auf allen Geräten.</p></div>
       <div><span class="status fest">entschieden</span><h3>Nachbearbeitung</h3><p>Wie im Grafik-Zweig: weiche Schatten, Leuchten, warme Lichter und kühle Schatten, leichter Miniatur-Effekt am Bildrand. Keine Umrisslinien. Leuchtflächen gedämpft, keine schwebenden Lichtpunkte.</p></div>
@@ -934,13 +934,14 @@ function bauChunk(cx, cz) {
 // Übersicht der ganzen Welt in Zellen zu 4 × 4 Blöcken (für weite Sicht und die Übersichtskarte)
 function uebersicht() {
   const Z = 4, N = (2 * WR) / Z;
-  const hoch = new Float32Array(N * N).fill(-999), farbe = new Uint8Array(N * N * 3);
+  const hoch = new Float32Array(N * N).fill(-999), boden = new Float32Array(N * N).fill(-999), farbe = new Uint8Array(N * N * 3);
   const L = orte();
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
     const x = -WR + i * Z + 2, z = -WR + j * Z + 2, s = spalte(x, z); if (!s) continue;
     let top = s.h + 1, col = s.col;
     if (s.a === 'w') { top = s.h + 1.72; col = '#3f7fa0'; }
     if (s.a === 'l') { top = s.h + 1.62; col = '#c8501a'; }
+    boden[i * N + j] = top;
     if (s.a === 'gras' && fbm(x, z, 0.045, SEED + 20) > 0.58 && frei(x, z, s)) { top += 5; col = ['#2f5a2e', '#36652f', '#2a5230'][Math.floor(h3(i, 2, j) * 3)]; }
     if (Math.max(Math.abs(x - B.x), Math.abs(z - B.z)) <= 13) { top = 12; col = '#a59f95'; }
     for (const o of L) if (o.typ === 'kristall' && Math.abs(x - o.x) < 4 && Math.abs(z - o.z) < 4) { col = '#7fe9ff'; top += 2; }
@@ -961,7 +962,7 @@ function uebersicht() {
     v = unten(nb(i, j + 1)); if (v < h) quad([x1, h, z1], [x0, h, z1], [x0, v, z1], [x1, v, z1], 0, 0, 1, rgb, 0.85);
     v = unten(nb(i, j - 1)); if (v < h) quad([x0, h, z0], [x1, h, z0], [x1, v, z0], [x0, v, z0], 0, 0, -1, rgb, 0.65);
   }
-  return { p: new Float32Array(p), n: new Int8Array(n), c: new Float32Array(c), i: new Uint32Array(idx), hoch, farbe, N };
+  return { p: new Float32Array(p), n: new Int8Array(n), c: new Float32Array(c), i: new Uint32Array(idx), hoch, boden, farbe, N };
 }
 
 </script>
@@ -1052,8 +1053,14 @@ function becken(zellen, mat) {
 }
 // sichtbarer Lichtkegel eines Scheinwerfers
 function lichtkegel(laenge, radius, farbe) {
-  const geo = new THREE.ConeGeometry(radius, laenge, 32, 1, true); geo.translate(0, -laenge / 2, 0); geo.rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(farbe).multiplyScalar(0.7), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  const geo = new THREE.ConeGeometry(radius, laenge, 48, 12, true); geo.translate(0, -laenge / 2, 0); geo.rotateX(-Math.PI / 2);
+  // nur ein Hauch: hell an der Linse, läuft nach vorn aus, Ränder weich (Blickwinkel)
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uFarbe: { value: new THREE.Color(farbe) }, uLaenge: { value: laenge } },
+    vertexShader: 'varying float vT; varying vec3 vN; varying vec3 vV; void main(){ vT = clamp(position.z / ' + laenge.toFixed(2) + ', 0.0, 1.0); vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform vec3 uFarbe; varying float vT; varying vec3 vN; varying vec3 vV; void main(){ float rand = pow(abs(dot(normalize(vN), normalize(vV))), 2.0); float a = 0.085 * pow(1.0 - vT, 1.4) * rand; gl_FragColor = vec4(uFarbe * 0.8, a); }',
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending
+  });
   return new THREE.Mesh(geo, mat);
 }
 
@@ -1061,10 +1068,10 @@ function lichtkegel(laenge, radius, farbe) {
 const MOODS = {
   gold: { text: 'Tag: tiefe, warme Sonne, lange Schatten, satte Farben. Es ist ruhig. Arbeiter sind draußen bei Feldern, Wald und Kristallfeld. Ringsum liegt der Nebel über dem Unerkundeten.',
     top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffc27a', sunI: 3.4, sunP: [-50, 42, 34], hemiS: '#a9c4ff', hemiG: '#6b4a2f', hemiI: 1.15, exp: 1.0, glow: 0.62, lamp: 0.3, torch: 0.0, tint: '#ffd9a8', bloom: 0.32, nacht: false,
-    wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f3efe6' },
+    wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#efe9dd' },
   nacht: { text: 'Nacht: Mondlicht, Fackeln und Leuchttürme. Im Lichtkreis der Leuchttürme sind die Wesen gut zu sehen. Weiter draußen erahnt man nur Umrisse, und die Schattenwölfe sind bloß ein violettes Augenpaar. Nur das Kristall-Leuchtfeuer macht sie sichtbar.',
     top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.2, sunP: [44, 58, -24], hemiS: '#4a63a8', hemiG: '#16122a', hemiI: 0.5, exp: 1.1, glow: 0.7, lamp: 0.8, torch: 0.65, tint: '#c8d6ff', bloom: 0.28, nacht: true,
-    wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#b4bdd6' }
+    wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e' }
 };
 function himmel(m) {
   const c = document.createElement('canvas'); c.width = 4; c.height = 256;
@@ -1192,31 +1199,47 @@ function starteBuehne() {
   const NZ = 8, NN = (2 * WR) / NZ, erkundet = new Uint8Array(NN * NN);
   const aufdecken = (x, z, r) => { let neu = 0; for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) { const cx = -WR + (i + 0.5) * NZ, cz = -WR + (j + 0.5) * NZ; if (Math.hypot(cx - x, cz - z) <= r && !erkundet[i * NN + j]) { erkundet[i * NN + j] = 1; neu++; } } return neu; };
   aufdecken(B.x, B.z + 10, 92);
-  let uebersichtDaten = null, nebelMesh = null;
-  const NEBEL = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, color: '#f3efe6' });
+  let uebersichtDaten = null, nebelSchichten = [];
+  // Bodennebel: acht durchscheinende Schichten bis gut 7 m über dem Gelände. Gelände, Wege und Wesen
+  // verschwinden darin, Baumkronen und Bergkuppen ragen heraus. Erkundetes ist frei (weicher Rand).
+  const nebelMaske = new Uint8Array(NN * NN);
+  const nebelTex = new THREE.DataTexture(nebelMaske, NN, NN, THREE.RedFormat, THREE.UnsignedByteType);
+  nebelTex.magFilter = THREE.LinearFilter; nebelTex.minFilter = THREE.LinearFilter;
+  const maskeAktualisieren = () => { for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) nebelMaske[j * NN + i] = erkundet[i * NN + j] ? 255 : 0; nebelTex.needsUpdate = true; };
+  const NEBEL_U = { uZeit: ZEIT, uMaske: { value: nebelTex }, uFarbe: { value: new THREE.Color('#efe9dd') }, uDichte: { value: 0.24 } };
+  const nebelMaterial = (k) => new THREE.ShaderMaterial({
+    uniforms: { ...NEBEL_U, uLage: { value: k } },
+    vertexShader: 'attribute float aLand; varying float vLand; varying vec3 vW; void main(){ vLand = aLand; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform float uZeit, uDichte, uLage; uniform vec3 uFarbe; uniform sampler2D uMaske; varying float vLand; varying vec3 vW; ${NOISE_GLSL}
+      void main(){
+        float frei = smoothstep(0.2, 0.8, texture2D(uMaske, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r);
+        vec2 p = vW.xz * 0.03 + vec2(uZeit * 0.012 * (1.0 + uLage * 0.3), uZeit * 0.007) + uLage * 3.7;
+        float n = fbm(p);
+        float a = uDichte * (0.5 + 0.9 * n) * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(uFarbe * (0.9 + 0.18 * n), a);
+      }`,
+    transparent: true, depthWrite: false
+  });
   const baueNebel = () => {
     if (!uebersichtDaten) return;
-    const { hoch, N } = uebersichtDaten, f = N / NN;
-    const land = (i, j) => { for (let a = 0; a < f; a++) for (let b = 0; b < f; b++) if (hoch[(i * f + a) * N + (j * f + b)] > -900) return true; return false; };
-    const nebelHoehe = (i, j) => 25 + Math.round(noise(i * 0.35, j * 0.35, 9) * 6);
-    const p = [], n = [], c = [], idx = [];
-    const quad = (a, b, cc, d, nn, k) => { const base = p.length / 3; p.push(...a, ...b, ...cc, ...d); for (let q = 0; q < 4; q++) { n.push(...nn); c.push(k, k, k * 1.02); } idx.push(base, base + 1, base + 2, base, base + 2, base + 3); };
-    const ist = (i, j) => i >= 0 && j >= 0 && i < NN && j < NN && !erkundet[i * NN + j] && land(i, j);
-    for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) {
-      if (!ist(i, j)) continue;
-      const h = nebelHoehe(i, j), x0 = -WR + i * NZ, z0 = -WR + j * NZ, x1 = x0 + NZ, z1 = z0 + NZ, k = 0.86 + h3(i, 1, j) * 0.14;
-      quad([x0, h, z0], [x0, h, z1], [x1, h, z1], [x1, h, z0], [0, 1, 0], k);
-      const seite = (a, b) => (ist(a, b) ? nebelHoehe(a, b) : 4);
-      let v = seite(i + 1, j); if (v < h) quad([x1, h, z0], [x1, h, z1], [x1, v, z1], [x1, v, z0], [1, 0, 0], k * 0.8);
-      v = seite(i - 1, j); if (v < h) quad([x0, h, z1], [x0, h, z0], [x0, v, z0], [x0, v, z1], [-1, 0, 0], k * 0.74);
-      v = seite(i, j + 1); if (v < h) quad([x1, h, z1], [x0, h, z1], [x0, v, z1], [x1, v, z1], [0, 0, 1], k * 0.86);
-      v = seite(i, j - 1); if (v < h) quad([x0, h, z0], [x1, h, z0], [x1, v, z0], [x0, v, z0], [0, 0, -1], k * 0.7);
+    if (nebelSchichten.length) { maskeAktualisieren(); return; }
+    const { boden, N } = uebersichtDaten, f = N / NN, V = NN + 1;
+    const grund = new Float32Array(V * V), land = new Float32Array(V * V);
+    for (let i = 0; i < V; i++) for (let j = 0; j < V; j++) {
+      let sum = 0, zahl = 0;
+      for (let a = -f; a < f; a++) for (let b = -f; b < f; b++) { const ci = i * f + a, cj = j * f + b; if (ci < 0 || cj < 0 || ci >= N || cj >= N) continue; const h = boden[ci * N + cj]; if (h > -900) { sum += h; zahl++; } }
+      grund[i * V + j] = zahl ? Math.min(sum / zahl, 15) : 6; land[i * V + j] = zahl ? 1 : 0;
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); geo.setIndex(idx);
-    if (nebelMesh) { nebelMesh.geometry.dispose(); nebelMesh.geometry = geo; } else { nebelMesh = new THREE.Mesh(geo, NEBEL); nebelMesh.receiveShadow = true; scene.add(nebelMesh); }
+    for (let k = 0; k < 8; k++) {
+      const pos = new Float32Array(V * V * 3), idx = [];
+      for (let i = 0; i < V; i++) for (let j = 0; j < V; j++) { const o = (i * V + j) * 3; pos[o] = -WR + i * NZ; pos[o + 1] = grund[i * V + j] + 0.6 + k * 0.95; pos[o + 2] = -WR + j * NZ; }
+      for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) { const a = i * V + j, b = (i + 1) * V + j; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aLand', new THREE.BufferAttribute(land, 1)); geo.setIndex(idx);
+      const m = new THREE.Mesh(geo, nebelMaterial(k)); m.renderOrder = 10 + k; m.frustumCulled = false; scene.add(m); nebelSchichten.push(m);
+    }
+    maskeAktualisieren();
   };
-  const chunkErkundet = (cx, cz) => { const f = CH / NZ, i0 = (cx * CH + WR) / NZ, j0 = (cz * CH + WR) / NZ; for (let a = 0; a < f; a++) for (let b = 0; b < f; b++) if (erkundet[(i0 + a) * NN + (j0 + b)]) return true; return false; };
 
   // --- Nacht: Welle, Leuchttürme, Flieger; Tag: Arbeiter ---
   const nachtGruppe = new THREE.Group(), tagGruppe = new THREE.Group();
@@ -1231,9 +1254,10 @@ function starteBuehne() {
   const l4 = orte().find((o) => o.typ === 'l4'), l2 = orte().find((o) => o.typ === 'l2'), l3 = orte().find((o) => o.typ === 'l3');
   nachtGruppe.add(anB(0.2, (g, s) => {
     for (let i = 0; i < 24; i++) { const z = B.z + 28 + i * 0.9, x = pfadX(Math.round(z)) + ((i % 4) - 1.5) * 0.9; const [X, Y, Z] = P(s, x, z); moorwicht(g, X, Y, Z, 2); }
+    for (let i = 0; i < 20; i++) { const z = B.z + 112 + i * 0.9, x = pfadX(Math.round(z)) + ((i % 4) - 1.5) * 0.9; const [X, Y, Z] = P(s, x, z); moorwicht(g, X, Y, Z, 2); }
     for (let i = 0; i < 16; i++) { const z = B.z + 62 + i * 0.9, x = pfadX(Math.round(z)) + ((i % 4) - 1.5) * 0.9; const [X, Y, Z] = P(s, x, z); moorwicht(g, X, Y, Z, 2); }
   }));
-  nachtGruppe.add(anB(0.3, (g, s) => { for (const z of [B.z + 24, B.z + 47, B.z + 80]) { const [X, Y, Z] = P(s, pfadX(z) + 1.5, z); troll(g, X, Y, Z, 2); } }));
+  nachtGruppe.add(anB(0.3, (g, s) => { for (const z of [B.z + 24, B.z + 47, B.z + 80, B.z + 118]) { const [X, Y, Z] = P(s, pfadX(z) + 1.5, z); troll(g, X, Y, Z, 2); } }));
   // Wölfe: im Licht des Kristall-Leuchtfeuers sichtbar, weiter draußen nur Augen
   const wolfOrte = [[B.z + 19, 1.2, false], [B.z + 21.5, -1.4, false], [B.z + 24, 1.8, false], [B.z + 40, -1.5, true], [B.z + 43, 1.5, true], [B.z + 46, 0, true], [B.z + 52, -2, true], [B.z + 55, 1.2, true]];
   nachtGruppe.add(anB(0.22, (g, s) => { for (const [z, dx, dunkel] of wolfOrte) { const [X, Y, Z] = P(s, pfadX(Math.round(z)) + dx, z); wolf(g, X, Y, Z, 2, dunkel); } }));
@@ -1292,7 +1316,7 @@ function starteBuehne() {
   const fx = post(renderer, scene, camera, 16, 9, 0.55);
   const groesseAnpassen = () => { const W = canvas.clientWidth, Hh = canvas.clientHeight; if (!W || !Hh) return; renderer.setSize(W, Hh, false); camera.aspect = W / Hh; camera.updateProjectionMatrix(); fx.resize(W, Hh); };
   new ResizeObserver(groesseAnpassen).observe(canvas); groesseAnpassen();
-  moodListeners.push((m) => { setMood(m); fx.setMood(m); nachtGruppe.visible = m.nacht; tagGruppe.visible = !m.nacht; saeule.material.opacity = m.nacht ? 0.3 : 0.08; NEBEL.color.set(m.nebel); });
+  moodListeners.push((m) => { setMood(m); fx.setMood(m); nachtGruppe.visible = m.nacht; tagGruppe.visible = !m.nacht; saeule.material.opacity = m.nacht ? 0.3 : 0.08; NEBEL_U.uFarbe.value.set(m.nebel); });
 
   // --- Kacheln laden: im Hintergrund, nächste zuerst; ferne wieder freigeben ---
   const geladen = new Map(), inArbeit = new Set();
@@ -1327,7 +1351,7 @@ function starteBuehne() {
     for (let cx = c0x - n; cx <= c0x + n; cx++) for (let cz = c0z - n; cz <= c0z + n; cz++) {
       if (cx < -NCH / 2 || cz < -NCH / 2 || cx >= NCH / 2 || cz >= NCH / 2) continue;
       const d = Math.hypot((cx + 0.5) * CH - tg.x, (cz + 0.5) * CH - tg.z); if (d > R) continue;
-      const k = key(cx, cz); if (geladen.has(k) || inArbeit.has(k) || !chunkErkundet(cx, cz)) continue;
+      const k = key(cx, cz); if (geladen.has(k) || inArbeit.has(k)) continue;
       wunsch.push({ cx, cz, d, k });
     }
     wunsch.sort((a, b) => a.d - b.d);
@@ -1349,7 +1373,7 @@ function starteBuehne() {
       const o = (j * N + i) * 4, f = (j * N + i) * 3, land = hoch[i * N + j] > -900;
       const ni = Math.floor(i / (N / NN)), nj = Math.floor(j / (N / NN)), sicht = erkundet[ni * NN + nj];
       if (!land) { img.data.set([13, 19, 32, 255], o); continue; }
-      if (!sicht) { const k = 150 + (h3(ni, 0, nj) * 30) | 0; img.data.set([k, k, k + 6, 255], o); continue; }
+      if (!sicht) { const k = 165 + (h3(ni, 0, nj) * 20); img.data.set([farbe[f] * 0.28 + k * 0.72, farbe[f + 1] * 0.28 + k * 0.72, farbe[f + 2] * 0.28 + (k + 6) * 0.72, 255], o); continue; }
       img.data.set([farbe[f], farbe[f + 1], farbe[f + 2], 255], o);
     }
     gx.putImageData(img, 0, 0);
@@ -1382,10 +1406,11 @@ function starteBuehne() {
   let unten = null;
   canvas.addEventListener('pointerdown', (e) => { unten = { x: e.clientX, y: e.clientY, t: performance.now() }; });
   canvas.addEventListener('pointerup', (e) => {
-    if (!unten || e.button !== 0 || Math.hypot(e.clientX - unten.x, e.clientY - unten.y) > 6 || performance.now() - unten.t > 500 || !nebelMesh) return;
+    if (!unten || e.button !== 0 || Math.hypot(e.clientX - unten.x, e.clientY - unten.y) > 6 || performance.now() - unten.t > 500 || !nebelSchichten.length) return;
     const r = canvas.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-    const t = ray.intersectObject(nebelMesh)[0]; if (!t) return;
+    const t = ray.intersectObject(nebelSchichten[7])[0]; if (!t) return;
+    { const ci = Math.floor((t.point.x + WR) / NZ), cj = Math.floor((t.point.z + WR) / NZ); if (ci < 0 || cj < 0 || ci >= NN || cj >= NN || erkundet[ci * NN + cj]) return; }
     let nah = Infinity;
     for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) if (erkundet[i * NN + j]) nah = Math.min(nah, Math.hypot(-WR + (i + 0.5) * NZ - t.point.x, -WR + (j + 0.5) * NZ - t.point.z));
     if (nah > 64) { melde('Zu weit: Späher kommen nur vom Rand des Erkundeten aus.'); return; }
