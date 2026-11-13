@@ -461,6 +461,12 @@
   .buch-liste .zeile.sk-papier { background: radial-gradient(ellipse at 50% 42%, #efdcab 0%, #e2c58c 58%, #b88a4c 100%); border-color: #8a6230; color: #3a2210; font-family: "IM Fell English", Georgia, serif; font-size: 15px; }
   .buch-liste .zeile.sk-papier b { font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; }
   .wesen-karte strong { font-family: var(--display); color: var(--parch); font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
+  /* Gamepad: Fadenkreuz in der Bildmitte, sichtbarer Fokus */
+  .fadenkreuz { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; pointer-events: none; z-index: 4; display: none; }
+  body.pad .fadenkreuz { display: block; }
+  .fadenkreuz::before, .fadenkreuz::after { content: ""; position: absolute; background: rgba(255,240,210,.9); box-shadow: 0 0 3px rgba(0,0,0,.8); }
+  .fadenkreuz::before { left: 12px; top: 2px; width: 2px; height: 22px; } .fadenkreuz::after { top: 12px; left: 2px; height: 2px; width: 22px; }
+  .pad-fokus { outline: 3px solid var(--ember) !important; outline-offset: 2px; }
   /* Einstellungen: Zeilen umbrechen statt über den Rand, Häkchen neben dem Text, im Kasten scrollen */
   .panel:has(#e-musik) { overflow-y: auto; overflow-x: hidden; }
   .panel .zeile:has(.wahl), .menue-seite .zeile:has(.wahl) { flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -508,6 +514,7 @@
   <div class="panel tafel" id="panel" data-dynamisch hidden></div>
   <div class="einfuehrung tafel" id="einfuehrung" data-dynamisch hidden></div>
   <div class="tipp tafel" id="tipp" data-dynamisch hidden></div>
+  <div class="fadenkreuz" aria-hidden="true"></div>
   <div class="unten tafel" id="leiste" data-dynamisch></div>
 </div>
 

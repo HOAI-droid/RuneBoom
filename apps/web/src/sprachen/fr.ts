@@ -725,5 +725,7 @@ export const FR: Record<string, string> = {
  "Die Wesen der Wildnis": "Les créatures sauvages",
  "fliegt": "vole",
  "verborgen": "caché",
- "Anführer": "chef"
+ "Anführer": "chef",
+ "Gamepad": "Manette",
+ "Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte": "Stick gauche déplace, stick droit tourne et zoome, A clique au réticule (maintenir pour tracer des murs), B annule, la croix choisit groupes et bâtiments, X arbre des inventions, Y carte"
 };

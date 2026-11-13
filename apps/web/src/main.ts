@@ -213,6 +213,7 @@ function seite(name: string | null): void {
       <kbd>X · 9</kbd><span>${t('Späher in den Nebel (15 Holz) · Gelände ebnen')}</span>
       <kbd>T</kbd><span>${t('Erfindungsbaum')}</span>
       <kbd>M</kbd><span>${t('Karte ein- und ausblenden')}</span>
+      <kbd>${t('Gamepad')}</kbd><span>${t('Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte')}</span>
       <kbd>${t('N · Leertaste')}</kbd><span>${t('Nacht einläuten · Pause')}</span>
       <kbd>${t('Esc · Rechtsklick')}</kbd><span>${t('abbrechen')}</span></div>`;
   }
@@ -713,6 +714,88 @@ function tastenBewegung(dt: number): void {
   if (dreh) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * dt * 1.4); camera.position.copy(controls.target).add(off); }
 }
 
+// ================= Gamepad =================
+/**
+ * Steuerung mit dem Gamepad (Standardbelegung, Xbox/PlayStation):
+ * linker Stick schiebt, rechter Stick dreht und zoomt, Schultertasten zoomen; A klickt am Fadenkreuz in der Bildmitte
+ * (halten und schieben zieht Mauern), B bricht ab, X Erfindungsbaum, Y Karte, Start Menü, Zurück Pause,
+ * Steuerkreuz: hoch/runter Baugruppen, links/rechts Gebäude der Gruppe. In Fenstern wandert der Fokus mit dem Steuerkreuz.
+ */
+let padAktiv = false, padFokus: HTMLElement | null = null, padWiederholung = 0, padADruck = false;
+const padAlt: boolean[] = [];
+const taste = (key: string) => { dispatchEvent(new KeyboardEvent('keydown', { key })); dispatchEvent(new KeyboardEvent('keyup', { key })); };
+function sichtbar(el: HTMLElement | null): boolean { return !!el && !el.hidden && el.offsetParent !== null; }
+/** oberstes offenes Fenster, in dem der Fokus wandert (null = Spielwelt) */
+function padFenster(): HTMLElement | null {
+  for (const id of ['skizze', 'ende', 'bericht', 'leitsatz', 'hilfe', 'sieg', 'baum-detail', 'baum', 'start', 'panel']) { const el = $(id); if (sichtbar(el) || (id === 'start' && !el.hidden)) return el; }
+  return null;
+}
+function padZiele(f: HTMLElement): HTMLElement[] {
+  return [...f.querySelectorAll<HTMLElement>('button:not(:disabled), input, [role="button"], [data-seite]')].filter((e) => e.offsetParent !== null);
+}
+function fokusSetzen(el: HTMLElement | null): void {
+  padFokus?.classList.remove('pad-fokus'); padFokus = el;
+  if (el) { el.classList.add('pad-fokus'); el.focus({ preventScroll: false }); el.scrollIntoView({ block: 'nearest' }); }
+}
+function zeigerAnMitte(art: 'pointerdown' | 'pointermove' | 'pointerup'): void {
+  const cx = innerWidth / 2, cy = innerHeight / 2, war = controls.enabled;
+  controls.enabled = false; // die Kamerasteuerung soll den nachgemachten Klick nicht als Ziehen deuten
+  try { canvas.dispatchEvent(new PointerEvent(art, { clientX: cx, clientY: cy, button: 0, buttons: art === 'pointerup' ? 0 : 1, bubbles: true, pointerType: 'mouse' })); }
+  finally { controls.enabled = art === 'pointerup' ? true : war; }
+}
+function padSchritt(dt: number): void {
+  const gp = [...(navigator.getGamepads?.() || [])].find((p) => p && p.connected); if (!gp) return;
+  const ax = (i: number) => { const v = gp.axes[i] || 0; return Math.abs(v) < 0.2 ? 0 : v; };
+  const kn = (i: number) => !!gp.buttons[i]?.pressed, neu = (i: number) => kn(i) && !padAlt[i];
+  const irgendwas = gp.buttons.some((b) => b.pressed) || gp.axes.some((a) => Math.abs(a) > 0.3);
+  if (irgendwas && !padAktiv) { padAktiv = true; document.body.classList.add('pad'); }
+  const f = padFenster();
+  padWiederholung -= dt;
+  const hoch = kn(12) || ax(1) < -0.6, runter = kn(13) || ax(1) > 0.6, links = kn(14) || ax(0) < -0.6, rechts = kn(15) || ax(0) > 0.6;
+  if (f && f.id !== 'panel') { // Fenster: Fokus wandern lassen
+    const ziele = padZiele(f);
+    if (padFokus && !ziele.includes(padFokus)) fokusSetzen(null);
+    if ((hoch || runter || links || rechts) && padWiederholung <= 0) {
+      padWiederholung = 0.18; const i = padFokus ? ziele.indexOf(padFokus) : -1, schritt = hoch || links ? -1 : 1;
+      fokusSetzen(ziele[(i + schritt + ziele.length) % ziele.length] || null);
+    }
+    if (!hoch && !runter && !links && !rechts) padWiederholung = 0;
+    if (neu(0) && padFokus) padFokus.click();
+    if (neu(1)) { taste('Escape'); if (f.id === 'bericht') $('bericht-zu')?.click(); }
+  } else if (spiel && !imMenue) { // Spielwelt
+    const vor = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize(), re = new THREE.Vector3(-vor.z, 0, vor.x);
+    const dist = camera.position.distanceTo(controls.target), v = new THREE.Vector3().addScaledVector(vor, -ax(1)).addScaledVector(re, ax(0));
+    if (v.lengthSq()) { v.multiplyScalar(dist * 0.9 * dt); controls.target.add(v); camera.position.add(v); }
+    const dreh = -ax(2), zoom = ax(3) + ((gp.buttons[6]?.value || 0) - (gp.buttons[7]?.value || 0));
+    if (dreh) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * dt * 1.8); camera.position.copy(controls.target).add(off); }
+    if (zoom) { const off = camera.position.clone().sub(controls.target); off.setLength(THREE.MathUtils.clamp(off.length() * (1 + zoom * dt * 1.6), controls.minDistance, controls.maxDistance)); camera.position.copy(controls.target).add(off); }
+    if (v.lengthSq() || dreh || zoom || werkzeug) zeigerAnMitte('pointermove');
+    // Baugruppen und Gebäude mit dem Steuerkreuz
+    if (neu(12) || neu(13)) { const ids = BAUGRUPPEN.map((g) => g.id), i = gruppeOffen ? ids.indexOf(gruppeOffen) : -1, n = (i + (neu(12) ? -1 : 1) + ids.length + 1) % (ids.length + 1); gruppeZeigen(n === ids.length ? null : ids[n]); fokusSetzen(null); }
+    if ((neu(14) || neu(15)) && gruppeOffen) { const ziele = [...$('aufklapp').querySelectorAll<HTMLElement>('.bau')]; const i = padFokus ? ziele.indexOf(padFokus) : -1; fokusSetzen(ziele[(i + (neu(14) ? -1 : 1) + ziele.length) % ziele.length] || null); }
+    if (neu(0)) {
+      if (padFokus && sichtbar(padFokus)) { padFokus.click(); fokusSetzen(null); }
+      else { // Mauern und Ebnen: halten und schieben; sonst ein kurzer Klick
+        const ziehen = werkzeug?.art === 'ebnen' || (werkzeug?.art === 'bau' && GEBAEUDE[werkzeug.typ].w === 1);
+        zeigerAnMitte('pointerdown'); if (ziehen) padADruck = true; else zeigerAnMitte('pointerup');
+      }
+    }
+    if (padADruck && !kn(0)) { zeigerAnMitte('pointerup'); padADruck = false; }
+    if (neu(1)) { fokusSetzen(null); taste('Escape'); }
+    if (neu(2)) taste('t');
+    if (neu(3)) taste('m');
+    if (neu(8)) taste(' ');
+    // Gebäudefenster: Schultertasten wählen die Knöpfe darin
+    if (f && (neu(4) || neu(5))) { const ziele = padZiele(f); const i = padFokus ? ziele.indexOf(padFokus) : -1; fokusSetzen(ziele[(i + (neu(4) ? -1 : 1) + ziele.length) % ziele.length] || null); }
+  } else if (imMenue) {
+    const z = padZiele($('start')); if ((hoch || runter) && padWiederholung <= 0) { padWiederholung = 0.2; const i = padFokus ? z.indexOf(padFokus) : -1; fokusSetzen(z[(i + (hoch ? -1 : 1) + z.length) % z.length] || null); }
+    if (!hoch && !runter) padWiederholung = 0; if (neu(0) && padFokus) padFokus.click();
+  }
+  if (neu(9)) $('menue').click();
+  gp.buttons.forEach((b, i) => { padAlt[i] = b.pressed; });
+}
+addEventListener('mousemove', () => { if (padAktiv) { padAktiv = false; document.body.classList.remove('pad'); fokusSetzen(null); } });
+
 // ================= Übersichtskarte =================
 const mk = $<HTMLCanvasElement>('minikarte'), mx = mk.getContext('2d')!;
 const kartenGrund = document.createElement('canvas'); kartenGrund.width = kartenGrund.height = 256;
@@ -944,6 +1027,7 @@ function zeichnen(): void {
 renderer.setAnimationLoop(() => {
   const jetzt = performance.now(), roh = (jetzt - letzte) / 1000, dt = Math.min(0.1, roh); letzte = jetzt;
   messAnzeige(roh); renderer.info.reset(); auflSchritt(roh);
+  try { padSchritt(dt); } catch (err) { console.error(err); }
   ZEIT.value += dt;
   if (spiel && welt && obj) {
     enthuellungSchritt(dt);

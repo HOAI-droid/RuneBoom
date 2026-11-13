@@ -725,5 +725,7 @@ export const ES: Record<string, string> = {
  "Die Wesen der Wildnis": "Las criaturas salvajes",
  "fliegt": "vuela",
  "verborgen": "oculto",
- "Anführer": "líder"
+ "Anführer": "líder",
+ "Gamepad": "Mando",
+ "Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte": "Stick izquierdo desplaza, stick derecho gira y acerca, A hace clic en la mira (mantén para trazar muros), B cancela, la cruceta elige grupos y edificios, X árbol de inventos, Y mapa"
 };
