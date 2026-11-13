@@ -350,6 +350,30 @@
   @keyframes atmen { 0%, 100% { filter: drop-shadow(0 0 18px rgba(227,165,78,.18)); } 50% { filter: drop-shadow(0 0 34px rgba(227,165,78,.38)); } }
   body.verhuellt #start, body.verhuellt #hud { opacity: 0; }
   #start, #hud { transition: opacity 1.4s .5s; }
+
+  /* ---------- Hilfe, Bildrate ---------- */
+  .hilfe-fenster { position: fixed; inset: max(16px, 4vh) max(16px, 4vw); z-index: 8; padding: 18px 22px; display: grid; grid-template-rows: auto 1fr; gap: 12px; background: rgba(18,22,31,.96); }
+  .hilfe-kopf { display: flex; justify-content: space-between; align-items: center; }
+  .hilfe-kopf h2 { margin: 0; font-family: var(--display); color: var(--ember); font-size: 26px; }
+  .hilfe-kopf .schliessen { background: none; border: 0; font-size: 28px; color: var(--muted); }
+  .hilfe-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-content: start; }
+  .hkarte { background: var(--stone-2); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  .hkarte h3 { margin: 0 0 4px; font-family: var(--display); font-size: 17px; color: var(--parch); }
+  .hkarte p { margin: 0; font-size: 15px; line-height: 1.45; color: #d9d1c0; }
+  .fps { position: fixed; left: 12px; bottom: 12px; z-index: 9; font: 12px var(--mono); color: var(--frost); background: rgba(0,0,0,.4); padding: 2px 6px; border-radius: 3px; pointer-events: none; }
+  @media (max-width: 1000px) { .hilfe-gitter { grid-template-columns: 1fr 1fr; } .hkarte p { font-size: 13.5px; } }
+  @media (max-width: 640px) { .hilfe-fenster { inset: 8px; padding: 12px; } .hilfe-gitter { grid-template-columns: 1fr; overflow-y: auto; } }
+  /* ---------- Bedienung mit dem Finger ---------- */
+  @media (pointer: coarse) {
+    .gruppe, .bau, .akt, .menue-knopf, .knopf, .uhr button, .knoepfe button { min-height: 44px; }
+    .aufklapp .bau { width: 104px; }
+    .panel { font-size: 15px; } .akt b { font-size: 14px; } .akt small { font-size: 11px; }
+    .panel .schliessen, .baum .schliessen { font-size: 30px; padding: 4px 10px; }
+  }
+  @media (max-width: 760px) {
+    .panel { top: auto; bottom: 150px; left: 8px; right: 8px; width: auto; max-height: 52vh; overflow-y: auto; }
+    .gruppen { gap: 4px; padding: 4px; } .gruppe { width: 74px; } .gruppe kbd { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -358,14 +382,14 @@
 <div id="hud" hidden>
   <div class="oben-links tafel">
     <div class="marke">rune<b>BOOM</b></div>
-    <div class="zeitalter-anz" id="zeitalter" title="Zeitalter"></div>
-    <div class="res" id="res"></div>
-    <div class="bst" id="bausteine"></div>
-    <div class="bewohner" id="bewohner"></div>
+    <div class="zeitalter-anz" id="zeitalter" data-dynamisch title="Zeitalter"></div>
+    <div class="res" id="res" data-dynamisch></div>
+    <div class="bst" id="bausteine" data-dynamisch></div>
+    <div class="bewohner" id="bewohner" data-dynamisch></div>
   </div>
-  <div class="uhr tafel" id="uhr"></div>
+  <div class="uhr tafel" id="uhr" data-dynamisch></div>
   <div class="oben-rechts">
-    <div class="karte tafel" id="karte" role="button" tabindex="0" aria-label="Übersichtskarte, Klick springt dorthin"><canvas id="minikarte" width="256" height="256"></canvas><span id="weltcode"></span></div>
+    <div class="karte tafel" id="karte" role="button" tabindex="0" aria-label="Übersichtskarte, Klick springt dorthin"><canvas id="minikarte" width="256" height="256"></canvas><span id="weltcode" data-dynamisch></span></div>
     <div class="knoepfe tafel" role="group" aria-label="Tempo">
       <button type="button" data-tempo="0" title="Pause (Leertaste)">II</button>
       <button type="button" data-tempo="1" aria-pressed="true">1×</button>
@@ -374,11 +398,11 @@
       <button type="button" id="menue" title="Einstellungen und Menü">☰</button>
     </div>
   </div>
-  <div id="meldungen" aria-live="polite"></div>
-  <div class="panel tafel" id="panel" hidden></div>
-  <div class="einfuehrung tafel" id="einfuehrung" hidden></div>
-  <div class="tipp tafel" id="tipp" hidden></div>
-  <div class="unten tafel" id="leiste"></div>
+  <div id="meldungen" data-dynamisch aria-live="polite"></div>
+  <div class="panel tafel" id="panel" data-dynamisch hidden></div>
+  <div class="einfuehrung tafel" id="einfuehrung" data-dynamisch hidden></div>
+  <div class="tipp tafel" id="tipp" data-dynamisch hidden></div>
+  <div class="unten tafel" id="leiste" data-dynamisch></div>
 </div>
 
 <div class="menue" id="start">
@@ -388,7 +412,7 @@
       <div class="untertitel">Die Feste der Erfinder</div>
     </div>
     <nav class="menue-liste" aria-label="Hauptmenü">
-      <button type="button" class="menue-knopf haupt" id="weiter" hidden><span>Fortsetzen</span><small id="weiter-info"></small></button>
+      <button type="button" class="menue-knopf haupt" id="weiter" hidden><span>Fortsetzen</span><small id="weiter-info" data-dynamisch></small></button>
       <button type="button" class="menue-knopf" data-seite="neu"><span>Neues Spiel</span><small>Weltcode und Schwierigkeit wählen</small></button>
       <button type="button" class="menue-knopf" data-seite="plaetze"><span>Spielstände</span><small>Laden und verwalten</small></button>
       <button type="button" class="menue-knopf" data-seite="einst"><span>Einstellungen</span><small>Musik, Klänge, Grafik</small></button>
@@ -396,13 +420,13 @@
     </nav>
     <div class="menue-fuss">Version <span id="version"></span> · Am Tag bauen, in der Nacht bestehen. · <a href="docs/" target="_blank" rel="noopener" style="color:var(--ember)">Projektseite</a></div>
   </div>
-  <section class="menue-seite tafel" id="seite" hidden></section>
+  <section class="menue-seite tafel" id="seite" data-dynamisch hidden></section>
 </div>
 
 <div class="baum" id="baum" hidden>
   <div class="baum-kopf">
-    <div><h2>Erfindungsbaum</h2><div class="baum-za" id="baum-za"></div></div>
-    <div class="baum-bst" id="baum-bst"></div>
+    <div><h2>Erfindungsbaum</h2><div class="baum-za" id="baum-za" data-dynamisch></div></div>
+    <div class="baum-bst" id="baum-bst" data-dynamisch></div>
     <div class="baum-za-reiter" id="baum-za-reiter"></div>
     <div class="baum-reiter" role="tablist">
       <button type="button" data-reiter="baum" aria-pressed="true">Erfindungen</button>
@@ -411,14 +435,16 @@
     </div>
     <button type="button" class="schliessen" id="baum-zu" aria-label="Schließen">×</button>
   </div>
-  <div class="baum-inhalt" id="baum-inhalt"></div>
-  <div class="baum-detail tafel" id="baum-detail" hidden></div>
+  <div class="baum-inhalt" id="baum-inhalt" data-dynamisch></div>
+  <div class="baum-detail tafel" id="baum-detail" data-dynamisch hidden></div>
 </div>
 
-<div class="bericht tafel" id="bericht" hidden></div>
-<div class="akt-tafel" id="akt" hidden></div>
-<div class="leitsatz tafel" id="leitsatz" hidden></div>
-<div class="sieg" id="sieg" hidden></div>
+<div class="bericht tafel" id="bericht" hidden data-dynamisch></div>
+<div class="hilfe-fenster tafel" id="hilfe" hidden data-dynamisch></div>
+<div class="fps" id="fps" hidden data-dynamisch></div>
+<div class="akt-tafel" id="akt" data-dynamisch hidden></div>
+<div class="leitsatz tafel" id="leitsatz" data-dynamisch hidden></div>
+<div class="sieg" id="sieg" data-dynamisch hidden></div>
 
 <div class="overlay" id="ende" hidden>
   <div class="karte-gross tafel">

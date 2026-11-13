@@ -215,6 +215,8 @@ export class Objekte {
   private buerger: { x: number; z: number; ziel: [number, number]; warte: number; art: number; tempo: number; richtung: number }[] = [];
   /** goldene Pfeile über verbesserbaren Gebäuden zeigen */
   zeigePfeile = true;
+  /** höchstens so viele Bürger zeigen (Leistung) */
+  buergerMax = 150;
   private pfeilListe: Geb[] = []; private pfeilZeit = 0; private mauerStufen = new Map<number, number>();
   private feuer: Schar; private panzer: Schar;
   private strahlen: THREE.InstancedMesh; private blitze: { a: THREE.Vector3; b: THREE.Vector3; t: number }[] = []; private blitzMesh: THREE.InstancedMesh;
@@ -501,7 +503,7 @@ export class Objekte {
   }
   /** Einwohner ohne Arbeit schlendern am Tag zwischen Häusern, Burg, Hof und Werkstatt */
   private bewegeBuerger(dt: number, t: number): void {
-    const S = this.spiel, tag = S.phase === 'tag', soll = tag ? Math.min(150, S.leerlauf()) : 0;
+    const S = this.spiel, tag = S.phase === 'tag', soll = tag ? Math.min(this.buergerMax, S.leerlauf()) : 0;
     const ziele = S.gebaeude.filter((g) => g.typ === 'haus' || g.typ === 'haupt' || g.typ === 'werkstatt' || g.typ === 'hof' || g.typ === 'fischer');
     const zielVon = (g: Geb): [number, number] => [g.x + g.w / 2 + (Math.random() - 0.5) * 2, g.z + g.d + 0.8 + Math.random()];
     while (this.buerger.length < soll && ziele.length) { const g = ziele[Math.floor(Math.random() * ziele.length)], [x, z] = zielVon(g); this.buerger.push({ x, z, ziel: zielVon(ziele[Math.floor(Math.random() * ziele.length)]), warte: Math.random() * 3, art: this.buerger.length % 3, tempo: 1.6 + Math.random() * 0.8, richtung: 0 }); }

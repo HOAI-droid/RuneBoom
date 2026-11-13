@@ -319,7 +319,7 @@ export const ERFINDUNGEN: Record<ErfId, Erfindung> = {
 export const SCHLUESSEL_VORWISSEN: Record<number, number> = { 2: 2, 3: 4, 4: 5, 5: 5 };
 export const BAUSTEIN_NAME: Record<Baustein, string> = { feuerstein: 'Feuerstein', windrune: 'Windrune', eisenerz: 'Eisenerz', drachenschuppe: 'Drachenschuppe' };
 
-export const TAG_DAUER = 80, ABEND = 22, MORGEN_DAUER = 6;
+export const TAG_DAUER = 140, ABEND = 25, MORGEN_DAUER = 6;
 /** Dauer des Umrüstens und Verschmelzens (s) */
 export const UMBAU_DAUER = 8;
 /** Zusammensetzung der Welle in Nacht n (ab 1), Anzahl mal Faktor der Schwierigkeit */

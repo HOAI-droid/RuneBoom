@@ -1,3 +1,4 @@
+import { t as tr } from './sprache.ts';
 import { rng, seedAusCode, type Rng } from './zufall.ts';
 import { B, RISS, RISS2, RISSE, WR, setzeSeed, spalte, deko, begehbar, amPfad, orte, hoehe, setzeHoehe, hoehenListe, type Spalte, type Deko } from './welt.ts';
 import { Wegfeld } from './flow.ts';
@@ -72,7 +73,7 @@ export interface Spielstand {
 }
 export interface Statistik { bosse: number; gebaut: number; maxEinwohner: number; zerstoert: number; erfunden: number; wunder: string[] }
 
-export const kostenText = (k: Kosten) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${RES_NAMEN[r as Res]}`).join(', ');
+export const kostenText = (k: Kosten) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${tr(RES_NAMEN[r as Res])}`).join(', ');
 /** Gebäude, die Aschegeister angreifen */
 const WIRTSCHAFT: GebTyp[] = ['holz', 'stein', 'kristall', 'hof', 'fischer', 'haus'];
 const HOLZBAU: GebTyp[] = ['holz', 'hof', 'fischer', 'haus'];
@@ -258,7 +259,7 @@ export class Spiel {
     this.leitsaetze.set(z, id); this.leitsatzOffen = 0;
     for (const g of this.gebaeude) { const f = g.hp / g.max; g.max = this.grundHp(g); g.hp = g.max * f; }
     this.lichterNeu(); this.verteileArbeiter();
-    this.melde(`Leitsatz gewählt: ${opt.name}. ${opt.kurz}`, 'gut'); return true;
+    this.melde(tr('Leitsatz gewählt: {a}. {b}', { a: tr(opt.name), b: tr(opt.kurz) }), 'gut'); return true;
   }
   /** fertiges Wunder vorhanden? */
   hatWunder(typ: GebTyp): Geb | undefined { return this.gebaeude.find((g) => g.typ === typ && !g.umbau); }
@@ -297,9 +298,9 @@ export class Spiel {
     if (g.typ === 'haupt' || !Spiel.hatStufen(g.typ) || g.stufe >= 3) return undefined;
     const stufe = g.stufe + 1, kosten = this.stufenKostenJetzt(g.typ, stufe), b = STUFE_BRAUCHT[stufe];
     let grund: string | undefined;
-    if (!this.erfindungen.has(b)) grund = `Braucht die Erfindung ${ERFINDUNGEN[b].name}.`;
-    else if (this.phase !== 'tag') grund = 'Ausgebaut wird nur am Tag.';
-    else if (g.umbau) grund = 'Erst den laufenden Bau abwarten.';
+    if (!this.erfindungen.has(b)) grund = tr('Braucht die Erfindung {a}.', { a: tr(ERFINDUNGEN[b].name) });
+    else if (this.phase !== 'tag') grund = tr('Ausgebaut wird nur am Tag.');
+    else if (g.umbau) grund = tr('Erst den laufenden Bau abwarten.');
     else if (!this.kannBezahlen(kosten)) grund = this.fehlt(kosten);
     return { stufe, kosten, grund };
   }
@@ -313,8 +314,8 @@ export class Spiel {
   }
   /** „Es fehlen 39 Stein“ */
   fehlt(k: Kosten): string {
-    const f = Object.entries(k).filter(([r, n]) => this.res[r as Res] < (n as number)).map(([r, n]) => `${Math.ceil((n as number) - this.res[r as Res])} ${RES_NAMEN[r as Res]}`);
-    return f.length ? `Es fehlen ${f.join(' und ')}.` : '';
+    const f = Object.entries(k).filter(([r, n]) => this.res[r as Res] < (n as number)).map(([r, n]) => `${Math.ceil((n as number) - this.res[r as Res])} ${tr(RES_NAMEN[r as Res])}`);
+    return f.length ? tr('Es fehlen {a}.', { a: f.join(tr(' und ')) }) : '';
   }
   /** Lässt sich das Gebäude jetzt verbessern (Stufe, Umrüsten, Burgausbau)? */
   verbesserbar(g: Geb): boolean {
@@ -394,39 +395,39 @@ export class Spiel {
   /** Kann typ mit linker oberer Ecke (x0, z0) gebaut werden? */
   pruefe(typ: GebTyp, x0: number, z0: number): { ok: boolean; grund?: string; y: number } {
     const def = GEBAEUDE[typ];
-    if (!this.freigeschaltet(typ)) return { ok: false, grund: `Braucht die Erfindung ${ERFINDUNGEN[def.braucht!].name}.`, y: 0 };
-    if (def.volk && def.volk !== this.volk) return { ok: false, grund: `Nur für das Volk der ${VOELKER[def.volk].name}.`, y: 0 };
-    if (def.abNacht && this.nacht < def.abNacht) return { ok: false, grund: `Erst ab Nacht ${def.abNacht} (Akt ${aktVon(def.abNacht).nr}: ${aktVon(def.abNacht).name}).`, y: 0 };
+    if (!this.freigeschaltet(typ)) return { ok: false, grund: tr('Braucht die Erfindung {a}.', { a: tr(ERFINDUNGEN[def.braucht!].name) }), y: 0 };
+    if (def.volk && def.volk !== this.volk) return { ok: false, grund: tr('Nur für das Volk der {a}.', { a: tr(VOELKER[def.volk].name) }), y: 0 };
+    if (def.abNacht && this.nacht < def.abNacht) return { ok: false, grund: tr('Erst ab Nacht {a} (Akt {b}: {c}).', { a: def.abNacht, b: aktVon(def.abNacht).nr, c: tr(aktVon(def.abNacht).name) }), y: 0 };
     if (def.wunder) {
-      if (this.zeitalter() < def.wunder) return { ok: false, grund: `Wunder des Zeitalters ${ZEITALTER_NAME[def.wunder]}.`, y: 0 };
-      const w = this.wunderGewaehlt(def.wunder); if (w) return { ok: false, grund: `Für dieses Zeitalter steht schon ein Wunder: ${GEBAEUDE[w.typ].name}.`, y: 0 };
+      if (this.zeitalter() < def.wunder) return { ok: false, grund: tr('Wunder des Zeitalters {a}.', { a: tr(ZEITALTER_NAME[def.wunder]) }), y: 0 };
+      const w = this.wunderGewaehlt(def.wunder); if (w) return { ok: false, grund: tr('Für dieses Zeitalter steht schon ein Wunder: {a}.', { a: tr(GEBAEUDE[w.typ].name) }), y: 0 };
     }
     if (typ === 'siegel') {
-      const q = this.rissNahe(x0 + 2, z0 + 2, 20); if (!q) return { ok: false, grund: 'Ein Siegelstein muss nahe an einem offenen Riss stehen.', y: 0 };
-      if (this.gebaeude.some((g) => g.typ === 'siegel' && Math.hypot(g.x - q.x, g.z - q.z) < 24)) return { ok: false, grund: 'An diesem Riss steht schon ein Siegelstein.', y: 0 };
+      const q = this.rissNahe(x0 + 2, z0 + 2, 20); if (!q) return { ok: false, grund: tr('Ein Siegelstein muss nahe an einem offenen Riss stehen.'), y: 0 };
+      if (this.gebaeude.some((g) => g.typ === 'siegel' && Math.hypot(g.x - q.x, g.z - q.z) < 24)) return { ok: false, grund: tr('An diesem Riss steht schon ein Siegelstein.'), y: 0 };
     }
     if (def.versorgt) {
       const cx = x0 + def.w / 2, cz = z0 + def.d / 2, h = this.haupt;
       const ok = (h && Math.hypot(h.x + 6 - cx, h.z + 6 - cz) < 52) || this.gebaeude.some((g) => g.typ === 'aussenposten' && Math.hypot(g.x + 2.5 - cx, g.z + 2.5 - cz) < 34);
-      if (!ok) return { ok: false, grund: 'Zu weit weg: Rohstoffgebäude brauchen die Burg oder einen Außenposten in der Nähe.', y: 0 };
+      if (!ok) return { ok: false, grund: tr('Zu weit weg: Rohstoffgebäude brauchen die Burg oder einen Außenposten in der Nähe.'), y: 0 };
     }
-    if (def.kampf && Spiel.zaehltAlsTurm(typ) && this.turmZahl() >= this.turmGrenze()) return { ok: false, grund: `Turmgrenze erreicht (${this.turmGrenze()}). Baue die Burg aus, um mehr Türme zu erlauben.`, y: 0 };
+    if (def.kampf && Spiel.zaehltAlsTurm(typ) && this.turmZahl() >= this.turmGrenze()) return { ok: false, grund: tr('Turmgrenze erreicht ({a}). Baue die Burg aus, um mehr Türme zu erlauben.', { a: this.turmGrenze() }), y: 0 };
     let lo = 99, hi = -99;
     for (let x = x0; x < x0 + def.w; x++) for (let z = z0; z < z0 + def.d; z++) {
       const s = spalte(x, z);
-      if (!s) return { ok: false, grund: 'Hier ist kein Land.', y: 0 };
-      if (!this.erkundetAn(x, z)) return { ok: false, grund: 'Noch im Nebel. Erst einen Späher schicken.', y: 0 };
-      if (!begehbar(s)) return { ok: false, grund: s.a === 'w' ? 'Nicht im Wasser.' : s.a === 'l' ? 'Nicht in der Lava.' : 'Zu steil.', y: 0 };
-      if (this.belegt[this.bi(x, z)]) return { ok: false, grund: 'Hier steht schon etwas.', y: 0 };
-      if (this.ruineAn(x, z)) return { ok: false, grund: 'Hier liegt eine Ruine. Wähle sie, um sie wieder aufzubauen oder zu räumen.', y: 0 };
+      if (!s) return { ok: false, grund: tr('Hier ist kein Land.'), y: 0 };
+      if (!this.erkundetAn(x, z)) return { ok: false, grund: tr('Noch im Nebel. Erst einen Späher schicken.'), y: 0 };
+      if (!begehbar(s)) return { ok: false, grund: s.a === 'w' ? tr('Nicht im Wasser.') : s.a === 'l' ? tr('Nicht in der Lava.') : tr('Zu steil.'), y: 0 };
+      if (this.belegt[this.bi(x, z)]) return { ok: false, grund: tr('Hier steht schon etwas.'), y: 0 };
+      if (this.ruineAn(x, z)) return { ok: false, grund: tr('Hier liegt eine Ruine. Wähle sie, um sie wieder aufzubauen oder zu räumen.'), y: 0 };
       const dk = this.dekoJetzt(x, z, s);
-      if (dk && dk.art !== 'gras') return { ok: false, grund: dk.art === 'baum' ? 'Hier steht ein Baum. Ein Holzfäller kann ihn fällen.' : 'Hier liegt ein Felsen.', y: 0 };
+      if (dk && dk.art !== 'gras') return { ok: false, grund: dk.art === 'baum' ? tr('Hier steht ein Baum. Ein Holzfäller kann ihn fällen.') : tr('Hier liegt ein Felsen.'), y: 0 };
       if (amPfad(x, z, 0) && typ !== 'mauer' && typ !== 'fackel') { /* auf dem Pfad erlaubt, blockiert ihn aber */ }
       lo = Math.min(lo, s.h); hi = Math.max(hi, s.h);
     }
-    if (hi - lo > (typ === 'mauer' ? 2 : 1)) return { ok: false, grund: 'Der Boden ist zu uneben.', y: 0 };
-    if (typ === 'fischer' && !this.quellen('fischer', x0 + def.w / 2, z0 + def.d / 2, GEBAEUDE.fischer.arbeit!.radius, false).length) return { ok: false, grund: 'Eine Fischerhütte braucht Wasser in der Nähe.', y: 0 };
-    if (typ === 'kristall' && !orte().some((o) => o.typ === 'kristall' && Math.hypot(o.x - (x0 + 2), o.z - (z0 + 2)) < 10)) return { ok: false, grund: 'Eine Kristallmine muss an einem Kristallfeld stehen.', y: 0 };
+    if (hi - lo > (typ === 'mauer' ? 2 : 1)) return { ok: false, grund: tr('Der Boden ist zu uneben.'), y: 0 };
+    if (typ === 'fischer' && !this.quellen('fischer', x0 + def.w / 2, z0 + def.d / 2, GEBAEUDE.fischer.arbeit!.radius, false).length) return { ok: false, grund: tr('Eine Fischerhütte braucht Wasser in der Nähe.'), y: 0 };
+    if (typ === 'kristall' && !orte().some((o) => o.typ === 'kristall' && Math.hypot(o.x - (x0 + 2), o.z - (z0 + 2)) < 10)) return { ok: false, grund: tr('Eine Kristallmine muss an einem Kristallfeld stehen.'), y: 0 };
     return { ok: true, y: hi + 1 };
   }
 
@@ -436,13 +437,13 @@ export class Spiel {
     if (this.phase === 'verloren') return false;
     const p = this.pruefe(typ, x0, z0);
     if (!p.ok) { if (!still) this.melde(p.grund!, 'schlecht'); return false; }
-    if (!this.kannBezahlen(def.kosten)) { if (!still) this.melde(`${def.name} kostet ${kostenText(def.kosten)}. ${this.fehlt(def.kosten)}`, 'schlecht'); return false; }
+    if (!this.kannBezahlen(def.kosten)) { if (!still) this.melde(tr('{a} kostet {b}. {c}', { a: tr(def.name), b: kostenText(def.kosten), c: this.fehlt(def.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(def.kosten)) this.res[r as Res] -= n as number;
     this.setze(typ, x0, z0);
     return true;
   }
   abreissen(g: Geb): void {
-    if (g.typ === 'haupt' || g.typ === 'werkstatt') { this.melde('Das bleibt stehen.', 'schlecht'); return; }
+    if (g.typ === 'haupt' || g.typ === 'werkstatt') { this.melde(tr('Das bleibt stehen.'), 'schlecht'); return; }
     for (const [r, n] of Object.entries(GEBAEUDE[g.typ].kosten)) this.res[r as Res] += Math.floor((n as number) * 0.5 * g.hp / g.max);
     this.entferne(g, false);
   }
@@ -450,29 +451,29 @@ export class Spiel {
     if (this.erkundetAn(x, z)) return false;
     let nah = Infinity;
     for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) if (this.erkundet[i * NN + j]) nah = Math.min(nah, Math.hypot(-WR + (i + 0.5) * NZ - x, -WR + (j + 0.5) * NZ - z));
-    if (nah > 64) { this.melde('Zu weit: Späher kommen nur vom Rand des Erkundeten aus.', 'schlecht'); return false; }
-    if (this.res.holz < 15) { this.melde('Ein Späher kostet 15 Holz.', 'schlecht'); return false; }
+    if (nah > 64) { this.melde(tr('Zu weit: Späher kommen nur vom Rand des Erkundeten aus.'), 'schlecht'); return false; }
+    if (this.res.holz < 15) { this.melde(tr('Ein Späher kostet 15 Holz.'), 'schlecht'); return false; }
     this.res.holz -= 15;
     this.aufdecken(x, z, this.erfindungen.has('fernrohr') ? 56 : 38);
-    this.melde('Ein Späher hat die Gegend erkundet.', 'gut');
+    this.melde(tr('Ein Späher hat die Gegend erkundet.'), 'gut');
     return true;
   }
   erfinden(id: ErfId): boolean {
     const e = ERFINDUNGEN[id];
     if (this.erfindungen.has(id)) return false;
-    if (e.braucht && !this.erfindungen.has(e.braucht)) { this.melde(`${e.name} braucht zuerst ${ERFINDUNGEN[e.braucht].name}.`, 'schlecht'); return false; }
+    if (e.braucht && !this.erfindungen.has(e.braucht)) { this.melde(tr('{a} braucht zuerst {b}.', { a: tr(e.name), b: tr(ERFINDUNGEN[e.braucht].name) }), 'schlecht'); return false; }
     const vor = this.vorwissenFehlt(id); if (vor) { this.melde(vor, 'schlecht'); return false; }
     const kr = this.erfKristall(id);
     const fehlt = Object.entries(e.zutaten).some(([b, n]) => this.bausteine[b as Baustein] < (n as number)) || this.res.kristall < kr;
-    if (fehlt) { this.melde(`Für ${e.name} fehlen noch Bausteine oder Kristall.`, 'schlecht'); return false; }
+    if (fehlt) { this.melde(tr('Für {a} fehlen noch Bausteine oder Kristall.', { a: tr(e.name) }), 'schlecht'); return false; }
     for (const [b, n] of Object.entries(e.zutaten)) this.bausteine[b as Baustein] -= n as number;
     this.res.kristall -= kr;
     this.erfindungen.add(id); this.stat.erfunden++;
     for (const g of this.gebaeude) { const f = g.hp / g.max; g.max = this.grundHp(g); g.hp = g.max * f; }
     this.lichterNeu(); this.verteileArbeiter();
-    this.melde(`Erfunden: ${e.name}. ${e.wirkung}`, 'gut');
+    this.melde(tr('Erfunden: {a}. {b}', { a: tr(e.name), b: tr(e.wirkung) }), 'gut');
     if (e.zeitalter) {
-      this.melde(`Ein neues Zeitalter beginnt: ${ZEITALTER_NAME[e.zeitalter]}.`, 'gut');
+      this.melde(tr('Ein neues Zeitalter beginnt: {a}.', { a: tr(ZEITALTER_NAME[e.zeitalter]) }), 'gut');
       if (LEITSAETZE[e.zeitalter] && !this.leitsaetze.has(e.zeitalter)) { this.leitsatzOffen = e.zeitalter; this.ereignisse.push({ art: 'leitsatz', zeitalter: e.zeitalter }); }
     }
     return true;
@@ -480,15 +481,15 @@ export class Spiel {
   /** Grund, warum eine Erfindung noch nicht geht (Zeitalter, Vorwissen), sonst leer */
   vorwissenFehlt(id: ErfId): string {
     const e = ERFINDUNGEN[id];
-    if (this.zeitalter() < e.ab) return `${e.name} gehört ins Zeitalter ${ZEITALTER_NAME[e.ab]}.`;
-    if (e.braucht && !this.erfindungen.has(e.braucht)) return `Braucht zuerst ${ERFINDUNGEN[e.braucht].name}.`;
-    if (e.zeitalter) { const n = SCHLUESSEL_VORWISSEN[e.zeitalter] || 0, hat = [...this.erfindungen].filter((i) => ERFINDUNGEN[i].ab === e.ab && !ERFINDUNGEN[i].zeitalter).length; if (hat < n) return `Braucht erst ${n} andere Erfindungen aus diesem Zeitalter (${hat} von ${n}).`; }
+    if (this.zeitalter() < e.ab) return tr('{a} gehört ins Zeitalter {b}.', { a: tr(e.name), b: tr(ZEITALTER_NAME[e.ab]) });
+    if (e.braucht && !this.erfindungen.has(e.braucht)) return tr('Braucht zuerst {a}.', { a: tr(ERFINDUNGEN[e.braucht].name) });
+    if (e.zeitalter) { const n = SCHLUESSEL_VORWISSEN[e.zeitalter] || 0, hat = [...this.erfindungen].filter((i) => ERFINDUNGEN[i].ab === e.ab && !ERFINDUNGEN[i].zeitalter).length; if (hat < n) return tr('Braucht erst {a} andere Erfindungen aus diesem Zeitalter ({b} von {c}).', { a: n, b: hat, c: n }); }
     return '';
   }
   nachtEinlaeuten(): void {
     if (this.phase !== 'tag') return;
     const bonus = Math.round(12 * this.restTag() / TAG_DAUER);
-    if (bonus > 0) { this.res.kristall += bonus; this.melde(`Früh eingeläutet: +${bonus} Kristall.`, 'gut'); }
+    if (bonus > 0) { this.res.kristall += bonus; this.melde(tr('Früh eingeläutet: +{a} Kristall.', { a: bonus }), 'gut'); }
     this.starteNacht();
   }
 
@@ -509,9 +510,9 @@ export class Spiel {
           if (u.stufe) g.stufe = u.stufe; else { g.typ = u.nach; g.zweig = u.zweig; }
           g.max = this.grundHp(g); g.hp = g.max; g.cd = 0;
           this.lichterNeu(); this.verteileArbeiter(); this.ereignisse.push({ art: 'umgebaut', geb: g });
-          if (GEBAEUDE[g.typ].wunder && !u.stufe && u.nach === g.typ) { this.stat.wunder.push(GEBAEUDE[g.typ].name); this.melde(`Ein Wunder ist vollendet: ${GEBAEUDE[g.typ].name}!`, 'gut'); continue; }
-          if (g.typ === 'siegel' && !u.stufe) { this.melde('Der Siegelstein steht. In der nächsten Nacht stürmt der Riss gegen ihn an. Hält er bis zum Morgen, ist der Riss versiegelt.', 'info'); continue; }
-          this.melde(g.typ === 'haupt' ? `Die Burg ist zur ${HAUPT_STUFEN[g.stufe - 1].name} gewachsen.` : u.stufe ? `${GEBAEUDE[g.typ].name} Stufe ${STUFE_NAME[g.stufe]} ist fertig.` : `${GEBAEUDE[g.typ].name} ist fertig.`, 'gut');
+          if (GEBAEUDE[g.typ].wunder && !u.stufe && u.nach === g.typ) { this.stat.wunder.push(tr(GEBAEUDE[g.typ].name)); this.melde(tr('Ein Wunder ist vollendet: {a}!', { a: tr(GEBAEUDE[g.typ].name) }), 'gut'); continue; }
+          if (g.typ === 'siegel' && !u.stufe) { this.melde(tr('Der Siegelstein steht. In der nächsten Nacht stürmt der Riss gegen ihn an. Hält er bis zum Morgen, ist der Riss versiegelt.'), 'info'); continue; }
+          this.melde(g.typ === 'haupt' ? tr('Die Burg ist zur {a} gewachsen.', { a: tr(HAUPT_STUFEN[g.stufe - 1].name) }) : u.stufe ? tr('{a} Stufe {b} ist fertig.', { a: tr(GEBAEUDE[g.typ].name), b: tr(STUFE_NAME[g.stufe]) }) : tr('{a} ist fertig.', { a: tr(GEBAEUDE[g.typ].name) }), 'gut');
         }
       }
       this.verarbeiten();
@@ -526,7 +527,7 @@ export class Spiel {
       if (!this.spawn.length && !this.gegner.length && this.zeit > 3) this.starteMorgen();
       else if (this.zeit > NACHT_MAX && !this.spawn.length) {
         // Sicherheitsnetz: keine Nacht dauert ewig
-        this.gegner = []; this.melde('Der Morgen graut: Die übrigen Wesen ziehen sich in die Wildnis zurück.', 'info'); this.starteMorgen();
+        this.gegner = []; this.melde(tr('Der Morgen graut: Die übrigen Wesen ziehen sich in die Wildnis zurück.'), 'info'); this.starteMorgen();
       }
     } else if (this.phase === 'morgen') {
       if (this.zeit >= MORGEN_DAUER) {
@@ -534,7 +535,7 @@ export class Spiel {
         this.tagesbeginn(); this.quellVersion++;
         // Bäume wachsen nach: Setzling, dann voller Baum
         for (const [k, t] of [...this.gefaellt]) { if (t < -1e8) continue; const d = this.nacht - t; if (d === this.setzlingNach() || d >= this.baumNach()) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; if (d >= this.baumNach()) { this.gefaellt.delete(k); this.grundAlt.push([x, z]); this.feldAlt = true; } this.ereignisse.push({ art: 'deko', x, z }); } }
-        this.ereignisse.push({ art: 'phase', phase: 'tag' }); this.melde(`Tag ${this.nacht}. Bis zur Nacht bleibt Zeit zum Bauen.`, 'info');
+        this.ereignisse.push({ art: 'phase', phase: 'tag' }); this.melde(tr('Tag {a}. Bis zur Nacht bleibt Zeit zum Bauen.', { a: this.nacht }), 'info');
       }
     }
     this.braende();
@@ -556,9 +557,9 @@ export class Spiel {
     const m = (this.erfindungen.has('runenkreis') ? 0.75 : 1) * (this.erfindungen.has('aetherspeicher') ? 0.75 : 1);
     let rest = zahlt + 0.999;
     for (const g of nachNaehe) { const k = runenkraft(g.typ, g.stufe) * m; g.kraft = k <= rest; if (g.kraft) rest -= k; }
-    if (this.kraftFehlt > 0) this.melde(`Zu wenig Kristall für die Runenkraft: ${this.kraftFehlt} fehlen. Die äußeren Türme feuern heute nur halb so schnell.`, 'schlecht');
+    if (this.kraftFehlt > 0) this.melde(tr('Zu wenig Kristall für die Runenkraft: {a} fehlen. Die äußeren Türme feuern heute nur halb so schnell.', { a: this.kraftFehlt }), 'schlecht');
     // neue Risse
-    for (const q of RISSE) if (q.ab === this.nacht && spalte(q.x, q.z)) { this.melde(`Der ${q.name} hat sich geöffnet! Von dort kommen nun auch Wesen.`, 'schlecht'); this.ereignisse.push({ art: 'riss', x: q.x, z: q.z, name: q.name }); }
+    for (const q of RISSE) if (q.ab === this.nacht && spalte(q.x, q.z)) { this.melde(tr('Der {a} hat sich geöffnet! Von dort kommen nun auch Wesen.', { a: tr(q.name) }), 'schlecht'); this.ereignisse.push({ art: 'riss', x: q.x, z: q.z, name: q.name }); }
     const risse = this.offeneRisse();
     // Die Welle sucht die schwächste Seite: Risse mit wenig Abwehr am Weg bekommen mehr Wesen
     const gewicht = risse.map((q) => 1 / (1 + this.abwehrAmWeg(q) / 60));
@@ -571,10 +572,10 @@ export class Spiel {
     const omen = this.omenFuer(this.nacht), akt = this.akt().nr;
     const bisher = RISSE.filter((q) => q.ab <= this.nacht && spalte(q.x, q.z)).length;
     let faktor = S.anzahl * [1, 1, 1.12, 1.25][akt - 1] * Math.sqrt(Math.max(1, risse.length) / Math.max(1, bisher)) * (omen === 'stille' ? 0.4 : 1);
-    if (omen) this.melde(`Omen: ${OMEN[omen].name}. ${OMEN[omen].kurz}`, 'schlecht');
+    if (omen) this.melde(tr('Omen: {a}. {b}', { a: tr(OMEN[omen].name), b: tr(OMEN[omen].kurz) }), 'schlecht');
     // Siegelsteine rufen einen Ansturm ihres Risses hervor
     const ansturm: typeof risse = [];
-    for (const g of this.gebaeude) if (g.typ === 'siegel' && !g.umbau) { const q = this.rissNahe(g.x + 2, g.z + 2, 24); if (q) { g.ritual = true; ansturm.push(q); this.melde(`Der ${q.name} stürmt gegen den Siegelstein an!`, 'schlecht'); } }
+    for (const g of this.gebaeude) if (g.typ === 'siegel' && !g.umbau) { const q = this.rissNahe(g.x + 2, g.z + 2, 24); if (q) { g.ritual = true; ansturm.push(q); this.melde(tr('Der {a} stürmt gegen den Siegelstein an!', { a: tr(q.name) }), 'schlecht'); } }
     for (const { typ, zahl } of welle(this.nacht, faktor)) for (let i = 0; i < Math.round(zahl * (1 + ansturm.length * 0.6 / Math.max(1, risse.length))); i++) {
       if (ansturm.length && i % 3 === 0 && typ !== 'rissfuerst') { plan.push({ typ, t: 2 + this.r() * dauer, riss: ansturm[i % ansturm.length] }); continue; }
       if (typ === 'rissfuerst') { const alt = risse.filter((q) => q.ab < this.nacht); const q = alt.length ? alt[Math.floor(this.r() * alt.length)] : risse[0]; plan.push({ typ, t: 12 + i * 8, riss: q }); continue; }
@@ -583,9 +584,9 @@ export class Spiel {
     plan.sort((a, b) => a.t - b.t);
     this.spawn = plan;
     this.ereignisse.push({ art: 'phase', phase: 'nacht' });
-    this.melde(`Nacht ${this.nacht}: Die Wesen kommen!`, 'schlecht');
+    this.melde(tr('Nacht {a}: Die Wesen kommen!', { a: this.nacht }), 'schlecht');
     if (omen === 'stille') plan.push({ typ: 'rissfuerst', t: 8, riss: risse[0] });
-    if (plan.some((p) => p.typ === 'rissfuerst')) this.melde('Ein Rissfürst erhebt sich aus der Tiefe!', 'schlecht');
+    if (plan.some((p) => p.typ === 'rissfuerst')) this.melde(tr('Ein Rissfürst erhebt sich aus der Tiefe!'), 'schlecht');
     void faktor; faktor = 0;
   }
   /** Schaden je Sekunde, den die Türme entlang des Wegs von einem Riss anrichten könnten */
@@ -604,17 +605,17 @@ export class Spiel {
     this.phase = 'morgen'; this.zeit = 0;
     const heil = this.erfindungen.has('kraeuterkunde') ? 0.45 : MORGEN_REPARATUR;
     for (const g of this.gebaeude) { g.hp = Math.min(g.max, g.hp + (g.max - g.hp) * heil); g.brand = 0; }
-    const b = Object.entries(this.beuteNacht).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${Math.round(n as number)} ${k === 'kristall' ? 'Kristall' : BAUSTEIN_NAME[k as Baustein]}`).join(', ');
-    const tuerme = this.gebaeude.filter((g) => g.leistung > 0).sort((a, b) => b.leistung - a.leistung).slice(0, 5).map((g) => ({ name: GEBAEUDE[g.typ].name + (g.stufe > 1 ? ' ' + STUFE_NAME[g.stufe] : ''), schaden: Math.round(g.leistung) }));
-    this.bericht = { nacht: this.nacht, besiegt: this.statBesiegt, beute: b || 'nichts', schaden: Math.round(this.statSchaden), zerstoert: this.statZerstoert, tuerme, kraftFehlt: this.kraftFehlt, einwohner: this.einwohner, wesen: this.statBesiegt };
+    const b = Object.entries(this.beuteNacht).filter(([, n]) => (n as number) > 0).map(([k, n]) => `${Math.round(n as number)} ${k === 'kristall' ? tr('Kristall') : tr(BAUSTEIN_NAME[k as Baustein])}`).join(', ');
+    const tuerme = this.gebaeude.filter((g) => g.leistung > 0).sort((a, b) => b.leistung - a.leistung).slice(0, 5).map((g) => ({ name: tr(GEBAEUDE[g.typ].name) + (g.stufe > 1 ? ' ' + STUFE_NAME[g.stufe] : ''), schaden: Math.round(g.leistung) }));
+    this.bericht = { nacht: this.nacht, besiegt: this.statBesiegt, beute: b || tr('nichts'), schaden: Math.round(this.statSchaden), zerstoert: this.statZerstoert, tuerme, kraftFehlt: this.kraftFehlt, einwohner: this.einwohner, wesen: this.statBesiegt };
     this.ereignisse.push({ art: 'phase', phase: 'morgen' });
     this.ereignisse.push({ art: 'bericht', bericht: this.bericht });
-    this.melde(`Nacht ${this.nacht} überstanden. Beute: ${b || 'nichts'}.`, 'gut');
+    this.melde(tr('Nacht {a} überstanden. Beute: {b}.', { a: this.nacht, b: b || tr('nichts') }), 'gut');
     if (this.hatWunder('w_aetherquelle')) this.res.kristall += 60;
     // Siegelsteine, die die Nacht überstanden haben, verschließen ihren Riss
     for (const g of this.gebaeude) if (g.typ === 'siegel' && g.ritual) {
       g.ritual = false; const q = this.rissNahe(g.x + 2, g.z + 2, 24);
-      if (q) { this.versiegelt.add(q.name); this.ereignisse.push({ art: 'versiegelt', x: q.x, z: q.z, name: q.name }); this.melde(`Der ${q.name} ist versiegelt! Von dort kommt nichts mehr.`, 'gut'); }
+      if (q) { this.versiegelt.add(q.name); this.ereignisse.push({ art: 'versiegelt', x: q.x, z: q.z, name: q.name }); this.melde(tr('Der {a} ist versiegelt! Von dort kommt nichts mehr.', { a: tr(q.name) }), 'gut'); }
     }
     const offen = this.alleRisse().filter((q) => !this.versiegelt.has(q.name)).length;
     if (offen === 0 || this.nacht >= ENDE_NACHT) this.siegen(offen === 0);
@@ -624,32 +625,32 @@ export class Spiel {
   private siegen(versiegelt: boolean): void {
     this.sieg = { versiegelt, nacht: this.nacht };
     this.phase = 'gewonnen'; this.ereignisse.push({ art: 'phase', phase: 'gewonnen' });
-    this.melde(versiegelt ? 'Alle Risse sind versiegelt. Die Wildnis ist besiegt!' : 'Die letzte Nacht ist überstanden. Die Feste hat standgehalten!', 'gut');
+    this.melde(versiegelt ? tr('Alle Risse sind versiegelt. Die Wildnis ist besiegt!') : tr('Die letzte Nacht ist überstanden. Die Feste hat standgehalten!'), 'gut');
   }
   /** Neuer Tag: Einwohner essen, bei Überschuss und freiem Wohnraum wächst die Feste */
   private tagesbeginn(): void {
-    const a = this.akt(); if (a.ab === this.nacht && a.nr > 1) { this.ereignisse.push({ art: 'akt', nr: a.nr }); this.melde(`Akt ${a.nr}: ${a.name}. ${a.text}`, 'info'); }
-    for (const o of this.omenVorschau()) this.melde(`Omen für Nacht ${o.nacht}: ${OMEN[o.omen].name}. ${OMEN[o.omen].kurz}`, 'info');
-    if (this.nacht === ENDE_NACHT) this.melde('Die letzte Nacht bricht an. Halte stand!', 'schlecht');
+    const a = this.akt(); if (a.ab === this.nacht && a.nr > 1) { this.ereignisse.push({ art: 'akt', nr: a.nr }); this.melde(tr('Akt {a}: {b}. {c}', { a: a.nr, b: tr(a.name), c: tr(a.text) }), 'info'); }
+    for (const o of this.omenVorschau()) this.melde(tr('Omen für Nacht {a}: {b}. {c}', { a: o.nacht, b: tr(OMEN[o.omen].name), c: tr(OMEN[o.omen].kurz) }), 'info');
+    if (this.nacht === ENDE_NACHT) this.melde(tr('Die letzte Nacht bricht an. Halte stand!'), 'schlecht');
     for (const g of this.gebaeude) if (GEBAEUDE[g.typ].falle === 'spreng') g.cd = 0;
-    for (const q of RISSE) if (q.ab === this.nacht && spalte(q.x, q.z)) this.melde(`Warnung: Heute Nacht öffnet sich der ${q.name}. Die leuchtende Linie zeigt den neuen Weg.`, 'schlecht');
-    if (this.nacht % 5 === 0) this.melde('Warnung: Heute Nacht kommt ein Rissfürst.', 'schlecht');
+    for (const q of RISSE) if (q.ab === this.nacht && spalte(q.x, q.z)) this.melde(tr('Warnung: Heute Nacht öffnet sich der {a}. Die leuchtende Linie zeigt den neuen Weg.', { a: tr(q.name) }), 'schlecht');
+    if (this.nacht % 5 === 0) this.melde(tr('Warnung: Heute Nacht kommt ein Rissfürst.'), 'schlecht');
     const bedarf = this.essen();
     if (this.res.nahrung >= bedarf) {
       this.res.nahrung -= bedarf;
       const platz = this.wohnraum() - this.einwohner;
       if (platz > 0 && this.res.nahrung >= ESSEN * 2) {
         const neu = Math.min(platz, Math.max(2, Math.round(this.einwohner * (this.erfindungen.has('kornspeicher') ? 0.3 : 0.2) * (this.leitsatz('volk') ? 1.5 : 1))), Math.floor(this.res.nahrung / ESSEN));
-        if (neu > 0) { this.einwohner += neu; this.melde(`${neu} neue Einwohner sind in die Feste gezogen (jetzt ${this.einwohner}).`, 'gut'); }
-      } else if (platz <= 0) this.melde('Die Feste ist voll: Für mehr Einwohner braucht es Wohnhäuser.', 'info');
+        if (neu > 0) { this.einwohner += neu; this.melde(tr('{a} neue Einwohner sind in die Feste gezogen (jetzt {b}).', { a: neu, b: this.einwohner }), 'gut'); }
+      } else if (platz <= 0) this.melde(tr('Die Feste ist voll: Für mehr Einwohner braucht es Wohnhäuser.'), 'info');
     } else {
       const fehlt = bedarf - this.res.nahrung; this.res.nahrung = 0;
       const weg = Math.min(this.einwohner - 4, Math.max(1, Math.ceil(fehlt / ESSEN / 2)));
-      if (weg > 0) { this.einwohner -= weg; this.melde(`Hunger! ${weg} Einwohner haben die Feste verlassen. Baue Bauernhöfe oder Fischerhütten.`, 'schlecht'); }
+      if (weg > 0) { this.einwohner -= weg; this.melde(tr('Hunger! {a} Einwohner haben die Feste verlassen. Baue Bauernhöfe oder Fischerhütten.', { a: weg }), 'schlecht'); }
     }
     // ohne Wohnraum ziehen Einwohner nach und nach fort
     const ueber = this.einwohner - this.wohnraum();
-    if (ueber > 0) { const weg = Math.ceil(ueber / 2); this.einwohner -= weg; this.melde(`${weg} Einwohner ohne Dach haben die Feste verlassen.`, 'schlecht'); }
+    if (ueber > 0) { const weg = Math.ceil(ueber / 2); this.einwohner -= weg; this.melde(tr('{a} Einwohner ohne Dach haben die Feste verlassen.', { a: weg }), 'schlecht'); }
     this.stat.maxEinwohner = Math.max(this.stat.maxEinwohner, this.einwohner);
     this.verteileArbeiter();
   }
@@ -731,7 +732,7 @@ export class Spiel {
         if (e.bossSchild > 0) e.bossSchild -= DT;
         e.ruf -= DT;
         if (e.ruf <= 0) { e.ruf = 12; for (let i = 0; i < 2 + Math.floor(this.nacht / 10) * 2; i++) this.erzeuge(i % 2 && this.nacht >= 10 ? 'wolf' : 'moorwicht', { x: e.x + (this.r() - 0.5) * 4, z: e.z + (this.r() - 0.5) * 4 }); this.ereignisse.push({ art: 'abwurf', x: e.x, y: e.y + 3, z: e.z }); }
-        if (!e.schildGenutzt && e.hp < e.max * 0.5) { e.schildGenutzt = true; e.bossSchild = 6; this.melde('Der Rissfürst hüllt sich in einen Schild!', 'schlecht'); }
+        if (!e.schildGenutzt && e.hp < e.max * 0.5) { e.schildGenutzt = true; e.bossSchild = 6; this.melde(tr('Der Rissfürst hüllt sich in einen Schild!'), 'schlecht'); }
       }
       const orgel = this.hatWunder('w_orgel');
       let tempo = e.tempo * (e.langsam > 0 ? 0.55 : 1) * (orgel && Math.hypot(e.x - hx, e.z - hz) < 45 ? 0.67 : 1);
@@ -851,14 +852,14 @@ export class Spiel {
     g.hp -= n; this.statSchaden += n;
     if (!leise) this.ereignisse.push({ art: 'schaden', geb: g });
     if (g.hp <= 0) {
-      if (g.typ === 'haupt') { this.phase = 'verloren'; this.ereignisse.push({ art: 'phase', phase: 'verloren' }); this.melde(`Die Feste ist gefallen – nach ${this.nacht - 1} überstandenen Nächten.`, 'schlecht'); return; }
+      if (g.typ === 'haupt') { this.phase = 'verloren'; this.ereignisse.push({ art: 'phase', phase: 'verloren' }); this.melde(tr('Die Feste ist gefallen – nach {a} überstandenen Nächten.', { a: this.nacht - 1 }), 'schlecht'); return; }
       this.entferne(g, true);
-      if (g.typ !== 'mauer') { this.statZerstoert.push(GEBAEUDE[g.typ].name); this.stat.zerstoert++; }
+      if (g.typ !== 'mauer') { this.statZerstoert.push(tr(GEBAEUDE[g.typ].name)); this.stat.zerstoert++; }
       if (g.typ !== 'mauer') {
         const ru: Ruine = { id: this.naechsteId++, typ: g.typ, x: g.x, z: g.z, w: g.w, d: g.d, y: g.y, zweig: g.zweig };
         this.ruinen.push(ru); this.ereignisse.push({ art: 'ruine', ruine: ru, neu: true });
       }
-      this.melde(`${GEBAEUDE[g.typ].name} wurde zerstört. Die Ruine lässt sich am Tag wieder aufbauen.`, 'schlecht');
+      this.melde(tr('{a} wurde zerstört. Die Ruine lässt sich am Tag wieder aufbauen.', { a: tr(GEBAEUDE[g.typ].name) }), 'schlecht');
     }
   }
 
@@ -980,19 +981,19 @@ export class Spiel {
     const bf = (this.omenFuer(this.nacht) === 'blutmond' ? 2 : 1) * (this.leitsatz('ernte') ? 1.5 : 1);
     for (const [b, p0, anzahl] of d.beute) { const p = Math.min(1, p0 * bf); if (this.r() < p) { const k = anzahl || 1; this.bausteine[b] += k; this.beuteNacht[b] = (this.beuteNacht[b] || 0) + k; } }
     if (d.boss) this.stat.bosse++;
-    if (d.boss) this.melde('Der Rissfürst ist gefallen! Reiche Beute bleibt zurück.', 'gut');
+    if (d.boss) this.melde(tr('Der Rissfürst ist gefallen! Reiche Beute bleibt zurück.'), 'gut');
   }
 
   // ---------------- Umrüsten, Verschmelzen, Ausbau, Ruinen, Fähigkeiten ----------------
   umruestOptionen(g: Geb): GebTyp[] { return (Object.keys(GEBAEUDE) as GebTyp[]).filter((t) => GEBAEUDE[t].von === g.typ && (!GEBAEUDE[t].volk || GEBAEUDE[t].volk === this.volk)); }
   umruesten(g: Geb, nach: GebTyp, zweig?: string): boolean {
     const d = GEBAEUDE[nach];
-    if (this.phase !== 'tag') { this.melde('Umgerüstet wird nur am Tag.', 'schlecht'); return false; }
+    if (this.phase !== 'tag') { this.melde(tr('Umgerüstet wird nur am Tag.'), 'schlecht'); return false; }
     if (d.von !== g.typ || g.umbau) return false;
-    if (!this.freigeschaltet(nach)) { this.melde(`${d.name} braucht die Erfindung ${ERFINDUNGEN[d.braucht!].name}.`, 'schlecht'); return false; }
+    if (!this.freigeschaltet(nach)) { this.melde(tr('{a} braucht die Erfindung {b}.', { a: tr(d.name), b: tr(ERFINDUNGEN[d.braucht!].name) }), 'schlecht'); return false; }
     if (d.zweige && !d.zweige.some((z) => z.id === zweig)) return false;
-    if (d.zeitalter === 5 && g.stufe < 3) { this.melde('Ins Zeitalter Äther & Sterne lassen sich nur Türme auf Stufe III umrüsten.', 'schlecht'); return false; }
-    if (!this.kannBezahlen(d.kosten)) { this.melde(`Für ${d.name} fehlen Rohstoffe: ${kostenText(d.kosten)}.`, 'schlecht'); return false; }
+    if (d.zeitalter === 5 && g.stufe < 3) { this.melde(tr('Ins Zeitalter Äther & Sterne lassen sich nur Türme auf Stufe III umrüsten.'), 'schlecht'); return false; }
+    if (!this.kannBezahlen(d.kosten)) { this.melde(tr('Für {a} fehlen Rohstoffe: {b}.', { a: tr(d.name), b: kostenText(d.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(d.kosten)) this.res[r as Res] -= n as number;
     g.umbau = { t: 0, dauer: UMBAU_DAUER, nach, zweig }; g.rep = undefined;
     this.ereignisse.push({ art: 'reparatur', geb: g, fertig: false });
@@ -1014,27 +1015,27 @@ export class Spiel {
   }
   verschmelzen(g: Geb, partner: Geb): boolean {
     const opt = this.verschmelzOptionen(g).find((o) => o.partner === partner); if (!opt) return false;
-    if (this.phase !== 'tag') { this.melde('Verschmolzen wird nur am Tag.', 'schlecht'); return false; }
+    if (this.phase !== 'tag') { this.melde(tr('Verschmolzen wird nur am Tag.'), 'schlecht'); return false; }
     const d = GEBAEUDE[opt.ergebnis];
     // Fernkampf-Turm bleibt stehen, der Partner geht in ihm auf
     let ziel = g, weg = partner;
     if (linie(g.typ) !== 'fern' && linie(partner.typ) === 'fern') { ziel = partner; weg = g; }
-    if (d.w !== ziel.w) { this.melde('Diese beiden passen nicht zusammen.', 'schlecht'); return false; }
-    if (!this.kannBezahlen(d.kosten)) { this.melde(`Für ${d.name} fehlen Rohstoffe: ${kostenText(d.kosten)}.`, 'schlecht'); return false; }
+    if (d.w !== ziel.w) { this.melde(tr('Diese beiden passen nicht zusammen.'), 'schlecht'); return false; }
+    if (!this.kannBezahlen(d.kosten)) { this.melde(tr('Für {a} fehlen Rohstoffe: {b}.', { a: tr(d.name), b: kostenText(d.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(d.kosten)) this.res[r as Res] -= n as number;
     this.entferne(weg, false);
     ziel.umbau = { t: 0, dauer: UMBAU_DAUER, nach: opt.ergebnis };
-    if (!this.entdeckt.has(opt.ergebnis)) { this.entdeckt.add(opt.ergebnis); this.melde(`Neue Verbindung entdeckt: ${d.name}. Sie steht jetzt im Rezeptbuch.`, 'gut'); }
+    if (!this.entdeckt.has(opt.ergebnis)) { this.entdeckt.add(opt.ergebnis); this.melde(tr('Neue Verbindung entdeckt: {a}. Sie steht jetzt im Rezeptbuch.', { a: tr(d.name) }), 'gut'); }
     this.ereignisse.push({ art: 'reparatur', geb: ziel, fertig: false });
     return true;
   }
   hauptAusbau(): typeof HAUPT_STUFEN[number] | undefined { const h = this.haupt; return h ? HAUPT_STUFEN[h.stufe] : undefined; }
   hauptAusbauen(): boolean {
     const h = this.haupt, st = this.hauptAusbau(); if (!h || !st) return false;
-    if (this.phase !== 'tag') { this.melde('Ausgebaut wird nur am Tag.', 'schlecht'); return false; }
+    if (this.phase !== 'tag') { this.melde(tr('Ausgebaut wird nur am Tag.'), 'schlecht'); return false; }
     if (h.umbau) return false;
-    if (st.braucht && !this.erfindungen.has(st.braucht)) { this.melde(`Stufe ${st.stufe} braucht die Erfindung ${ERFINDUNGEN[st.braucht].name}.`, 'schlecht'); return false; }
-    if (!this.kannBezahlen(st.kosten)) { this.melde(`Für Stufe ${st.stufe} fehlen Rohstoffe: ${kostenText(st.kosten)}.`, 'schlecht'); return false; }
+    if (st.braucht && !this.erfindungen.has(st.braucht)) { this.melde(tr('Stufe {a} braucht die Erfindung {b}.', { a: st.stufe, b: tr(ERFINDUNGEN[st.braucht].name) }), 'schlecht'); return false; }
+    if (!this.kannBezahlen(st.kosten)) { this.melde(tr('Für Stufe {a} fehlen Rohstoffe: {b}.', { a: st.stufe, b: kostenText(st.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(st.kosten)) this.res[r as Res] -= n as number;
     h.umbau = { t: 0, dauer: UMBAU_DAUER * 1.5, nach: 'haupt', stufe: st.stufe }; h.rep = undefined;
     this.ereignisse.push({ art: 'reparatur', geb: h, fertig: false });
@@ -1045,7 +1046,7 @@ export class Spiel {
   faehigkeitFrei(name: string): boolean { return (this.genutzt.get(name) || 0) < (this.erfindungen.has('runenglocke') ? 2 : 1); }
   faehigkeit(name: string, x = 0, z = 0): boolean {
     const h = this.haupt; if (!h || this.phase !== 'nacht' || !this.faehigkeiten().includes(name)) return false;
-    if (!this.faehigkeitFrei(name)) { this.melde('Diese Fähigkeit ist in dieser Nacht schon verbraucht.', 'schlecht'); return false; }
+    if (!this.faehigkeitFrei(name)) { this.melde(tr('Diese Fähigkeit ist in dieser Nacht schon verbraucht.'), 'schlecht'); return false; }
     this.genutzt.set(name, (this.genutzt.get(name) || 0) + 1);
     const hx = h.x + h.w / 2, hz = h.z + h.d / 2;
     if (name === 'feuerregen') for (let i = 0; i < 8; i++) { const a = this.r() * 6.283, d = Math.sqrt(this.r()) * 5, zx = x + Math.cos(a) * d, zz = z + Math.sin(a) * d; this.geschosse.push({ art: 'topf', x: hx, y: h.y + 20, z: hz, sx: hx, sy: h.y + 20, sz: hz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -i * 0.15, dauer: 1.6, ziel: 0, schaden: 45, flaeche: 3, trifft: true, bogen: 14, brand: 6, brechend: true, von: 0 }); }
@@ -1062,10 +1063,10 @@ export class Spiel {
   }
   wiederaufbauKosten(r: Ruine): Kosten { const k: Kosten = {}; for (const [res, n] of Object.entries(GEBAEUDE[r.typ].kosten)) k[res as Res] = Math.ceil((n as number) * 0.5); return k; }
   wiederaufbauen(r: Ruine): boolean {
-    if (this.phase !== 'tag') { this.melde('Wiederaufgebaut wird nur am Tag.', 'schlecht'); return false; }
-    if (GEBAEUDE[r.typ].kampf && this.turmZahl() >= this.turmGrenze()) { this.melde(`Turmgrenze erreicht (${this.turmGrenze()}). Baue die Burg aus.`, 'schlecht'); return false; }
+    if (this.phase !== 'tag') { this.melde(tr('Wiederaufgebaut wird nur am Tag.'), 'schlecht'); return false; }
+    if (GEBAEUDE[r.typ].kampf && this.turmZahl() >= this.turmGrenze()) { this.melde(tr('Turmgrenze erreicht ({a}). Baue die Burg aus.', { a: this.turmGrenze() }), 'schlecht'); return false; }
     const k = this.wiederaufbauKosten(r);
-    if (!this.kannBezahlen(k)) { this.melde(`Für den Wiederaufbau fehlen Rohstoffe: ${kostenText(k)}.`, 'schlecht'); return false; }
+    if (!this.kannBezahlen(k)) { this.melde(tr('Für den Wiederaufbau fehlen Rohstoffe: {a}.', { a: kostenText(k) }), 'schlecht'); return false; }
     for (const [res, n] of Object.entries(k)) this.res[res as Res] -= n as number;
     this.ruinen = this.ruinen.filter((o) => o !== r); this.ereignisse.push({ art: 'ruine', ruine: r, neu: false });
     const g = this.setze(r.typ, r.x, r.z); g.zweig = r.zweig;
@@ -1222,19 +1223,19 @@ export class Spiel {
   ebnenPruefen(x0: number, z0: number, x1: number, z1: number, zielH?: number): { ok: boolean; grund?: string; stein: number; ziel: number; kacheln: number } {
     const ax = Math.min(x0, x1), bx = Math.max(x0, x1), az = Math.min(z0, z1), bz = Math.max(z0, z1);
     const start = spalte(x0, z0); const ziel = zielH ?? (start ? start.h : 6);
-    if (bx - ax + 1 > EBNEN_MAX || bz - az + 1 > EBNEN_MAX) return { ok: false, grund: `Höchstens ${EBNEN_MAX} × ${EBNEN_MAX} Blöcke auf einmal.`, stein: 0, ziel, kacheln: 0 };
+    if (bx - ax + 1 > EBNEN_MAX || bz - az + 1 > EBNEN_MAX) return { ok: false, grund: tr('Höchstens {a} × {b} Blöcke auf einmal.', { a: EBNEN_MAX, b: EBNEN_MAX }), stein: 0, ziel, kacheln: 0 };
     let stein = 0, kacheln = 0;
     for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) {
       const s = spalte(x, z);
-      if (!s) return { ok: false, grund: 'Hier ist kein Land.', stein, ziel, kacheln };
-      if (!this.erkundetAn(x, z)) return { ok: false, grund: 'Noch im Nebel.', stein, ziel, kacheln };
-      if (s.a === 'w' || s.a === 'l') return { ok: false, grund: 'Wasser und Lava lassen sich nicht ebnen.', stein, ziel, kacheln };
-      if (this.belegt[this.bi(x, z)]) return { ok: false, grund: 'Auf der Fläche steht ein Gebäude.', stein, ziel, kacheln };
+      if (!s) return { ok: false, grund: tr('Hier ist kein Land.'), stein, ziel, kacheln };
+      if (!this.erkundetAn(x, z)) return { ok: false, grund: tr('Noch im Nebel.'), stein, ziel, kacheln };
+      if (s.a === 'w' || s.a === 'l') return { ok: false, grund: tr('Wasser und Lava lassen sich nicht ebnen.'), stein, ziel, kacheln };
+      if (this.belegt[this.bi(x, z)]) return { ok: false, grund: tr('Auf der Fläche steht ein Gebäude.'), stein, ziel, kacheln };
       const d = Math.abs(s.h - ziel); if (d) { stein += d * EBNEN_STEIN; kacheln++; }
     }
-    if (!kacheln) return { ok: false, grund: 'Die Fläche ist schon eben.', stein: 0, ziel, kacheln };
-    if (ziel >= 14) return { ok: false, grund: 'Zu hoch: oben auf den Bergen lässt sich nicht bauen.', stein, ziel, kacheln };
-    if (this.res.stein < stein) return { ok: false, grund: `Nicht genug Stein (${stein} nötig).`, stein, ziel, kacheln };
+    if (!kacheln) return { ok: false, grund: tr('Die Fläche ist schon eben.'), stein: 0, ziel, kacheln };
+    if (ziel >= 14) return { ok: false, grund: tr('Zu hoch: oben auf den Bergen lässt sich nicht bauen.'), stein, ziel, kacheln };
+    if (this.res.stein < stein) return { ok: false, grund: tr('Nicht genug Stein ({a} nötig).', { a: stein }), stein, ziel, kacheln };
     return { ok: true, stein, ziel, kacheln };
   }
   ebnen(x0: number, z0: number, x1: number, z1: number): boolean {
@@ -1252,7 +1253,7 @@ export class Spiel {
     this.feldAlt = true; this.quellVersion++; this.grund = null;
     for (const a of this.arbeiter) a.y = hoehe(a.x, a.z);
     this.ereignisse.push({ art: 'gelaende', x0: ax, z0: az, x1: bx, z1: bz });
-    this.melde(`Gelände geebnet: ${p.kacheln} Blöcke, ${p.stein} Stein.`, 'gut');
+    this.melde(tr('Gelände geebnet: {a} Blöcke, {b} Stein.', { a: p.kacheln, b: p.stein }), 'gut');
     return true;
   }
   // ---------------- Reparieren ----------------
@@ -1262,10 +1263,10 @@ export class Spiel {
     return k;
   }
   reparieren(g: Geb, still = false): boolean {
-    if (this.phase !== 'tag') { if (!still) this.melde('Repariert wird nur am Tag.', 'schlecht'); return false; }
+    if (this.phase !== 'tag') { if (!still) this.melde(tr('Repariert wird nur am Tag.'), 'schlecht'); return false; }
     if (g.rep || g.hp >= g.max - 0.5) return false;
     const k = this.reparaturKosten(g);
-    if (!this.kannBezahlen(k)) { if (!still) this.melde(`Für die Reparatur fehlen Rohstoffe: ${kostenText(k)}.`, 'schlecht'); return false; }
+    if (!this.kannBezahlen(k)) { if (!still) this.melde(tr('Für die Reparatur fehlen Rohstoffe: {a}.', { a: kostenText(k) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(k)) this.res[r as Res] -= n as number;
     const f = 1 - g.hp / g.max; g.rep = { t: 0, dauer: 3 + 10 * f, von: g.hp };
     this.ereignisse.push({ art: 'reparatur', geb: g, fertig: false });
@@ -1273,7 +1274,7 @@ export class Spiel {
   }
   beschaedigt(): Geb[] { return this.gebaeude.filter((g) => !g.rep && g.hp < g.max - 0.5); }
   alleReparaturKosten(): Kosten { const k: Kosten = {}; for (const g of this.beschaedigt()) for (const [r, n] of Object.entries(this.reparaturKosten(g))) k[r as Res] = (k[r as Res] || 0) + (n as number); return k; }
-  alleReparieren(): number { let n = 0; for (const g of this.beschaedigt().sort((a, b) => (a.typ === 'haupt' ? -1 : 0) - (b.typ === 'haupt' ? -1 : 0))) if (this.reparieren(g, true)) n++; if (!n) this.melde(this.phase !== 'tag' ? 'Repariert wird nur am Tag.' : 'Nichts zu reparieren oder nicht genug Rohstoffe.', 'schlecht'); return n; }
+  alleReparieren(): number { let n = 0; for (const g of this.beschaedigt().sort((a, b) => (a.typ === 'haupt' ? -1 : 0) - (b.typ === 'haupt' ? -1 : 0))) if (this.reparieren(g, true)) n++; if (!n) this.melde(this.phase !== 'tag' ? tr('Repariert wird nur am Tag.') : tr('Nichts zu reparieren oder nicht genug Rohstoffe.'), 'schlecht'); return n; }
   // ---------------- Weg der Welle ----------------
   /** Wege der Wesen von den aktiven Rissen zur Feste (für die Vorschau) */
   wegVorschau(): [number, number][][] {

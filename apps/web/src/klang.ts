@@ -3,7 +3,7 @@
  * Tag: ruhig und warm (Laute, Flöte, Streicherfläche). Nacht: Trommeln, tiefe Streicher, Horn;
  * je mehr Wesen nah sind, desto dichter.
  */
-type Ton = 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf';
+type Ton = 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf' | 'boss' | 'siegel' | 'omen' | 'wunder' | 'falle' | 'blitz' | 'feuer';
 
 export class Klang {
   private ctx: AudioContext | null = null;
@@ -73,6 +73,14 @@ export class Klang {
       case 'klick': this.osz('triangle', 660, t, 0.05, 0.06 * v, z); break;
       case 'reparatur': this.osz('square', 1200, t, 0.03, 0.05 * v, z, 700); break;
       case 'wurf': this.rausch(t, 0.35, 0.12 * v, z, 'bandpass', 500, 1500, 1); break;
+      // ---- neu in 0.6 ----
+      case 'boss': for (const [f, l] of [[55, 0.3], [82, 0.18], [110, 0.1]] as [number, number][]) this.osz('sawtooth', f, t, 3.2, l * v, this.filter(z, 420), f * 0.92, 0.6); this.rausch(t, 2.4, 0.18 * v, z, 'lowpass', 300, 80); break;
+      case 'siegel': for (const [f, l, d] of [[392, 0.1, 0], [523, 0.08, 0.25], [659, 0.07, 0.5], [784, 0.06, 0.75], [1046, 0.05, 1]] as [number, number, number][]) this.osz('sine', f, t + d, 3, l * v, z); this.osz('triangle', 196, t, 4, 0.06 * v, z); break;
+      case 'omen': this.osz('sine', 233, t, 2.8, 0.08 * v, this.filter(z, 1200), 220, 0.8); this.osz('sine', 349, t + 0.3, 2.4, 0.05 * v, z, 330, 0.8); this.rausch(t, 2.6, 0.04 * v, z, 'bandpass', 900, 2400, 4); break;
+      case 'wunder': for (let i = 0; i < 6; i++) this.osz('triangle', [262, 330, 392, 523, 659, 784][i], t + i * 0.14, 2.6 - i * 0.2, 0.07 * v, z); this.osz('sine', 131, t, 3, 0.1 * v, z); break;
+      case 'falle': this.rausch(t, 0.4, 0.4 * v, z, 'lowpass', 2200, 200); this.osz('square', 140, t, 0.12, 0.12 * v, z, 60); break;
+      case 'blitz': this.rausch(t, 0.25, 0.2 * v, z, 'highpass', 3000); this.osz('sawtooth', 1400, t, 0.08, 0.05 * v, z, 300); break;
+      case 'feuer': this.rausch(t, 0.6, 0.1 * v, z, 'bandpass', 900, 500, 1.5); break;
     }
   }
   private filter(ziel: AudioNode, f: number): BiquadFilterNode { const fl = this.ctx!.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = f; fl.connect(ziel); return fl; }
