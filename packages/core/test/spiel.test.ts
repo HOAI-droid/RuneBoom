@@ -71,7 +71,7 @@ if (fehler) process.exit(1);
 // Bot spielt durch die Zeitalter
 {
   const { botPartie } = await import('../../../tools/balance.ts');
-  const r = botPartie('NEBELKRAKE-4127', 10, false, 'leicht');
+  const r = botPartie('FROSTWOLF-1000', 10, false, 'leicht');
   console.log('  ' + r.log[r.log.length - 1]);
   pruefe(!r.verloren && r.nacht >= 10, `Bot übersteht auf Leicht 10 Nächte (bis ${r.nacht})`);
   pruefe(r.zeitalter >= 2, `Bot erreicht durch Erfindungen das Zeitalter ${r.zeitalter}`);
@@ -118,5 +118,33 @@ if (fehler) process.exit(1);
   w.res.kristall = 3; w.zeit = TAG_DAUER - 0.01; const bedarf = w.runenkraftBedarf(); w.schritt();
   pruefe(bedarf > 3 && w.gebaeude.some((g) => !g.kraft && GEBAEUDE[g.typ].kampf), `Runenkraft: ${bedarf} Kristall nötig, ohne genug feuern äußere Türme langsamer`);
   void n;
+}
+if (fehler) process.exit(1);
+// 0.5: Völker, Akte, Omen, Siegel, Fallen, Verarbeitung, Sieg
+{
+  const { AKTE, ENDE_NACHT, OMEN } = await import('../src/index.ts');
+  const w = new Spiel('NEBELKRAKE-4127', undefined, { volk: 'hainmar' });
+  pruefe(w.volk === 'hainmar' && w.baumNach() < 6, 'Volk Hainmar: Bäume wachsen schneller');
+  pruefe(AKTE.length === 4 && ENDE_NACHT === 40, 'Vier Akte, 40 Nächte');
+  let omen = 0; for (let n = 1; n <= 40; n++) if (w.omenFuer(n)) omen++;
+  pruefe(omen >= 3 && omen <= 14, `Omen in ${omen} von 40 Nächten`);
+  void OMEN;
+  w.res.holz = w.res.stein = w.res.kristall = 5000;
+  w.erfindungen.add('axtschmiede');
+  const p = w.findePlatz('saegewerk', B.x - 10, B.z - 26, 20);
+  pruefe(!!p && w.bauen('saegewerk', p![0], p![1]), 'Sägewerk gebaut');
+  w.einwohner = 30; w.verteileArbeiter();
+  const b0 = w.res.balken; for (let i = 0; i < 20 * 30; i++) { w.schritt(); w.ereignisse.length = 0; }
+  pruefe(w.res.balken > b0, `Sägewerk macht Balken (${w.res.balken})`);
+  // Fallen sind begehbar und wirken
+  w.erfindungen.add('dornenwall');
+  pruefe(w.bauen('dornenfeld', B.x + 1, B.z + 20, true), 'Dornenfeld gebaut');
+  // Siegel erst in Akt IV
+  pruefe(!w.pruefe('siegel', 6, B.z + 120).ok, 'Siegel erst ab Akt IV');
+  // Sieg nach der letzten Nacht
+  const v = new Spiel('FROSTWOLF-1000'); v.nacht = ENDE_NACHT; v.nachtEinlaeuten();
+  for (let i = 0; i < 20 * 400 && v.phase === 'nacht'; i++) { v.schritt(); v.ereignisse.length = 0; v.gegner.length = 0; }
+  pruefe(v.phase === 'gewonnen' && !!v.sieg, 'Nach der 40. Nacht ist die Partie gewonnen');
+  const st = v.speichern(); pruefe(st.v === 4 && st.volk === 'glutborn', 'Spielstand v4 mit Volk');
 }
 if (fehler) process.exit(1);

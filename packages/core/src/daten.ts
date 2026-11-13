@@ -289,7 +289,7 @@ export const ERFINDUNGEN: Record<ErfId, Erfindung> = {
   loeschtrupp: E('bau', 2, 'Löschtrupp', { windrune: 2 }, 20, 'Brände gehen doppelt so schnell aus und springen nicht mehr über.'),
   runenkreis: E('runen', 2, 'Runenkreis', { windrune: 3 }, 30, 'Türme verbrauchen ein Viertel weniger Runenkraft.'),
   // ---- Zeitalter 3: Uhrwerk & Dampf ----
-  kristallspule: E('runen', 3, 'Kristallspule', { drachenschuppe: 8, windrune: 10, eisenerz: 6 }, 180, 'Öffnet das Zeitalter Blitz & Kristall: Kristall-Laser, Blitzspule, Kristall-Leuchtfeuer, Kristallzitadelle.', { zeitalter: 4 }),
+  kristallspule: E('runen', 3, 'Kristallspule', { drachenschuppe: 12, windrune: 14, eisenerz: 10 }, 280, 'Öffnet das Zeitalter Blitz & Kristall: Kristall-Laser, Blitzspule, Kristall-Leuchtfeuer, Kristallzitadelle.', { zeitalter: 4 }),
   meisterbau: E('bau', 3, 'Meisterbau', { eisenerz: 4, feuerstein: 3 }, 50, 'Alle Gebäude lassen sich auf Stufe III ausbauen.'),
   dampfmaschine: E('wirtschaft', 3, 'Dampfmaschine', { eisenerz: 4 }, 40, 'Alle Arbeiter tragen die Hälfte mehr.'),
   zahnradgetriebe: E('krieg', 3, 'Zahnradgetriebe', { eisenerz: 3, windrune: 2 }, 40, 'Alle Türme feuern 20 % schneller.'),
@@ -305,7 +305,7 @@ export const ERFINDUNGEN: Record<ErfId, Erfindung> = {
   aetherspeicher: E('runen', 4, 'Ätherspeicher', { windrune: 4, eisenerz: 3 }, 80, 'Türme verbrauchen ein weiteres Viertel weniger Runenkraft. Der Kristallschild hält 25 Sekunden.'),
   sternenkorn: E('wirtschaft', 4, 'Sternenkorn', { drachenschuppe: 2, eisenerz: 2 }, 60, 'Höfe und Fischer bringen die Hälfte mehr, jedes Wohnhaus fasst zwei Einwohner mehr.'),
   himmelsschmiede: E('alchemie', 4, 'Himmelsschmiede', { eisenerz: 5, drachenschuppe: 3 }, 100, 'Alle Waffen durchschlagen Kristallpanzer und Borkenschilde.'),
-  aetherkern: E('runen', 4, 'Ätherkern', { drachenschuppe: 10, windrune: 12, eisenerz: 8 }, 260, 'Öffnet das Zeitalter Äther & Sterne: Ätherbogen, Sternkanone, Lichtsäule und die Türme der Völker (nur von Türmen auf Stufe III).', { zeitalter: 5 }),
+  aetherkern: E('runen', 4, 'Ätherkern', { drachenschuppe: 18, windrune: 20, eisenerz: 16 }, 420, 'Öffnet das Zeitalter Äther & Sterne: Ätherbogen, Sternkanone, Lichtsäule und die Türme der Völker (nur von Türmen auf Stufe III).', { zeitalter: 5 }),
   // ---- Zeitalter 5: Äther & Sterne ----
   sternensegel: E('krieg', 5, 'Sternensegel', { windrune: 6, drachenschuppe: 4 }, 140, 'Flieger nehmen 40 % mehr Schaden.'),
   aetherwall: E('bau', 5, 'Ätherwall', { eisenerz: 8, windrune: 4 }, 140, 'Mauern und Tore halten dreimal so viel aus, Fallen wirken doppelt.'),
@@ -315,7 +315,7 @@ export const ERFINDUNGEN: Record<ErfId, Erfindung> = {
   bergbau: E('wirtschaft', 2, 'Bergbau', { eisenerz: 1, feuerstein: 2 }, 20, 'Erzminen schlagen Roherz aus dem Fels, die Schmelze macht daraus Stahl.')
 };
 /** Schlüsselerfindungen brauchen so viele andere Erfindungen aus dem laufenden Zeitalter */
-export const SCHLUESSEL_VORWISSEN: Record<number, number> = { 2: 2, 3: 4, 4: 4, 5: 4 };
+export const SCHLUESSEL_VORWISSEN: Record<number, number> = { 2: 2, 3: 4, 4: 5, 5: 5 };
 export const BAUSTEIN_NAME: Record<Baustein, string> = { feuerstein: 'Feuerstein', windrune: 'Windrune', eisenerz: 'Eisenerz', drachenschuppe: 'Drachenschuppe' };
 
 export const TAG_DAUER = 80, ABEND = 22, MORGEN_DAUER = 6;
