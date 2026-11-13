@@ -117,5 +117,11 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Testen: Im Testbrowser stellt WebGPU keine Leinwand dar (Gerät geht verloren). Leinwand per Init-Skript auf eine Textur umleiten
   (`GPUCanvasContext.configure/getCurrentTexture` ersetzen), dann laufen WebGPU-Shader echt; Bilder über `darstellung: 'knoten-webgl'`
   (TSL über die WebGL-Schiene, nur für Tests).
+- [x] 0.7.1 Lebendige Figuren: Scharen mit Gliedern (`Bauplan` je Modell ordnet Voxel nach Lage Beinen/Armen/Flügeln/Schwanz zu,
+  Gelenk `p`, je Glied eigene InstancedMeshes; `setze(…, Regung)` mit `phase`, `gang`, `hieb`, `flug`). Gangphase der Wesen wächst mit dem
+  Weg (`gangVon`, `SCHRITT`). **Neue Wesen brauchen einen Bauplan.** Menschen meiden Wasser/Lava: `wege.ts` (`trocken`, `trockenerWeg`:
+  gerade Linie, sonst A* im Ausschnitt, geglättet), Arbeiter in `spiel.ts` (`wege`, nicht gespeichert), Bürger in `objekte.ts`.
+  Kacheln in Stufen: 2 = alles bis `nahRadius()`, 1 = Boden + Kristalle/Risse (Maske 128, grober Wald sichtbar, keine Schatten).
+  Messschalter (`messAus`), Leuchtbeeren auf der Krone.
 - [ ] 0.8 Steam, Android, iPhone, Xbox · Weltreise später · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

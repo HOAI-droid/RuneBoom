@@ -697,5 +697,11 @@ export const ES: Record<string, string> = {
  "Spiel": "Juego",
  "Zeichenaufrufe": "llamadas de dibujo",
  "Mio. Dreiecke": "M triángulos",
- "Auflösung": "Resolución"
+ "Auflösung": "Resolución",
+ "Zum Messen ausblenden": "Ocultar para medir",
+ "Nebel": "Niebla",
+ "Schatten": "Sombras",
+ "Nachbearbeitung": "Posprocesado",
+ "Ferner Wald": "Bosque lejano",
+ "Kacheln": "Teselas"
 };

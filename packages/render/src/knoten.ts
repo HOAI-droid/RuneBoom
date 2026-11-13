@@ -34,11 +34,11 @@ const fbm = Fn(([p0]: N[]) => {
 }).setLayout({ name: 'fbm', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
 // ---------- Materialien ----------
-function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture): THREE.Material {
+function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): THREE.Material {
   const m = new THREE.MeshStandardNodeMaterial(p as any);
   const lm = lichtWert();
   m.emissiveNode = diffuseColor.rgb.mul(uLichtFarbe).mul(lm.mul(lm)).mul(uNacht).mul(staerke);
-  if (maske) { m.opacityNode = select(texture(maske, weltUV(positionWorld)).r.greaterThan(0.5), float(0), float(1)); m.alphaTest = 0.5; }
+  if (maske) { m.opacityNode = select(texture(maske, weltUV(positionWorld)).r.greaterThan(schwelle), float(0), float(1)); m.alphaTest = 0.5; }
   return m;
 }
 function wasser(): THREE.Material {

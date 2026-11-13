@@ -697,5 +697,11 @@ export const FR: Record<string, string> = {
  "Spiel": "Jeu",
  "Zeichenaufrufe": "appels de dessin",
  "Mio. Dreiecke": "M triangles",
- "Auflösung": "Résolution"
+ "Auflösung": "Résolution",
+ "Zum Messen ausblenden": "Masquer pour mesurer",
+ "Nebel": "Brouillard",
+ "Schatten": "Ombres",
+ "Nachbearbeitung": "Post-traitement",
+ "Ferner Wald": "Forêt lointaine",
+ "Kacheln": "Tuiles"
 };

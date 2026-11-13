@@ -2,6 +2,7 @@ import { t as tr } from './sprache.ts';
 import { rng, seedAusCode, type Rng } from './zufall.ts';
 import { B, RISS, RISS2, RISSE, WR, setzeSeed, spalte, deko, begehbar, amPfad, orte, hoehe, setzeHoehe, hoehenListe, type Spalte, type Deko } from './welt.ts';
 import { Wegfeld } from './flow.ts';
+import { trockenerWeg } from './wege.ts';
 import {
   GEBAEUDE, GEGNER, ERFINDUNGEN, HAUPT_STUFEN, VERSCHMELZUNGEN, PANZER_AB, UMBAU_DAUER, ZEITALTER_NAME, linie, welle, staerke, START, TAG_DAUER, ABEND, MORGEN_DAUER, MORGEN_REPARATUR, SETZLING_NACH, BAUM_NACH, BAUM_GAENGE, FELS_GAENGE, EBNEN_STEIN, EBNEN_MAX,
   STUFE_BRAUCHT, SCHLUESSEL_VORWISSEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, aktVon,
@@ -130,6 +131,8 @@ export class Spiel {
   private spawn: { typ: GegTyp; t: number; riss: { x: number; z: number } }[] = [];
   private brandTakt = 0;
   private grund: Float32Array | null = null; private grundAlt: [number, number][] = [];
+  /** Wege der Arbeiter um Wasser und Lava (nicht gespeichert, werden neu gesucht) */
+  private wege = new Map<number, { zx: number; zz: number; p: [number, number][]; i: number }>();
   private laedt = false;
   private fallenIds = new Set<number>();
   private lichter: { x: number; z: number; r: number; enthuellt: boolean; kegel?: number; geb?: Geb }[] = [];
@@ -1175,9 +1178,13 @@ export class Spiel {
       }
       const arb = arb0;
       const hx = g.x + g.w / 2, hz = g.z + g.d + 0.6;
+      // um Wasser und Lava herum: Wegpunkte folgen, der letzte ist das Ziel
       const gehe = (zx: number, zz: number, tempo: number): boolean => {
-        const dx = zx - a.x, dz = zz - a.z, d = Math.hypot(dx, dz);
-        if (d < 0.6) return true;
+        let w = this.wege.get(a.id);
+        if (!w || Math.abs(w.zx - zx) > 2 || Math.abs(w.zz - zz) > 2) { w = { zx, zz, p: trockenerWeg(a.x, a.z, zx, zz) || [], i: 0 }; this.wege.set(a.id, w); }
+        const letzter = w.i >= w.p.length - 1, [tx, tz] = w.i < w.p.length ? w.p[w.i] : [zx, zz];
+        const dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
+        if (d < (letzter ? 0.6 : 0.3)) { if (letzter) { this.wege.delete(a.id); return true; } w.i++; return false; }
         const sp = Math.min(d, tempo * DT); a.x += (dx / d) * sp; a.z += (dz / d) * sp; a.richtung = Math.atan2(dx, dz); a.y = hoehe(a.x, a.z);
         return false;
       };
