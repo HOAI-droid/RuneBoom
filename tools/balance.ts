@@ -44,7 +44,7 @@ export function botPartie(code: string, maxNacht = 20, laut = true, schwierigkei
   };
   const log: string[] = [];
   let letzte = 0;
-  for (let i = 0; i < 20 * 60 * 60 && s.phase !== 'verloren' && s.nacht <= maxNacht; i++) {
+  for (let i = 0; i < 20 * 60 * 60 * 6 && s.phase !== 'verloren' && s.phase !== 'gewonnen' && s.nacht <= maxNacht; i++) {
     const vor = s.phase;
     if (vor === 'tag' && s.zeit < 0.06) tag();
     s.schritt(); s.ereignisse.length = 0;
