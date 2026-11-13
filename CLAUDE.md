@@ -131,6 +131,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
   **Oberfläche:** Tempo-Knöpfe ganz oben rechts, Übersichtskarte ein- und ausblendbar (Taste M); Erfindungsbaum ansprechender,
   Rezeptbuch reichhaltiger, Bausteine-Seite neu geordnet (beide Hälften genutzt); Hinweise nie hinter der Bauleiste.
+  **Bauen braucht Zeit:** neue Gebäude entstehen sichtbar Schicht für Schicht (Gerüst, Baumeister) mit Fortschrittsbalken; kurz
+  (je nach Größe einige Sekunden), nicht sofort, aber auch nicht ewig.
   **Fall der Feste:** kurze Einsturz-Animation der Burg (sinkt, bricht in Brocken, Staub), dann der Endbildschirm.
   **Erfinderskizzen** (Stil „Leonardo mit Voxeln“) für besondere Erfindungen: erst Mockup, dann Umsetzung nach Freigabe.
   **Mauerverlauf sichtbar:** beim Ziehen einer Mauer erscheint die Linie auf dem Boden, damit man den Verlauf vor dem Bauen sieht.
