@@ -3,6 +3,13 @@
 > **▶ Jetzt online spielen · Play online now: <https://hoai-droid.github.io/RuneBoom/>**  
 > Projektseite · Project page: <https://hoai-droid.github.io/RuneBoom/docs/>
 
+**⬇ Apps herunterladen · Download the apps:**
+[Windows](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-windows-setup.exe) ·
+[macOS](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-mac.dmg) ·
+[Linux (AppImage)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-linux.AppImage) ·
+[Linux (.deb)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-linux.deb) ·
+[alle Dateien · all files](https://github.com/HOAI-droid/RuneBoom/releases/latest)
+
 <p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: die Feste am goldenen Tag und in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
 
 <p align="center">
@@ -29,7 +36,7 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.5.** Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
+> **Stand: Version 0.6.** In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
 > Omen, Wundern, Leitsätzen, Verarbeitung, Fallen, Bevölkerung, Ausbaustufen und Spielständen.
 
 <a id="english"></a>
@@ -48,7 +55,7 @@ seal the rifts or fall.
 - **World codes:** every 1024 × 1024 world grows from a code and can be shared offline.
 
 Play it in your browser: <https://hoai-droid.github.io/RuneBoom/> · Project page: <https://hoai-droid.github.io/RuneBoom/docs/>.
-The game is in German for now; English, French and Spanish follow in version 0.6.
+The game speaks German, English, French and Spanish. Apps for Windows, macOS and Linux: see the download links at the top.
 </details>
 
 ## Spielen
@@ -74,6 +81,15 @@ The game is in German for now; English, French and Spanish follow in version 0.6
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.6
+
+- **Sprachen:** Deutsch, Englisch, Französisch und Spanisch, Standard ist die Systemsprache (Einstellungen → Sprache). Auch der Untertitel.
+- **Apps** für macOS, Windows und Linux (Tauri), gebaut von der GitHub-Action `Desktop-Apps` bei jedem Push auf `main`.
+- **Laden wie aus einem Guss:** Die Welt wird erst vollständig im Hintergrund gebaut und dann von der Mitte her eingeblendet.
+- **Tag 2:20 statt 1:20**, der **Nachtbericht hält das Spiel an**, bis er bestätigt ist.
+- **Neue Einführung** (8 Schritte), **Hilfe mit F1**, **Touch-Bedienung** (langer Druck öffnet Gebäude), **Bildrate** in den Einstellungen,
+  **neue Klänge**, **größerer Erfindungsbaum**, Gebäudefenster unter Karte und Tempo.
 
 ### Neu in 0.5
 

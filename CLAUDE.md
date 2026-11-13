@@ -98,6 +98,13 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Omen (`omenFuer()`), Wunder (`wunder`, eines aus zwei je Zeitalter, `bauzeit`), Leitsätze (`LEITSAETZE`, `leitsatzOffen`),
   Außenposten (Versorgung: `versorgt`), Verarbeitung (`umwandeln`, `verarbeiten()`), Fallen (`falle`, begehbar über `fallenIds`), Tor.
   Bauleiste in Gruppen (`BAUGRUPPEN`), Abwahl nach dem Setzen, Fenster ohne Scrollen. Projektseite DE/EN: `docs/index.html`.
-- [ ] 0.6 Sprachen: Auswahl Deutsch, Englisch, Französisch, Spanisch; Standard ist die Systemsprache
-- [ ] 0.7 Weltreise · 0.8 Apps · 1.0 Veröffentlichung
+- [x] 0.6 Sprachen und Apps: `t()` in `packages/core/src/sprache.ts` (deutscher Text = Schlüssel, `{a}`-Platzhalter), Tabellen
+  `apps/web/src/sprachen/{en,fr,es}.ts`, `tools/texte_sammeln.ts` sammelt alle Schlüssel, Test `sprachen.test.ts` prüft Vollständigkeit.
+  **Neue Texte immer in `t('…')` bzw. `tr('…')` einpacken und in allen drei Tabellen ergänzen.** Statische HTML-Texte übersetzt
+  `uebersetzeStatisch()` (Elemente mit `data-dynamisch` ausgenommen). Enthüllung beim Laden (`enthuellen()`, `WeltAnsicht.bereit()`),
+  Tag 140 s, Pause beim Nachtbericht, Einführung 8 Schritte, Hilfe F1, Touch (langer Druck), Bildrate, Klänge.
+  Desktop-Apps: `src-tauri/` (Tauri 2, `frontendDist: ../dist`), Action `.github/workflows/apps.yml` baut Mac/Windows/Linux und legt ein
+  Release `v<version>` mit festen Dateinamen an (`runeBOOM-mac.dmg`, `runeBOOM-windows-setup.exe`, `runeBOOM-linux.AppImage`, `.deb`);
+  Release-Text aus `RELEASE_NOTES.md`. Version steht in `package.json`, `src-tauri/Cargo.toml` und `src-tauri/tauri.conf.json`.
+- [ ] 0.7 Weltreise · 0.8 Steam, Android, iPhone, Xbox · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
