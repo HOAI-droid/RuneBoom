@@ -379,7 +379,13 @@
   .panel { top: calc(max(10px, env(safe-area-inset-top)) + 300px); max-height: calc(100vh - 300px - 140px); }
   body.panel-offen .oben-rechts { visibility: visible; }
   @media (max-height: 860px) { .panel p.kurz { display: none; } .panel { padding: 9px 12px; gap: 5px; } .akt { padding: 4px 7px; } .panel h2 { font-size: 16px; } }
-  @media (max-height: 700px) { .panel { top: calc(max(10px, env(safe-area-inset-top)) + 250px); max-height: calc(100vh - 250px - 120px); } .karte canvas { width: 150px; height: 150px; } }
+  /* Einstellungen: Zeilen umbrechen statt über den Rand, Häkchen neben dem Text, im Kasten scrollen */
+  .panel:has(#e-musik) { overflow-y: auto; overflow-x: hidden; }
+  .panel .zeile:has(.wahl), .menue-seite .zeile:has(.wahl) { flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .panel .wahl, .menue-seite .wahl { flex-wrap: wrap; }
+  .panel .regler input[type="checkbox"], .menue-seite .regler input[type="checkbox"] { width: auto; margin: 0 8px 0 0; flex: none; }
+  .panel .regler > span, .menue-seite .regler > span { display: flex; align-items: center; }
+  @media (max-height: 700px) { .panel { top: calc(max(10px, env(safe-area-inset-top)) + 250px); max-height: calc(100vh - 250px - 135px); } .karte canvas { width: 150px; height: 150px; } }
 
   .untertitel { white-space: nowrap; }
   @media (max-height: 820px) {
