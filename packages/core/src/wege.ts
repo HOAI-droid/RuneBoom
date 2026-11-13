@@ -1,3 +1,4 @@
+import { mhypot } from './rechnen.ts';
 import { WR, spalte, seed } from './welt.ts';
 
 /**
@@ -17,7 +18,7 @@ export function trocken(x: number, z: number): boolean {
 }
 /** führt die gerade Strecke nur über trockene Blöcke? */
 export function freieSicht(ax: number, az: number, bx: number, bz: number): boolean {
-  const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 0.4);
+  const d = mhypot(bx - ax, bz - az), n = Math.ceil(d / 0.4);
   for (let i = 1; i <= n; i++) { const t = i / n; if (!trocken(ax + (bx - ax) * t, az + (bz - az) * t)) return false; }
   return true;
 }
@@ -41,7 +42,7 @@ export function trockenerWeg(sx: number, sz: number, zx: number, zz: number, max
   const idx = (x: number, z: number) => (z - z0) * B + (x - x0);
   const g = new Float32Array(B * B).fill(Infinity), von = new Int32Array(B * B).fill(-1);
   const ax = Math.floor(sx), az = Math.floor(sz), bx = Math.floor(zx), bz = Math.floor(zz);
-  const h = (x: number, z: number) => Math.hypot(x - bx, z - bz);
+  const h = (x: number, z: number) => mhypot(x - bx, z - bz);
   const offen = new Haufen(); const s0 = idx(ax, az); g[s0] = 0; offen.push(s0, h(ax, az));
   let ende = -1, schritte = 0;
   while (offen.size && schritte++ < maxSchritte) {

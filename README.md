@@ -8,6 +8,7 @@
 [macOS](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-mac.dmg) ·
 [Linux (AppImage)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-linux.AppImage) ·
 [Linux (.deb)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-linux.deb) ·
+[Android (APK)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-android.apk) ·
 [alle Dateien · all files](https://github.com/HOAI-droid/RuneBoom/releases/latest)
 
 <p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: die Feste am goldenen Tag und in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
@@ -36,7 +37,7 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.7.1.** Zeichnet über WebGPU, wo es geht, sonst über WebGL. In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
+> **Stand: Version 0.8.** Zeichnet über WebGPU, wo es geht, sonst über WebGL. In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
 > Omen, Wundern, Leitsätzen, Verarbeitung, Fallen, Bevölkerung, Ausbaustufen und Spielständen.
 
 <a id="english"></a>
@@ -81,6 +82,32 @@ The game speaks German, English, French and Spanish. Apps for Windows, macOS and
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.8
+
+- **Bauen braucht Zeit:** neue Gebäude wachsen Schicht für Schicht mit Gerüst, Baumeistern und Fortschrittsbalken.
+- **Fall der Feste:** die Burg bebt, neigt sich und versinkt in Staub und Trümmern.
+- **Erfinderskizzen** im Stil „Leonardo mit Voxeln“ (`apps/web/src/skizze.ts`): große Skizze bei Schlüssel- und geheimen Erfindungen,
+  Skizzen im Erfindungsbaum, im Rezeptbuch und bei den Wesen. Erfindungsbaum, Rezeptbuch und Bausteine neu gestaltet.
+- **Jahreszeiten** über die vier Akte (Frühling, Sommer, Herbst, Winter mit Schnee), **Tiere** am Tag (Rehe, Vögel, Fische).
+- **Klänge und Musik:** Aufnahmen statt erzeugter Töne, gemeinsamer Hall; Musik je Volk aus echten Instrumenten, immer neu zusammengesetzt.
+- **Gamepad**, **Querformat** auf Handy und Tablet, **Mauerverlauf** auf dem Boden, Tempo oben, Karte ein- und ausblendbar (M).
+- **Apps:** Android (APK), iPhone/iPad (Capacitor), installierbare Web-App mit Offline-Speicher (auch Grundlage für die Xbox).
+- **Befehlsschicht** mit Protokoll und Prüfsumme, überall gleiche Rechnung (`rechnen.ts`): Grundlage für den späteren Mehrspieler.
+
+### Klänge und Musik · Quellen
+
+- Geräusche: Kenney, „50 RPG sound effects“, CC0 – <https://opengameart.org/content/50-rpg-sound-effects>
+- Instrumente: FluidR3 GM SoundFont von Frank Wen, vorgerendert von gleitz/midi-js-soundfonts, CC BY 3.0 – <https://github.com/gleitz/midi-js-soundfonts>
+
+### Handy, Tablet und Xbox
+
+- **Android:** `runeBOOM-android.apk` aus dem Release laden und installieren (Installation aus unbekannten Quellen erlauben).
+  Für Google Play braucht es ein Entwicklerkonto (einmalig 25 US-$) und einen eigenen Signaturschlüssel.
+- **iPhone/iPad:** Das Projekt wird mit Capacitor erzeugt (`tools/handy_vorbereiten.sh ios`). Ohne Apple-Entwicklerkonto
+  (99 US-$ im Jahr) entsteht nur eine Fassung für den Simulator; mit Konto lässt sich die App signieren und über TestFlight verteilen.
+- **Xbox:** Die Browserfassung läuft im Edge-Browser der Xbox (mit Gamepad). Für den Microsoft Store wird die installierbare
+  Web-App mit PWABuilder zu einem Paket gemacht und über das Partner Center eingereicht.
 
 ### Neu in 0.7.1
 

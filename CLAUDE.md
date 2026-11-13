@@ -123,5 +123,38 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   gerade Linie, sonst A* im Ausschnitt, geglättet), Arbeiter in `spiel.ts` (`wege`, nicht gespeichert), Bürger in `objekte.ts`.
   Kacheln in Stufen: 2 = alles bis `nahRadius()`, 1 = Boden + Kristalle/Risse (Maske 128, grober Wald sichtbar, keine Schatten).
   Messschalter (`messAus`), Leuchtbeeren auf der Krone.
-- [ ] 0.8 Steam, Android, iPhone, Xbox · Weltreise später · 1.0 Veröffentlichung
+- [x] 0.8 Lebendige Welt (umgesetzt): Bauzeit für alle neuen Gebäude (`Spiel.bauDauer`, `imBau`, `umbau.kurz`, läuft auch nachts;
+  Darstellung Schicht für Schicht über `gebModell(…, schicht)` + Gerüst), Einsturz der Burg (`einsturz()`, Kamera kreist),
+  Erfinderskizzen (`apps/web/src/skizze.ts` aus `gebGrid`/`wesenGrid`, Muster `#sk-…` in index.html, Karte `zeigeSkizze()`),
+  Erfindungsbaum/Rezeptbuch/Bausteine neu (Pergamentkarten `.sk-papier`; **Karten mit Skizzen immer auf Pergament, einheitlich**),
+  Jahreszeiten (`JAHR_U`, `jahreszeit()` in beiden Shader-Fassungen: Grün umfärben, Schnee auf Oberseiten), Tiere (`Tierwelt` in objekte.ts,
+  nur Darstellung), Klänge/Musik (`klang.ts`: Aufnahmen `apps/web/public/klang/` aus `tools/klaenge_holen.py`, Komponist mit `PROFILE` je Volk,
+  Rückfall auf erzeugte Klänge), Gamepad (`padSchritt()`, Fadenkreuz, Fokus `.pad-fokus`), Querformat (`lagePruefen()`), Web-App
+  (`manifest.webmanifest`, `sw.js`), Android/iOS mit Capacitor 8 (`capacitor.config.json`, `tools/handy_vorbereiten.sh`, Jobs in apps.yml;
+  `android/`, `ios/` werden erzeugt, nicht eingecheckt), Befehle (`Befehl`, `spiel.befehl()`, `protokoll`, `pruefsumme()`; Oberfläche ruft
+  Aktionen nur über Befehle auf) und gleiche Rechnung (`rechnen.ts`: `msin`, `mcos`, `matan2`, `mhypot`, `mpow` statt Math.*
+  in packages/core – **in der Simulation nie Math.sin/cos/atan2/hypot/pow/exp/log verwenden**).
+  Xbox: Browserfassung im Edge der Xbox; Store-Paket aus der Web-App mit PWABuilder, braucht ein Partner-Center-Konto (Nutzer).
+  iOS für Geräte und Google Play brauchen die Konten des Nutzers (Apple Developer, Play Console).
+- [x] (Plan 0.8, Grundlage der Umsetzung) Apps und Klang (festgelegt): **nur Querformat** (Apps gesperrt, Browser: Hinweis „Bitte quer halten“ + Pause),
+  **neue Klänge** (Aufnahmen aus freien Bibliotheken, mehrere Fassungen je Geräusch, gemeinsamer Hall, ferne Arbeiter leiser/seltener),
+  **Musik je Volk**, laufend neu zusammengesetzt aus Motiven (Glutborn: Trommeln, Blech, Amboss · Hainmar: Flöten, Harfe, Holz ·
+  Sturmweber: Streicher, Glocken, Hackbrett), Schichten Tag/Abend/Nacht/Kampf, Themen für Rissfürst und Sieg,
+  **Gamepad-Steuerung**, **Jahreszeiten über die 40 Nächte** (Frühling bis Winter), **Tiere am Tag** (nur wenn es kaum Bildrate kostet),
+  **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
+  **Oberfläche:** Tempo-Knöpfe ganz oben rechts, Übersichtskarte ein- und ausblendbar (Taste M); Erfindungsbaum ansprechender,
+  Rezeptbuch reichhaltiger, Bausteine-Seite neu geordnet (beide Hälften genutzt); Hinweise nie hinter der Bauleiste.
+  **Bauen braucht Zeit:** neue Gebäude entstehen sichtbar Schicht für Schicht (Gerüst, Baumeister) mit Fortschrittsbalken; kurz
+  (je nach Größe einige Sekunden), nicht sofort, aber auch nicht ewig.
+  **Fall der Feste:** kurze Einsturz-Animation der Burg (sinkt, bricht in Brocken, Staub), dann der Endbildschirm.
+  **Erfinderskizzen** (Stil „Leonardo mit Voxeln“) für besondere Erfindungen: erst Mockup, dann Umsetzung nach Freigabe.
+  **Mauerverlauf sichtbar:** beim Ziehen einer Mauer erscheint die Linie auf dem Boden, damit man den Verlauf vor dem Bauen sieht.
+  **Befehlsschicht** als Grundlage für späteren Mehrspieler: jede Spieleraktion als Befehl, überall gleiche Rechnung (eigene sin/cos …),
+  Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler (festgelegt, ab 0.9): **klassischer Koop** für 2–4 Spieler, eine Welt, eine Burg, je Spieler eine Himmelsrichtung/ein Riss,
+  eigene Rohstoffe und Arbeiter, Erfindungen gemeinsam, fällt die Burg, verlieren alle.
+  Regeln (festgelegt): alle Risse ab Nacht 1 aktiv, Wellen je Riss etwas schwächer als allein; jeder darf pausieren, schneller nur
+  mit Zustimmung aller; der Nachtbericht hält für alle an, bis alle bestätigt haben; wer ausfällt, dessen Seite läuft weiter (Türme
+  kämpfen selbst), Rückkehr möglich; Gastgeber speichert, fortsetzen mit allen, die da sind; Beitreten auch in laufender Partie, nur am Tag.
+  Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
+- [ ] 0.9 Mehrspieler (klassischer Koop, siehe oben) · später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

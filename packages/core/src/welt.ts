@@ -1,3 +1,4 @@
+import { mhypot, mpow, msin } from './rechnen.ts';
 import { h3, rng, noise, fbm, clamp01 } from './zufall.ts';
 
 /**
@@ -39,23 +40,23 @@ export function seed(): number { return SEED; }
 
 export function pfadX(z: number): number {
   const z0 = B.z + 13, t = clamp01((z - z0) / 30);
-  return B.x + Math.round((Math.sin((z - z0) * 0.05) * 12 + (Math.sin(z * 0.03) - Math.sin(z0 * 0.03)) * 10) * t);
+  return B.x + Math.round((msin((z - z0) * 0.05) * 12 + (msin(z * 0.03) - msin(z0 * 0.03)) * 10) * t);
 }
 export function amPfad(x: number, z: number, w: number): boolean { return z > B.z + 11 && z < RISS.z + 2 && Math.abs(x - pfadX(z)) <= w; }
 
 function rohBerechnen(x: number, z: number) {
-  const d = Math.hypot(x, z) / WR + (fbm(x, z, 0.012, SEED) - 0.5) * 0.16; if (d > 1) return null;
-  const db = Math.hypot(x - B.x, z - B.z), t = clamp01((db - 18) / 14);
+  const d = mhypot(x, z) / WR + (fbm(x, z, 0.012, SEED) - 0.5) * 0.16; if (d > 1) return null;
+  const db = mhypot(x - B.x, z - B.z), t = clamp01((db - 18) / 14);
   const v = fbm(x, z, 0.035, SEED + 1), lo = fbm(x, z, 0.008, SEED + 2);
   const berg = Math.max(0, d - 0.8) * 44 * fbm(x, z, 0.05, SEED + 7) + Math.max(0, lo - 0.6) * 55 * fbm(x, z, 0.03, SEED + 8);
   let h = 6 + Math.round((Math.max(0, v - 0.46) * 18 + berg) * t);
   if (amPfad(x, z, 3)) h = Math.min(h, 7);
   let a: Art = 'gras';
-  const dg = Math.hypot(x - GLUT.x, z - GLUT.z); let dr = Infinity; for (const q of RISSE) dr = Math.min(dr, Math.hypot(x - q.x, z - q.z));
+  const dg = mhypot(x - GLUT.x, z - GLUT.z); let dr = Infinity; for (const q of RISSE) dr = Math.min(dr, mhypot(x - q.x, z - q.z));
   if ((fbm(x, z, 0.011, SEED + 50) > 0.63 && t > 0.8) || dg < 8) a = 'asche';
   let pool: Art | null = null;
   if (a === 'gras' && t > 0.7 && dr > 14 && !amPfad(x, z, 4) && (v < 0.32 || lo < 0.3)) pool = 'w';
-  if (Math.hypot(x - TEICH.x, z - TEICH.z) < 3.6 + noise(x * 0.5, z * 0.5, 3)) pool = 'w';
+  if (mhypot(x - TEICH.x, z - TEICH.z) < 3.6 + noise(x * 0.5, z * 0.5, 3)) pool = 'w';
   if (a === 'asche' && dr > 14 && !amPfad(x, z, 4) && (fbm(x, z, 0.09, SEED + 60) < 0.3 || dg < 3.8 + noise(x * 0.4, z * 0.4, 5) * 1.5)) pool = 'l';
   if (dr < 12) h = Math.min(h, 8);
   if (h >= 12 && !pool) a = h >= 17 ? 'schnee' : 'fels';
@@ -82,7 +83,7 @@ export function spalte(x: number, z: number): Spalte | null {
   else if (a === 'w') col = '#6e6a52'; else col = '#2a1a14';
   const pool = a === 'w' || a === 'l';
   if (amPfad(x, z, 1.5) && !pool) col = PAL.pfad[(x + z) & 1];
-  const dep = r.d > 0.86 ? Math.round((1 - Math.pow(Math.min(r.d, 1), 1.25)) * 60 + fbm(x, z, 0.2, SEED + 5) * 6) + 3 : 3;
+  const dep = r.d > 0.86 ? Math.round((1 - mpow(Math.min(r.d, 1), 1.25)) * 60 + fbm(x, z, 0.2, SEED + 5) * 6) + 3 : 3;
   return { h, a, col, dep, db: r.db };
 }
 export function orte(): Ort[] {
@@ -102,7 +103,7 @@ export function orte(): Ort[] {
 export function frei(x: number, z: number, s: Spalte): boolean {
   if (s.a === 'w' || s.a === 'l') return false;
   if (s.db < 24 || amPfad(x, z, 4)) return false;
-  for (const o of orte()) if (Math.abs(x - o.x) < o.r && Math.abs(z - o.z) < o.r && Math.hypot(x - o.x, z - o.z) < o.r) return false;
+  for (const o of orte()) if (Math.abs(x - o.x) < o.r && Math.abs(z - o.z) < o.r && mhypot(x - o.x, z - o.z) < o.r) return false;
   return true;
 }
 export type Deko = { art: 'baum'; typ: string } | { art: 'fels' } | { art: 'gras' } | null;

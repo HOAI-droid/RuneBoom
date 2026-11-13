@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GEBAEUDE, trockenerWeg, trocken, type Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
+import { GEBAEUDE, trockenerWeg, trocken, spalte, deko, Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
 import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT, FABRIK } from './grafik.ts';
 import {
@@ -14,14 +14,19 @@ import { rng, type Ruine } from '@runeboom/core';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
-function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', bau = false): THREE.Group {
+/** schicht 1–5: Gebäude im Bau, nur die unteren Schichten stehen, dazu ein Gerüst */
+/** Voxel eines Wesens (für die Skizzen im Bestand der Bausteine) */
+export function wesenGrid(typ: GegTyp): Grid {
+  const g = new Grid();
+  const F: Record<GegTyp, () => void> = { moorwicht: () => moorwicht(g, 0, 0, 0, 0), wolf: () => wolf(g, 0, 0, 0, 0), troll: () => troll(g, 0, 0, 0, 0), drachling: () => drachling(g), rochen: () => nebelrochen(g),
+    aschegeist: () => aschegeist(g), steinwerfer: () => steinwerfer(g), schamane: () => schamane(g), schildwaechter: () => schildwaechter(g), rissfuerst: () => rissfuerst(g) };
+  F[typ]?.(); return g;
+}
+/** Voxel eines Gebäudes (halbe Voxel, Mitte bei 0), auch für die Erfinderskizzen */
+export function gebGrid(typ: GebTyp, stahl = false, zweigId?: string, stufe = 1, schaden = 0, volk = ''): Grid {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
-  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (bau ? '/bau' : '');
-  let m = modellCache.get(key);
-  if (!m) {
-    const g = new Grid(), def = GEBAEUDE[typ];
+  const g = new Grid(), def = GEBAEUDE[typ];
     Grid.tausch = VOLK_FARBEN[volk] || null;
-    if (bau) { geruest(g, def.w, def.d); Grid.tausch = null; m = gridZuGruppe(g, 0.5); modellCache.set(key, m); return m; }
     if (def.wunder) wunder(g, typ);
     if (def.zeitalter === 5) turmZeitalter5(g, typ);
     if (typ === 'aussenposten') aussenposten(g);
@@ -55,6 +60,21 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
     if (typ === 'mauer') { mauerStueck(g, 0, 0, 0, stahl); mauerSchaden(g, schaden); }
     if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer' && !def.wunder && !def.falle && typ !== 'tor' && typ !== 'siegel') stufenSchmuck(g, def.w, def.d, stufe);
     Grid.tausch = null;
+  return g;
+}
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', schicht = 0): THREE.Group {
+  const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (schicht ? '/bau' + schicht : '');
+  let m = modellCache.get(key);
+  if (!m) {
+    const g = gebGrid(typ, stahl, zweigId, stufe, schaden, volk), def = GEBAEUDE[typ];
+    if (schicht) { // im Bau: oberhalb der Schicht nichts, ringsum ein Gerüst
+      let hoch = 0; for (const v of g.m.values()) hoch = Math.max(hoch, v.y);
+      const grenze = Math.ceil(((hoch + 1) * schicht) / 6) - 1;
+      for (const [k, v] of g.m) if (v.y > grenze) g.m.delete(k);
+      const gr = new Grid(); geruest(gr, def.w, def.d);
+      for (const [k, v] of gr.m) if (!g.m.has(k) && v.y <= grenze + 3) g.m.set(k, v);
+    }
     m = gridZuGruppe(g, 0.5);
     modellCache.set(key, m);
   }
@@ -171,6 +191,107 @@ class Schar {
     this.n++;
   }
   ende(): void { for (const t of this.teile) for (const m of t.meshes) { m.count = this.n; m.visible = this.n > 0; m.instanceMatrix.needsUpdate = true; } }
+}
+
+// ---------- Tiere am Tag (nur Darstellung, nicht in der Simulation) ----------
+function rehModell(g: Grid): void {
+  const fell = '#8a5a32', bauch = '#c9a06a', dunkel = '#5a3a22';
+  for (const [x, z] of [[-2, 4], [1, 4], [-2, -4], [1, -4]]) { g.box(x, 0, z, x + 1, 5, z, dunkel); g.box(x, 6, z, x + 1, 7, z, fell); }
+  g.box(-2, 8, -5, 2, 11, 5, fell, 0, 0.06); g.box(-1, 7, -4, 1, 7, 4, bauch);
+  g.box(-1, 11, 4, 1, 15, 6, fell); g.box(-1, 14, 7, 1, 16, 9, fell); g.box(-1, 14, 10, 1, 15, 10, dunkel);
+  g.set(-2, 17, 7, fell); g.set(2, 17, 7, fell); g.set(-1, 15, 9, '#1a120c'); g.set(1, 15, 9, '#1a120c');
+  g.box(0, 10, -7, 0, 11, -6, '#efe6d6');
+}
+function vogelModell(g: Grid): void {
+  g.box(-1, 0, -2, 1, 1, 2, '#3a3430'); g.set(0, 1, 3, '#3a3430'); g.set(0, 1, 4, '#d9a040');
+  for (const s of [-1, 1]) for (let i = 2; i <= 6; i++) g.box(s * i, 1, -1, s * i, 1, 1 - (i > 4 ? 1 : 0), '#4a423c');
+  g.box(0, 1, -4, 0, 1, -3, '#3a3430');
+}
+function fischModell(g: Grid): void {
+  g.box(-1, 0, -3, 1, 1, 3, '#b8c4cc', 0, 0.12); g.box(0, 2, -1, 0, 2, 1, '#8a96a0'); g.box(-1, 0, -5, 1, 1, -4, '#8a96a0'); g.set(-1, 1, 2, '#1a1a1a'); g.set(1, 1, 2, '#1a1a1a');
+}
+const REH = B([{ art: 'bein', seite: 1, p: [0, 7, 4.5] }, { art: 'bein', seite: -1, p: [0, 7, 4.5] }, { art: 'bein', seite: -1, p: [0, 7, -3.5] }, { art: 'bein', seite: 1, p: [0, 7, -3.5] }],
+  (x, y, z) => (y <= 7 && Math.abs(z) >= 4 ? (z > 0 ? 0 : 2) + (x < 0 ? 0 : 1) : -1));
+const VOGEL = B([{ art: 'fluegel', seite: -1, p: [-1.5, 1, 0] }, { art: 'fluegel', seite: 1, p: [1.5, 1, 0] }], (x) => (x <= -2 ? 0 : x >= 2 ? 1 : -1));
+type Reh = { x: number; z: number; ziel: [number, number]; warte: number; richtung: number; phase: number; gang: number; flieht: boolean; tempo: number };
+type Schwarm = { x: number; z: number; y: number; w: number; r: number; v: number; n: number; flieht: number };
+type Sprung = { x: number; z: number; y: number; t: number; dauer: number; richtung: number };
+class Tierwelt {
+  private rehe: Reh[] = []; private schwaerme: Schwarm[] = []; private spruenge: Sprung[] = [];
+  private rehSchar: Schar; private vogelSchar: Schar; private fischSchar: Schar; private sucheZeit = 0;
+  constructor(scene: THREE.Scene, private spiel: Spiel) {
+    const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
+    this.rehSchar = new Schar(mk(rehModell), 0.13, 40, scene, true, REH);
+    this.vogelSchar = new Schar(mk(vogelModell), 0.1, 60, scene, false, VOGEL);
+    this.fischSchar = new Schar(mk(fischModell), 0.09, 12, scene, false);
+  }
+  private frei(x: number, z: number): boolean { return trocken(x, z) && !this.spiel.bebaut(x, z) && this.spiel.erkundetAn(x, z); }
+  /** offene Wiese: frei und ohne Baum oder Felsen (dort sieht man die Rehe) */
+  private wiese(x: number, z: number): boolean {
+    if (!this.frei(x, z)) return false;
+    const X = Math.floor(x), Z = Math.floor(z), sp = spalte(X, Z); if (!sp || sp.a !== 'gras') return false;
+    const d = deko(X, Z, sp); return !d || d.art === 'gras' || this.spiel.dekoZustand(X, Z) === 'weg';
+  }
+  bild(dt: number, t: number, ziel: THREE.Vector3, menge: number): void {
+    const S = this.spiel, tag = S.phase === 'tag' || S.phase === 'morgen';
+    const gefahr = (x: number, z: number) => !tag || S.gegner.some((e) => Math.abs(e.x - x) < 25 && Math.abs(e.z - z) < 25);
+    // neue Tiere um den Blickpunkt, aber nicht zu nah an der Burg
+    this.sucheZeit -= dt;
+    if (this.sucheZeit <= 0 && tag && menge > 0) {
+      this.sucheZeit = 2;
+      const h = S.haupt, weitWeg = (x: number, z: number) => !h || Math.hypot(x - h.x - h.w / 2, z - h.z - h.d / 2) > 34;
+      if (this.rehe.filter((r) => !r.flieht).length < 10 * menge) {
+        const a = Math.random() * 6.28, d = 30 + Math.random() * 50, x = ziel.x + Math.cos(a) * d, z = ziel.z + Math.sin(a) * d;
+        if (this.wiese(x, z) && weitWeg(x, z) && !gefahr(x, z)) for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) {
+          const rx = x + (Math.random() - 0.5) * 5, rz = z + (Math.random() - 0.5) * 5;
+          if (this.wiese(rx, rz)) this.rehe.push({ x: rx, z: rz, ziel: [rx, rz], warte: Math.random() * 4, richtung: Math.random() * 6.28, phase: Math.random() * 6, gang: 0, flieht: false, tempo: 1 + Math.random() * 0.5 });
+        }
+      }
+      if (this.schwaerme.length < 2 * menge) this.schwaerme.push({ x: ziel.x + (Math.random() - 0.5) * 80, z: ziel.z + (Math.random() - 0.5) * 80, y: ziel.y + 22 + Math.random() * 10, w: Math.random() * 6.28, r: 10 + Math.random() * 14, v: 0.25 + Math.random() * 0.2, n: 5 + Math.floor(Math.random() * 6), flieht: 0 });
+      if (this.spruenge.length < 3 * menge) for (let k = 0; k < 6; k++) {
+        const x = ziel.x + (Math.random() - 0.5) * 90, z = ziel.z + (Math.random() - 0.5) * 90, sp = spalte(Math.floor(x), Math.floor(z));
+        if (sp && sp.a === 'w' && S.erkundetAn(x, z)) { this.spruenge.push({ x, z, y: sp.h + 1.6, t: -Math.random() * 3, dauer: 0.9 + Math.random() * 0.4, richtung: Math.random() * 6.28 }); break; }
+      }
+    }
+    // Rehe: grasen, ziehen umher, fliehen vor Wesen und vor der Nacht
+    this.rehSchar.beginn();
+    for (const r of this.rehe) {
+      if (!r.flieht && gefahr(r.x, r.z)) { r.flieht = true; const a = Math.atan2(r.z - ziel.z, r.x - ziel.x); r.ziel = [r.x + Math.cos(a) * 120, r.z + Math.sin(a) * 120]; r.tempo = 6; }
+      const dx = r.ziel[0] - r.x, dz = r.ziel[1] - r.z, d = Math.hypot(dx, dz); let geht = false;
+      if (r.warte > 0) r.warte -= dt;
+      else if (d < 0.3) { r.warte = 2 + Math.random() * 6; const a = Math.random() * 6.28, w = 3 + Math.random() * 8, nx = r.x + Math.cos(a) * w, nz = r.z + Math.sin(a) * w; if (this.wiese(nx, nz)) r.ziel = [nx, nz]; }
+      else {
+        const sp = Math.min(d, r.tempo * dt), nx = r.x + (dx / d) * sp, nz = r.z + (dz / d) * sp;
+        if (r.flieht || this.frei(nx, nz)) { r.x = nx; r.z = nz; r.richtung = Math.atan2(dx, dz); geht = true; r.phase += (sp / 0.6) * Math.PI; } else r.ziel = [r.x, r.z];
+      }
+      r.gang += ((geht ? 1 : 0) - r.gang) * Math.min(1, dt * 6);
+      const kopf = !geht && r.warte > 0 && Math.sin(t * 0.7 + r.phase) > 0.2 ? 0.35 : 0; // grasen: nach vorn geneigt
+      this.rehSchar.setze(r.x, hoehe(r.x, r.z), r.z, r.richtung, 0, kopf, 1, { phase: r.phase, gang: r.gang });
+    }
+    this.rehe = this.rehe.filter((r) => Math.hypot(r.x - ziel.x, r.z - ziel.z) < 140 && !(r.flieht && Math.hypot(r.x - ziel.x, r.z - ziel.z) > 90));
+    this.rehSchar.ende();
+    // Vögel: Schwärme kreisen, fliegen bei Gefahr davon
+    this.vogelSchar.beginn();
+    for (const s of this.schwaerme) {
+      if (!tag || gefahr(s.x, s.z)) s.flieht += dt;
+      s.w += s.v * dt; const weg = s.flieht * 30;
+      for (let i = 0; i < s.n; i++) {
+        const a = s.w + (i / s.n) * 0.9, rr = s.r + (i % 3) * 1.6, x = s.x + Math.cos(a) * rr + weg, z = s.z + Math.sin(a) * rr + weg * 0.4, y = s.y + Math.sin(t * 0.8 + i) * 1.2 + weg * 0.5;
+        this.vogelSchar.setze(x, y, z, a + Math.PI, Math.sin(t + i) * 0.15, 0, 1, { phase: t * 9 + i * 1.7, gang: 0, flug: 0.9 });
+      }
+    }
+    this.schwaerme = this.schwaerme.filter((s) => s.flieht < 6 && Math.hypot(s.x - ziel.x, s.z - ziel.z) < 160);
+    this.vogelSchar.ende();
+    // Fische springen aus dem Wasser
+    this.fischSchar.beginn();
+    for (const f of this.spruenge) {
+      f.t += dt; if (f.t < 0 || f.t > f.dauer) continue;
+      const u = f.t / f.dauer, h = Math.sin(u * Math.PI) * 1.4, vor = (u - 0.5) * 2.2;
+      this.fischSchar.setze(f.x + Math.sin(f.richtung) * vor, f.y + h, f.z + Math.cos(f.richtung) * vor, f.richtung, 0, -(u - 0.5) * 2.2);
+    }
+    this.spruenge = this.spruenge.filter((f) => f.t <= f.dauer);
+    this.fischSchar.ende();
+  }
 }
 
 /** Trümmer, Funken und Rauch: kleine Würfel */
@@ -297,7 +418,10 @@ export class Objekte {
   private strahlen: THREE.InstancedMesh; private blitze: { a: THREE.Vector3; b: THREE.Vector3; t: number }[] = []; private blitzMesh: THREE.InstancedMesh;
   private schild: THREE.Mesh; private kegel: THREE.Mesh[] = [];
 
+  /** Tiere um diesen Punkt (Blickpunkt der Kamera); Menge 0 = keine (niedrige Grafik) */
+  tierZiel: THREE.Vector3 | null = null; tierMenge = 1; private tiere: Tierwelt;
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
+    this.tiere = new Tierwelt(scene, spiel);
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
     this.wesen = {
       moorwicht: new Schar(mk((g) => moorwicht(g, 0, 0, 0, 0)), 0.2, 500, scene, true, BAUPLAN.moorwicht),
@@ -364,6 +488,38 @@ export class Objekte {
     const g = new Grid(); siegelstein(g, false); const m = gridZuGruppe(g, 1.1); m.position.set(q.x, hoehe(q.x, q.z), q.z); this.scene.add(m); this.ruinen.set(-1 - RISSE.indexOf(q), m);
     if (neu) this.teilchen.wurf(q.x, hoehe(q.x, q.z) + 8, q.z, 60, ['#efe2ff', '#b07cff', '#d4a640'], 7, 1, 0.3);
   }
+  /** Fall der Feste: die Burg bebt, neigt sich, sinkt ruckweise ein, Brocken und Staub; am Ende bleibt ein Trümmerhaufen */
+  private sturz: { m: THREE.Object3D; t: number; y0: number; x: number; z: number; w: number; d: number; neig: number; staub: number; haufen: boolean } | null = null;
+  einsturz(): void {
+    const h = this.spiel.haupt; if (!h) return; const m = this.gebaeude.get(h.id); if (!m) return;
+    const [x, z] = gebMitte(h); this.sturz = { m, t: 0, y0: m.position.y, x, z, w: h.w, d: h.d, neig: h.id % 2 ? 1 : -1, staub: 0, haufen: false };
+  }
+  /** läuft der Einsturz noch? (für die Kamera) */
+  get sturzZeit(): number { return this.sturz ? this.sturz.t : -1; }
+  private sturzSchritt(dt: number): void {
+    const S = this.sturz; if (!S) return;
+    S.t += dt; const t = S.t, T = this.teilchen, H = 24;
+    const steine = ['#a59f95', '#8f897f', '#6b4a2f', '#5a3d24', '#3a3836'];
+    if (t < 0.7) { // Beben
+      S.m.position.set(S.x + (Math.random() - 0.5) * 0.25, S.y0, S.z + (Math.random() - 0.5) * 0.25);
+    } else if (t < 4.2) { // ruckweise Einsinken mit Neigung
+      const f = (t - 0.7) / 3.5, ruck = f + Math.sin(f * 18) * 0.025;
+      S.m.position.set(S.x + (Math.random() - 0.5) * 0.15, S.y0 - Math.pow(Math.max(0, ruck), 1.6) * H, S.z + (Math.random() - 0.5) * 0.15);
+      S.m.rotation.z = S.neig * f * 0.16; S.m.rotation.x = -S.neig * f * 0.07;
+    } else if (S.m.visible) { S.m.visible = false; }
+    S.staub -= dt;
+    if (t < 4.4 && S.staub <= 0) {
+      S.staub = 0.12;
+      const oben = S.m.position.y + Math.max(2, H - (S.y0 - S.m.position.y));
+      for (let i = 0; i < 3; i++) T.wurf(S.x + (Math.random() - 0.5) * S.w, oben * (0.4 + Math.random() * 0.6), S.z + (Math.random() - 0.5) * S.d, 4, steine, 5, 0, 0.45);
+      T.wurf(S.x + (Math.random() - 0.5) * S.w * 1.2, S.y0 + 0.5, S.z + (Math.random() - 0.5) * S.d * 1.2, 3, ['#8a837b', '#a59f95', '#6a625a'], 1.6, 2, 2.4);
+    }
+    if (t > 3.6 && !S.haufen) { // Trümmerhaufen bleibt
+      S.haufen = true; const g = new Grid(); ruine(g, S.w, S.d, rng(97));
+      const r = gridZuGruppe(g, 0.5); r.position.set(S.x, S.y0, S.z); this.scene.add(r);
+      T.wurf(S.x, S.y0 + 2, S.z, 90, steine, 7, 0, 0.5); T.wurf(S.x, S.y0 + 1, S.z, 30, ['#8a837b', '#6a625a'], 2, 2, 3);
+    }
+  }
   private neueRuine(ru: Ruine): void {
     const g = new Grid(); ruine(g, ru.w, ru.d, rng(ru.id * 7 + 3));
     const m = gridZuGruppe(g, 0.5); m.position.set(ru.x + ru.w / 2, ru.y, ru.z + ru.d / 2);
@@ -379,11 +535,14 @@ export class Objekte {
     return this.kegel[i];
   }
 
+  /** Bauschicht 1–5 eines Gebäudes im Bau, 0 = fertig */
+  private bauSchichten = new Map<number, number>();
+  private bauSchicht(g: Geb): number { return Spiel.imBau(g) ? 1 + Math.min(4, Math.floor((g.umbau!.t / g.umbau!.dauer) * 5)) : 0; }
   private neuesGeb(g: Geb): void {
     const alt = this.gebaeude.get(g.id); if (alt) this.scene.remove(alt);
     const ms = g.typ === 'mauer' ? mauerStufe(g) : 0; this.mauerStufen.set(g.id, ms);
-    const bau = !!(g.umbau && GEBAEUDE[g.typ].bauzeit && g.umbau.nach === g.typ && !g.umbau.stufe);
-    const m = gebModell(g.typ, (g.typ === 'mauer' || g.typ === 'tor') && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms, this.spiel.volk, bau).clone();
+    const schicht = this.bauSchicht(g); this.bauSchichten.set(g.id, schicht);
+    const m = gebModell(g.typ, (g.typ === 'mauer' || g.typ === 'tor') && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms, this.spiel.volk, schicht).clone();
     const [cx, cz] = gebMitte(g); m.position.set(cx, g.y, cz);
     m.userData.y = g.y; this.scene.add(m); this.gebaeude.set(g.id, m);
   }
@@ -494,6 +653,7 @@ export class Objekte {
     for (const s of Object.values(this.arbeiter)) s.ende();
     for (const m of Object.values(this.traglast)) m.instanceMatrix.needsUpdate = true;
     this.bewegeBuerger(dt, t);
+    if (this.tierZiel) this.tiere.bild(dt, t, this.tierZiel, this.tierMenge);
     // Pfeile über Gebäuden, die sich gerade verbessern lassen (nur am Tag)
     this.pfeilZeit -= dt; if (this.pfeilZeit <= 0) { this.pfeilZeit = 0.5; this.pfeilListe = S.phase === 'tag' && this.zeigePfeile ? S.gebaeude.filter((g) => g.typ !== 'mauer' && S.verbesserbar(g)) : []; }
     this.pfeilSchar.beginn();
@@ -508,6 +668,7 @@ export class Objekte {
     let ns = 0; const fw0 = new THREE.Vector3(0, 0, 1);
     for (const g of S.gebaeude) {
       const [cx, cz] = gebMitte(g);
+      { const sch = this.bauSchicht(g); if (sch !== (this.bauSchichten.get(g.id) ?? 0)) this.neuesGeb(g); }
       if (g.rep || g.umbau) {
         for (let i = 0; i < (g.umbau ? 3 : 2); i++) {
           const a = i * Math.PI + g.id, x = cx + Math.cos(a) * (g.w / 2 + 0.8), z = cz + Math.sin(a) * (g.d / 2 + 0.8);
@@ -586,6 +747,7 @@ export class Objekte {
     }
     this.balken.ende();
     this.weg.setze(S, wegStaerke);
+    this.sturzSchritt(dt);
     this.teilchen.schritt(dt);
   }
   /** Einwohner ohne Arbeit schlendern am Tag zwischen Häusern, Burg, Hof und Werkstatt */
@@ -634,6 +796,21 @@ export class Objekte {
   }
   private flaeche: THREE.Mesh | null = null;
   /** Vorschau für „Ebnen“: Fläche in Zielhöhe */
+  /** Mauerverlauf beim Ziehen: je Block ein flaches Feld auf dem Boden, grün = baubar, rot = nicht */
+  private linie: THREE.InstancedMesh | null = null;
+  zeigeLinie(felder: [number, number, number, boolean][] | null): void {
+    if (!this.linie) {
+      // leicht erhöht und auch durch Bäume sichtbar, damit der Verlauf klar zu sehen ist
+      const g = new THREE.BoxGeometry(0.84, 0.3, 0.84); g.translate(0.5, 0.15, 0.5);
+      this.linie = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.72, depthWrite: false, depthTest: false, toneMapped: false }), 400);
+      this.linie.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(400 * 3), 3);
+      this.linie.frustumCulled = false; this.linie.renderOrder = 32; this.scene.add(this.linie);
+    }
+    const L = this.linie, m = new THREE.Matrix4(), gut = new THREE.Color('#7dffb4').multiplyScalar(1.3), schlecht = new THREE.Color('#ff5a46').multiplyScalar(1.3);
+    const n = felder ? Math.min(400, felder.length) : 0;
+    for (let i = 0; i < n; i++) { const [x, y, z, ok] = felder![i]; m.makeTranslation(x, y + 0.02, z); L.setMatrixAt(i, m); L.setColorAt(i, ok ? gut : schlecht); }
+    L.count = n; L.visible = n > 0; L.instanceMatrix.needsUpdate = true; if (L.instanceColor) L.instanceColor.needsUpdate = true;
+  }
   zeigeFlaeche(x0: number, z0: number, x1: number, z1: number, y: number, ok: boolean, sichtbar = true): void {
     if (!this.flaeche) { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0.5, -0.5, 0.5); this.flaeche = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.35, depthWrite: false })); this.flaeche.renderOrder = 31; this.scene.add(this.flaeche); }
     const f = this.flaeche; f.visible = sichtbar; if (!sichtbar) return;

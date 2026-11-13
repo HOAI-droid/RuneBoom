@@ -1,3 +1,4 @@
+import { matan2, mcos, mhypot, mpow, msin } from './rechnen.ts';
 import { t as tr } from './sprache.ts';
 import { rng, seedAusCode, type Rng } from './zufall.ts';
 import { B, RISS, RISS2, RISSE, WR, setzeSeed, spalte, deko, begehbar, amPfad, orte, hoehe, setzeHoehe, hoehenListe, type Spalte, type Deko } from './welt.ts';
@@ -18,7 +19,7 @@ export const DT = 1 / 20;
 export const NZ = 8, NN = (2 * WR) / NZ;
 
 export interface Geb { id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
-  zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number }; strahlen: number[]; schild: number;
+  zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number; kurz?: boolean }; strahlen: number[]; schild: number;
   /** brennt noch so viele Sekunden · danach eine Weile geschützt */ brand: number; brandSchutz?: number; /** hat in dieser Nacht Runenkraft */ kraft: boolean; /** Schaden in dieser Nacht */ leistung: number;
   /** Siegel: wartet auf die Nacht des Ansturms */ ritual?: boolean }
 /** Trümmer eines zerstörten Gebäudes: lässt sich günstig wieder aufbauen */
@@ -65,6 +66,26 @@ export type Ereignis =
   | { art: 'falle'; x: number; y: number; z: number; typ: string };
 export interface Nachtbericht { nacht: number; besiegt: number; beute: string; schaden: number; zerstoert: string[]; tuerme: { name: string; schaden: number }[]; kraftFehlt: number; einwohner: number; wesen: number }
 export type Phase = 'tag' | 'nacht' | 'morgen' | 'verloren' | 'gewonnen';
+/**
+ * Befehle: jede Handlung eines Spielers als kleiner Datensatz. Die Oberfläche ruft nur `befehl()` auf;
+ * so lassen sich Partien aufzeichnen, wiederholen und später zwischen Mitspielern austauschen.
+ */
+export type Befehl =
+  | { art: 'bauen'; typ: GebTyp; x: number; z: number; still?: boolean }
+  | { art: 'abreissen'; geb: number }
+  | { art: 'reparieren'; geb: number }
+  | { art: 'umruesten'; geb: number; nach: GebTyp; zweig?: string }
+  | { art: 'stufe'; geb: number }
+  | { art: 'burg' }
+  | { art: 'verschmelzen'; geb: number; partner: number }
+  | { art: 'erfinden'; erf: ErfId }
+  | { art: 'leitsatz'; id: string }
+  | { art: 'spaeher'; x: number; z: number }
+  | { art: 'ebnen'; x0: number; z0: number; x1: number; z1: number }
+  | { art: 'nacht' }
+  | { art: 'faehigkeit'; name: string; x?: number; z?: number }
+  | { art: 'wiederaufbau'; ruine: number }
+  | { art: 'raeumen'; ruine: number };
 
 export interface Spielstand {
   v: 1 | 2 | 3 | 4; code: string; einwohner?: number; schwierigkeit?: Schwierigkeit;
@@ -175,6 +196,8 @@ export class Spiel {
   restTag(): number { return Math.max(0, TAG_DAUER - this.zeit); }
   erkundetAn(x: number, z: number): boolean { const i = Math.floor((x + WR) / NZ), j = Math.floor((z + WR) / NZ); return i >= 0 && j >= 0 && i < NN && j < NN && this.erkundet[i * NN + j] === 1; }
   gebAn(x: number, z: number): Geb | undefined { const id = this.belegt[this.bi(x, z)]; return id ? this.gebaeude.find((g) => g.id === id) : undefined; }
+  /** steht an (x, z) ein Gebäude? (für Tiere und Bürger in der Darstellung) */
+  bebaut(x: number, z: number): boolean { return this.belegt[this.bi(x, z)] > 0; }
   private bi(x: number, z: number): number { const i = Math.floor(x) + WR, j = Math.floor(z) + WR; return i < 0 || j < 0 || i >= 2 * WR || j >= 2 * WR ? 0 : j * 2 * WR + i; }
   static kachel(x: number, z: number): number { return (Math.floor(x) + 600) * 2048 + (Math.floor(z) + 600); }
   /** Bewuchs jetzt: berücksichtigt gefällte Bäume und abgebaute Felsen */
@@ -199,11 +222,11 @@ export class Spiel {
   licht(x: number, z: number): { wert: number; enthuellt: boolean } {
     let w = 0, e = false; const nebel = this.phase === 'nacht' && this.omenFuer(this.nacht) === 'nebelnacht';
     for (const l of this.lichter) {
-      const d = Math.hypot(x - l.x, z - l.z); if (d >= l.r) continue;
+      const d = mhypot(x - l.x, z - l.z); if (d >= l.r) continue;
       let v = 1 - d / l.r;
       if (nebel) { if (d >= l.r * 0.6) continue; v = 1 - d / (l.r * 0.6); }
       if (l.kegel && l.geb) { // Scheinwerfer: kleiner Kreis plus langer Kegel
-        let da = Math.atan2(x - l.x, z - l.z) - l.geb.zielen; da = Math.atan2(Math.sin(da), Math.cos(da));
+        let da = matan2(x - l.x, z - l.z) - l.geb.zielen; da = matan2(msin(da), mcos(da));
         v = Math.abs(da) < l.kegel ? Math.max(0.35, 1 - d / l.r) : d < 6 ? 1 - d / 6 : 0;
       }
       if (v > w) w = v; if (l.enthuellt && v > 0.05) e = true;
@@ -240,7 +263,7 @@ export class Spiel {
     if (E.has('himmelsauge')) k.reichweite += 2;
     if (E.has('aetherfeuer') && k.brand) k.brand *= 2;
     if (this.hatWunder('w_runenschmiede')) k.schaden *= 1.2;
-    const lt = this.hatWunder('w_leuchtturm'); if (lt && g.typ !== 'haupt' && Math.hypot(lt.x + 3 - g.x - g.w / 2, lt.z + 3 - g.z - g.d / 2) < 40) k.reichweite += 2;
+    const lt = this.hatWunder('w_leuchtturm'); if (lt && g.typ !== 'haupt' && mhypot(lt.x + 3 - g.x - g.w / 2, lt.z + 3 - g.z - g.d / 2) < 40) k.reichweite += 2;
     if (this.phase === 'nacht' && this.omenFuer(this.nacht) === 'sturm' && (k.geschoss === 'blitz' || k.geschoss === 'aura')) k.schaden *= 2;
     if (!g.kraft && g.typ !== 'haupt' && this.phase === 'nacht') { k.abklingen *= 2; if (k.geschoss === 'strahl' || k.geschoss === 'aura') k.schaden *= 0.5; }
     return k;
@@ -361,7 +384,7 @@ export class Spiel {
   essen(): number { return Math.ceil(this.einwohner * ESSEN * (this.erfindungen.has('kornspeicher') ? 0.75 : 1) * (this.hatWunder('w_kornkammer') ? 0.7 : 1)); }
   /** Einwohner auf die Arbeitsgebäude verteilen: zuerst Nahrung, dann der Reihe nach */
   verteileArbeiter(): void {
-    const liste = this.gebaeude.filter((g) => this.arbeiterZahl(g) > 0 && !(g.umbau && GEBAEUDE[g.typ].bauzeit));
+    const liste = this.gebaeude.filter((g) => this.arbeiterZahl(g) > 0 && !Spiel.imBau(g));
     const essen = (g: Geb) => (GEBAEUDE[g.typ].arbeit?.res === 'nahrung' ? 1 : 0);
     liste.sort((a, b) => essen(b) - essen(a) || a.id - b.id);
     // erste Runde: jedem Gebäude einen, dann auffüllen
@@ -391,7 +414,7 @@ export class Spiel {
   /** alle Risse, die es in dieser Welt gibt (für den Sieg) */
   alleRisse(): typeof RISSE { return RISSE.filter((q) => spalte(q.x, q.z)); }
   /** nächster unversiegelter, offener Riss nahe (x, z) */
-  rissNahe(x: number, z: number, r: number) { return this.offeneRisse().find((q) => Math.hypot(q.x - x, q.z - z) < r); }
+  rissNahe(x: number, z: number, r: number) { return this.offeneRisse().find((q) => mhypot(q.x - x, q.z - z) < r); }
   ruineAn(x: number, z: number): Ruine | undefined { return this.ruinen.find((r) => x >= r.x && x < r.x + r.w && z >= r.z && z < r.z + r.d); }
   welleVorschau() { return welle(this.nacht); }
 
@@ -407,11 +430,11 @@ export class Spiel {
     }
     if (typ === 'siegel') {
       const q = this.rissNahe(x0 + 2, z0 + 2, 20); if (!q) return { ok: false, grund: tr('Ein Siegelstein muss nahe an einem offenen Riss stehen.'), y: 0 };
-      if (this.gebaeude.some((g) => g.typ === 'siegel' && Math.hypot(g.x - q.x, g.z - q.z) < 24)) return { ok: false, grund: tr('An diesem Riss steht schon ein Siegelstein.'), y: 0 };
+      if (this.gebaeude.some((g) => g.typ === 'siegel' && mhypot(g.x - q.x, g.z - q.z) < 24)) return { ok: false, grund: tr('An diesem Riss steht schon ein Siegelstein.'), y: 0 };
     }
     if (def.versorgt) {
       const cx = x0 + def.w / 2, cz = z0 + def.d / 2, h = this.haupt;
-      const ok = (h && Math.hypot(h.x + 6 - cx, h.z + 6 - cz) < 52) || this.gebaeude.some((g) => g.typ === 'aussenposten' && Math.hypot(g.x + 2.5 - cx, g.z + 2.5 - cz) < 34);
+      const ok = (h && mhypot(h.x + 6 - cx, h.z + 6 - cz) < 52) || this.gebaeude.some((g) => g.typ === 'aussenposten' && mhypot(g.x + 2.5 - cx, g.z + 2.5 - cz) < 34);
       if (!ok) return { ok: false, grund: tr('Zu weit weg: Rohstoffgebäude brauchen die Burg oder einen Außenposten in der Nähe.'), y: 0 };
     }
     if (def.kampf && Spiel.zaehltAlsTurm(typ) && this.turmZahl() >= this.turmGrenze()) return { ok: false, grund: tr('Turmgrenze erreicht ({a}). Baue die Burg aus, um mehr Türme zu erlauben.', { a: this.turmGrenze() }), y: 0 };
@@ -430,7 +453,7 @@ export class Spiel {
     }
     if (hi - lo > (typ === 'mauer' ? 2 : 1)) return { ok: false, grund: tr('Der Boden ist zu uneben.'), y: 0 };
     if (typ === 'fischer' && !this.quellen('fischer', x0 + def.w / 2, z0 + def.d / 2, GEBAEUDE.fischer.arbeit!.radius, false).length) return { ok: false, grund: tr('Eine Fischerhütte braucht Wasser in der Nähe.'), y: 0 };
-    if (typ === 'kristall' && !orte().some((o) => o.typ === 'kristall' && Math.hypot(o.x - (x0 + 2), o.z - (z0 + 2)) < 10)) return { ok: false, grund: tr('Eine Kristallmine muss an einem Kristallfeld stehen.'), y: 0 };
+    if (typ === 'kristall' && !orte().some((o) => o.typ === 'kristall' && mhypot(o.x - (x0 + 2), o.z - (z0 + 2)) < 10)) return { ok: false, grund: tr('Eine Kristallmine muss an einem Kristallfeld stehen.'), y: 0 };
     return { ok: true, y: hi + 1 };
   }
 
@@ -442,9 +465,16 @@ export class Spiel {
     if (!p.ok) { if (!still) this.melde(p.grund!, 'schlecht'); return false; }
     if (!this.kannBezahlen(def.kosten)) { if (!still) this.melde(tr('{a} kostet {b}. {c}', { a: tr(def.name), b: kostenText(def.kosten), c: this.fehlt(def.kosten) }), 'schlecht'); return false; }
     for (const [r, n] of Object.entries(def.kosten)) this.res[r as Res] -= n as number;
-    this.setze(typ, x0, z0);
+    const g = this.setze(typ, x0, z0);
+    if (!def.bauzeit) this.bauBeginnen(g);
     return true;
   }
+  /** Bauzeit eines neuen Gebäudes ohne eigene Bauzeit: je nach Grundfläche wenige Sekunden */
+  static bauDauer(typ: GebTyp): number { const d = GEBAEUDE[typ]; return d.bauzeit ?? Math.min(12, 1.6 + d.w * d.d * 0.26); }
+  /** Gebäude entsteht erst: kämpft nicht, arbeitet nicht, wird Schicht für Schicht sichtbar */
+  private bauBeginnen(g: Geb): void { g.umbau = { t: 0, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: true }; this.verteileArbeiter(); }
+  /** steht das Gebäude noch im Bau (neu gebaut, nicht umgerüstet)? */
+  static imBau(g: Geb): boolean { return !!g.umbau && g.umbau.nach === g.typ && !g.umbau.stufe && (!!g.umbau.kurz || !!GEBAEUDE[g.typ].bauzeit); }
   abreissen(g: Geb): void {
     if (g.typ === 'haupt' || g.typ === 'werkstatt') { this.melde(tr('Das bleibt stehen.'), 'schlecht'); return; }
     for (const [r, n] of Object.entries(GEBAEUDE[g.typ].kosten)) this.res[r as Res] += Math.floor((n as number) * 0.5 * g.hp / g.max);
@@ -453,7 +483,7 @@ export class Spiel {
   spaeher(x: number, z: number): boolean {
     if (this.erkundetAn(x, z)) return false;
     let nah = Infinity;
-    for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) if (this.erkundet[i * NN + j]) nah = Math.min(nah, Math.hypot(-WR + (i + 0.5) * NZ - x, -WR + (j + 0.5) * NZ - z));
+    for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) if (this.erkundet[i * NN + j]) nah = Math.min(nah, mhypot(-WR + (i + 0.5) * NZ - x, -WR + (j + 0.5) * NZ - z));
     if (nah > 64) { this.melde(tr('Zu weit: Späher kommen nur vom Rand des Erkundeten aus.'), 'schlecht'); return false; }
     if (this.res.holz < 15) { this.melde(tr('Ein Späher kostet 15 Holz.'), 'schlecht'); return false; }
     this.res.holz -= 15;
@@ -497,16 +527,61 @@ export class Spiel {
   }
 
   // ---------------- Takt ----------------
+  /** Takte seit Beginn dieser Partie (für das Befehlsprotokoll) */
+  takt = 0;
+  /** alle ausgeführten Befehle mit ihrem Takt (nicht gespeichert) */
+  protokoll: { takt: number; b: Befehl }[] = [];
+  /** einen Befehl ausführen; true, wenn er etwas bewirkt hat */
+  befehl(b: Befehl): boolean {
+    const geb = (id: number) => this.gebaeude.find((g) => g.id === id), ru = (id: number) => this.ruinen.find((r) => r.id === id);
+    let ok = false;
+    switch (b.art) {
+      case 'bauen': ok = this.bauen(b.typ, b.x, b.z, b.still); break;
+      case 'abreissen': { const g = geb(b.geb); if (g) { const n = this.gebaeude.length; this.abreissen(g); ok = this.gebaeude.length < n; } break; }
+      case 'reparieren': { const g = geb(b.geb); ok = !!g && this.reparieren(g); break; }
+      case 'umruesten': { const g = geb(b.geb); ok = !!g && this.umruesten(g, b.nach, b.zweig); break; }
+      case 'stufe': { const g = geb(b.geb); ok = !!g && this.stufeAusbauen(g); break; }
+      case 'burg': ok = this.hauptAusbauen(); break;
+      case 'verschmelzen': { const g = geb(b.geb), p = geb(b.partner); ok = !!g && !!p && this.verschmelzen(g, p); break; }
+      case 'erfinden': ok = this.erfinden(b.erf); break;
+      case 'leitsatz': ok = this.waehleLeitsatz(b.id); break;
+      case 'spaeher': ok = this.spaeher(b.x, b.z); break;
+      case 'ebnen': ok = this.ebnen(b.x0, b.z0, b.x1, b.z1); break;
+      case 'nacht': { const vor = this.phase; this.nachtEinlaeuten(); ok = vor === 'tag' && this.phase !== vor; break; }
+      case 'faehigkeit': ok = this.faehigkeit(b.name, b.x, b.z); break;
+      case 'wiederaufbau': { const r = ru(b.ruine); ok = !!r && this.wiederaufbauen(r); break; }
+      case 'raeumen': { const r = ru(b.ruine); if (r) { this.raeumen(r); ok = true; } break; }
+    }
+    if (ok) this.protokoll.push({ takt: this.takt, b });
+    return ok;
+  }
+  /** Prüfsumme des Spielstands: gleich auf allen Geräten, wenn dieselben Befehle zur selben Zeit kamen */
+  pruefsumme(): number {
+    let h = 2166136261 >>> 0;
+    const mix = (v: number) => { h = Math.imul(h ^ (Math.round(v * 64) | 0), 16777619) >>> 0; };
+    mix(this.takt); mix(this.nacht); mix(this.zeit);
+    for (const r of Object.keys(this.res).sort()) mix(this.res[r as Res]);
+    for (const g of this.gebaeude) { mix(g.id); mix(g.x); mix(g.z); mix(g.hp); }
+    for (const e of this.gegner) { mix(e.id); mix(e.x); mix(e.z); mix(e.hp); }
+    for (const a of this.arbeiter) { mix(a.x); mix(a.z); }
+    return h;
+  }
   schritt(): void {
     if (this.phase === 'verloren' || this.phase === 'gewonnen') return;
+    this.takt++;
     this.zeit += DT;
     if (this.feldAlt) this.feldNeu();
+    // kurze Bauten wachsen auch nachts weiter
+    for (const g of this.gebaeude) if (g.umbau?.kurz) {
+      g.umbau.t += DT;
+      if (g.umbau.t >= g.umbau.dauer) { g.umbau = undefined; g.max = this.grundHp(g); g.hp = g.max; g.cd = 0; this.lichterNeu(); this.verteileArbeiter(); this.feldAlt = true; this.ereignisse.push({ art: 'umgebaut', geb: g }); }
+    }
     if (this.phase === 'tag') {
       for (const g of this.gebaeude) if (g.rep) {
         g.rep.t += DT; const f = Math.min(1, g.rep.t / g.rep.dauer); g.hp = g.rep.von + (g.max - g.rep.von) * f;
         if (f >= 1) { g.rep = undefined; g.hp = g.max; this.ereignisse.push({ art: 'reparatur', geb: g, fertig: true }); }
       }
-      for (const g of this.gebaeude) if (g.umbau) {
+      for (const g of this.gebaeude) if (g.umbau && !g.umbau.kurz) {
         g.umbau.t += DT;
         if (g.umbau.t >= g.umbau.dauer) {
           const u = g.umbau; g.umbau = undefined;
@@ -556,7 +631,7 @@ export class Spiel {
     const bedarf = this.runenkraftBedarf(), zahlt = Math.min(bedarf, Math.floor(this.res.kristall));
     this.res.kristall -= zahlt; this.kraftFehlt = bedarf - zahlt;
     const h = this.haupt, hx = h ? h.x + h.w / 2 : B.x, hz = h ? h.z + h.d / 2 : B.z;
-    const nachNaehe = [...this.gebaeude].sort((a, b) => Math.hypot(a.x - hx, a.z - hz) - Math.hypot(b.x - hx, b.z - hz));
+    const nachNaehe = [...this.gebaeude].sort((a, b) => mhypot(a.x - hx, a.z - hz) - mhypot(b.x - hx, b.z - hz));
     const m = (this.erfindungen.has('runenkreis') ? 0.75 : 1) * (this.erfindungen.has('aetherspeicher') ? 0.75 : 1);
     let rest = zahlt + 0.999;
     for (const g of nachNaehe) { const k = runenkraft(g.typ, g.stufe) * m; g.kraft = k <= rest; if (g.kraft) rest -= k; }
@@ -600,7 +675,7 @@ export class Spiel {
     for (const g of this.gebaeude) {
       const k = this.kampf(g); if (!k || g.typ === 'haupt') continue;
       const cx = g.x + g.w / 2, cz = g.z + g.d / 2;
-      if (weg.some(([x, z]) => Math.hypot(x - cx, z - cz) < k.reichweite)) n += k.schaden / Math.max(0.3, k.abklingen || 0.3);
+      if (weg.some(([x, z]) => mhypot(x - cx, z - cz) < k.reichweite)) n += k.schaden / Math.max(0.3, k.abklingen || 0.3);
     }
     return n;
   }
@@ -659,14 +734,14 @@ export class Spiel {
   }
   private erzeuge(typ: GegTyp, riss: { x: number; z: number }): void {
     const omen = this.omenFuer(this.nacht), d = GEGNER[typ], s = staerke(this.nacht, SCHWIERIGKEIT[this.schwierigkeit].wachstum) * (omen === 'blutmond' ? 1.25 : 1);
-    const a = this.r() * Math.PI * 2; let x = riss.x + Math.cos(a) * 3, z = riss.z + Math.sin(a) * 3;
+    const a = this.r() * Math.PI * 2; let x = riss.x + mcos(a) * 3, z = riss.z + msin(a) * 3;
     if (!d.flug && this.feld.wert(x, z) === Infinity) { const p = this.erreichbarNahe(x, z); if (p) { x = p[0]; z = p[1]; } }
     this.gegner.push({ id: this.naechsteId++, typ, x, z, y: hoehe(x, z), hp: d.hp * s, max: d.hp * s, tempo: d.tempo * (0.9 + this.r() * 0.2) * (omen === 'blutmond' ? 1.2 : 1) * (omen === 'sturm' && d.flug ? 0.6 : 1), schaden: d.schaden * s, flug: !!d.flug, verborgen: !!d.verborgen, versatz: (this.r() - 0.5) * 0.7, ziel: null, angriff: 0, richtung: 0, tot: false, seit: 0, fracht: d.fracht || 0, brand: 0, brandDps: 0, langsam: 0, panzer: typ === 'troll' && this.nacht >= PANZER_AB, feuer: 0, nebenbei: 1 + this.r() * 2, bester: Infinity, stillstand: 0, wurf: 1 + this.r() * 2, zielGeb: 0, ruf: typ === 'aschegeist' ? 3 : typ === 'steinwerfer' ? 0 : 8, bossSchild: 0, schildGenutzt: false });
   }
   /** nächstes Gebäude der Wirtschaft (Ziel der Aschegeister) */
   private wirtschaftsZiel(x: number, z: number): Geb | undefined {
     let best: Geb | undefined, bd = Infinity;
-    for (const g of this.gebaeude) if (WIRTSCHAFT.includes(g.typ)) { const d = Math.hypot(g.x + g.w / 2 - x, g.z + g.d / 2 - z); if (d < bd) { bd = d; best = g; } }
+    for (const g of this.gebaeude) if (WIRTSCHAFT.includes(g.typ)) { const d = mhypot(g.x + g.w / 2 - x, g.z + g.d / 2 - z); if (d < bd) { bd = d; best = g; } }
     return best;
   }
   /** Gebäude in Wurfweite (Steinwerfer): Türme zuerst */
@@ -717,7 +792,7 @@ export class Spiel {
 
   /** nächste Kachel, von der aus die Feste erreichbar ist */
   private erreichbarNahe(x: number, z: number): [number, number] | null {
-    for (let r = 1; r <= 40; r++) for (let a = 0; a < 16; a++) { const px = x + Math.cos(a / 16 * 6.283) * r, pz = z + Math.sin(a / 16 * 6.283) * r; if (this.feld.wert(px, pz) < Infinity) return [Math.floor(px) + 0.5, Math.floor(pz) + 0.5]; }
+    for (let r = 1; r <= 40; r++) for (let a = 0; a < 16; a++) { const px = x + mcos(a / 16 * 6.283) * r, pz = z + msin(a / 16 * 6.283) * r; if (this.feld.wert(px, pz) < Infinity) return [Math.floor(px) + 0.5, Math.floor(pz) + 0.5]; }
     return null;
   }
   private bewegeGegner(): void {
@@ -730,7 +805,7 @@ export class Spiel {
       if (e.feuer > 0) e.feuer -= DT;
       e.nebenbei -= DT;
       const def = GEGNER[e.typ];
-      if (def.heilt) for (const o of this.gegner) if (o !== e && !o.tot && o.hp < o.max && Math.abs(o.x - e.x) < 7 && Math.hypot(o.x - e.x, o.z - e.z) < 7) { o.hp = Math.min(o.max, o.hp + def.heilt * DT * staerke(this.nacht, 0.08)); if (this.r() < DT * 0.6) this.ereignisse.push({ art: 'heilung', x: o.x, y: o.y + 1.5, z: o.z }); }
+      if (def.heilt) for (const o of this.gegner) if (o !== e && !o.tot && o.hp < o.max && Math.abs(o.x - e.x) < 7 && mhypot(o.x - e.x, o.z - e.z) < 7) { o.hp = Math.min(o.max, o.hp + def.heilt * DT * staerke(this.nacht, 0.08)); if (this.r() < DT * 0.6) this.ereignisse.push({ art: 'heilung', x: o.x, y: o.y + 1.5, z: o.z }); }
       if (def.boss) {
         if (e.bossSchild > 0) e.bossSchild -= DT;
         e.ruf -= DT;
@@ -738,14 +813,14 @@ export class Spiel {
         if (!e.schildGenutzt && e.hp < e.max * 0.5) { e.schildGenutzt = true; e.bossSchild = 6; this.melde(tr('Der Rissfürst hüllt sich in einen Schild!'), 'schlecht'); }
       }
       const orgel = this.hatWunder('w_orgel');
-      let tempo = e.tempo * (e.langsam > 0 ? 0.55 : 1) * (orgel && Math.hypot(e.x - hx, e.z - hz) < 45 ? 0.67 : 1);
+      let tempo = e.tempo * (e.langsam > 0 ? 0.55 : 1) * (orgel && mhypot(e.x - hx, e.z - hz) < 45 ? 0.67 : 1);
       if (!e.flug) { // Fallen im Boden
         const f = this.gebAn(e.x, e.z), fa = f && GEBAEUDE[f.typ].falle;
         if (fa) {
           const st = (this.leitsatz('mauern') ? 2 : 1) * (this.erfindungen.has('aetherwall') ? 2 : 1);
           if (fa === 'dornen') { this.verletze(e, 10 * st * DT, true); tempo *= 0.6; }
           if (fa === 'oel') { tempo *= 0.35; if (e.brand > 0 || (f!.brand > 0)) { e.brand = 4; e.brandDps = 14 * st; } }
-          if (fa === 'spreng' && f!.cd === 0) { f!.cd = 1; this.ereignisse.push({ art: 'explosion', x: e.x, y: e.y, z: e.z, r: 3 }); this.ereignisse.push({ art: 'falle', x: e.x, y: e.y, z: e.z, typ: 'spreng' }); for (const o of this.gegner) if (!o.flug && Math.hypot(o.x - e.x, o.z - e.z) < 3.2) this.verletze(o, 120 * st * staerke(this.nacht, 0.08), true); }
+          if (fa === 'spreng' && f!.cd === 0) { f!.cd = 1; this.ereignisse.push({ art: 'explosion', x: e.x, y: e.y, z: e.z, r: 3 }); this.ereignisse.push({ art: 'falle', x: e.x, y: e.y, z: e.z, typ: 'spreng' }); for (const o of this.gegner) if (!o.flug && mhypot(o.x - e.x, o.z - e.z) < 3.2) this.verletze(o, 120 * st * staerke(this.nacht, 0.08), true); }
           if (e.tot) continue;
         }
       }
@@ -755,9 +830,9 @@ export class Spiel {
         if (e.wurf <= 0) {
           const g = this.wurfZiel(e.x, e.z, def.fern);
           if (g) {
-            e.wurf = 3; e.zielGeb = g.id; e.ruf--; const gx = g.x + g.w / 2, gz = g.z + g.d / 2, d = Math.hypot(gx - e.x, gz - e.z);
+            e.wurf = 3; e.zielGeb = g.id; e.ruf--; const gx = g.x + g.w / 2, gz = g.z + g.d / 2, d = mhypot(gx - e.x, gz - e.z);
             this.geschosse.push({ art: 'stein', x: e.x, y: e.y + 2, z: e.z, sx: e.x, sy: e.y + 2, sz: e.z, tx: gx, ty: g.y + 3, tz: gz, t: 0, dauer: 0.6 + d / 18, ziel: 0, zielGeb: g.id, schaden: e.schaden, flaeche: 0, trifft: true, bogen: 4 + d * 0.3, brand: 0, brechend: false, von: 0 });
-            e.richtung = Math.atan2(gx - e.x, gz - e.z);
+            e.richtung = matan2(gx - e.x, gz - e.z);
           } else { e.wurf = 0.5; e.zielGeb = 0; }
         }
         // nach zehn Würfen rückt er weiter vor
@@ -778,21 +853,21 @@ export class Spiel {
         // Aschegeist: tief über alles hinweg zum nächsten Hof, Haus oder zur Mine
         let g = this.gebaeude.find((o) => o.id === e.zielGeb);
         if (!g) { g = this.wirtschaftsZiel(e.x, e.z) || h; e.zielGeb = g.id; }
-        const gx = g.x + g.w / 2, gz = g.z + g.d / 2, dx = gx - e.x, dz = gz - e.z, dist = Math.hypot(dx, dz);
-        if (this.randAbstand(e.x, e.z, g) > 1.5) { e.x += (dx / dist) * tempo * DT; e.z += (dz / dist) * tempo * DT; e.richtung = Math.atan2(dx, dz); }
+        const gx = g.x + g.w / 2, gz = g.z + g.d / 2, dx = gx - e.x, dz = gz - e.z, dist = mhypot(dx, dz);
+        if (this.randAbstand(e.x, e.z, g) > 1.5) { e.x += (dx / dist) * tempo * DT; e.z += (dz / dist) * tempo * DT; e.richtung = matan2(dx, dz); }
         else { this.schlage(e, g); e.stillstand += DT; if (e.stillstand > 20) { e.tot = true; this.ereignisse.push({ art: 'tod', typ: e.typ, x: e.x, y: e.y, z: e.z }); continue; } }
-        e.y = hoehe(e.x, e.z) + 3.5 + Math.sin(e.seit * 3 + e.id) * 0.4;
+        e.y = hoehe(e.x, e.z) + 3.5 + msin(e.seit * 3 + e.id) * 0.4;
         continue;
       }
       if (e.flug) {
-        const dx = hx - e.x, dz = hz - e.z, dist = Math.hypot(dx, dz);
+        const dx = hx - e.x, dz = hz - e.z, dist = mhypot(dx, dz);
         if (e.fracht && dist < 18) { // Nebelrochen setzt Moorwichte hinter den Mauern ab
           for (let i = 0; i < e.fracht; i++) { this.erzeuge('moorwicht', { x: e.x + (this.r() - 0.5) * 2, z: e.z + (this.r() - 0.5) * 2 }); }
           this.ereignisse.push({ art: 'abwurf', x: e.x, y: e.y, z: e.z }); e.fracht = 0;
         }
-        if (dist > 5) { e.x += (dx / dist) * tempo * DT; e.z += (dz / dist) * tempo * DT; e.richtung = Math.atan2(dx, dz); }
+        if (dist > 5) { e.x += (dx / dist) * tempo * DT; e.z += (dz / dist) * tempo * DT; e.richtung = matan2(dx, dz); }
         else this.schlage(e, h);
-        e.y = hoehe(e.x, e.z) + 9 + Math.sin(e.seit * 2 + e.id) * 0.6;
+        e.y = hoehe(e.x, e.z) + 9 + msin(e.seit * 2 + e.id) * 0.6;
         continue;
       }
       // Fortschritt prüfen: wer lange nicht näher kommt und nichts angreift, verirrt sich
@@ -804,22 +879,22 @@ export class Spiel {
         else { e.tot = true; this.ereignisse.push({ art: 'tod', typ: e.typ, x: e.x, y: e.y, z: e.z }); continue; }
       }
       // am Ziel einer Kachel? dann nächste wählen
-      if (!e.ziel || Math.hypot(e.ziel[0] - e.x, e.ziel[1] - e.z) < 0.25) e.ziel = this.feld.naechster(e.x, e.z);
+      if (!e.ziel || mhypot(e.ziel[0] - e.x, e.ziel[1] - e.z) < 0.25) e.ziel = this.feld.naechster(e.x, e.z);
       if (!e.ziel) { // am Hauptgebäude angekommen (oder eingeschlossen): nächstes Gebäude angreifen
         const g = this.gebNahe(e.x, e.z, 2) || h;
         if (this.randAbstand(e.x, e.z, g) < 2.2) this.schlage(e, g); continue;
       }
       const blocker0 = this.gebAn(e.ziel[0], e.ziel[1]), blocker = blocker0 && GEBAEUDE[blocker0.typ].falle ? undefined : blocker0;
       if (blocker && blocker.typ === 'mauer' && this.erfindungen.has('dornenwall')) this.verletze(e, 6 * DT, true);
-      if (blocker) { this.schlage(e, blocker); e.richtung = Math.atan2(e.ziel[0] - e.x, e.ziel[1] - e.z); continue; }
-      const dx = e.ziel[0] - e.x, dz = e.ziel[1] - e.z, dist = Math.hypot(dx, dz) || 1;
+      if (blocker) { this.schlage(e, blocker); e.richtung = matan2(e.ziel[0] - e.x, e.ziel[1] - e.z); continue; }
+      const dx = e.ziel[0] - e.x, dz = e.ziel[1] - e.z, dist = mhypot(dx, dz) || 1;
       const sp0 = spalte(Math.floor(e.x), Math.floor(e.z));
       const sp = tempo * DT * (sp0?.a === 'w' ? 0.5 : this.dekoJetzt(Math.floor(e.x), Math.floor(e.z), sp0)?.art === 'baum' ? 0.75 : 1);
       // seitlicher Versatz, damit nicht alle auf einer Linie laufen
       const nx = -dz / dist, nz = dx / dist;
       e.x += (dx / dist) * Math.min(sp, dist) + nx * e.versatz * DT * 0.6;
       e.z += (dz / dist) * Math.min(sp, dist) + nz * e.versatz * DT * 0.6;
-      e.richtung = Math.atan2(dx, dz);
+      e.richtung = matan2(dx, dz);
       e.y = hoehe(e.x, e.z); e.angriff = 0;
     }
     if (this.gegner.some((e) => e.tot)) this.gegner = this.gegner.filter((e) => !e.tot);
@@ -832,7 +907,7 @@ export class Spiel {
   /** Abstand eines Punkts zum Rand eines Gebäudes (0 = innen) */
   randAbstand(x: number, z: number, g: Geb): number {
     const dx = Math.max(g.x - x, 0, x - (g.x + g.w)), dz = Math.max(g.z - z, 0, z - (g.z + g.d));
-    return Math.hypot(dx, dz);
+    return mhypot(dx, dz);
   }
   private schlage(e: Gegner, g: Geb): void {
     e.angriff += DT;
@@ -851,7 +926,7 @@ export class Spiel {
   private beschaedige(g: Geb, n: number, leise = false, von = leise ? 'feuer' : '?'): void {
     this.schadenVon[von] = (this.schadenVon[von] || 0) + n;
     if (g.schild > 0 || GEBAEUDE[g.typ].falle || !this.gebaeude.includes(g)) return;
-    const ss = this.hatWunder('w_sternenschild'); if (ss && Math.hypot(ss.x + 3 - g.x - g.w / 2, ss.z + 3 - g.z - g.d / 2) < 40) n *= 0.7;
+    const ss = this.hatWunder('w_sternenschild'); if (ss && mhypot(ss.x + 3 - g.x - g.w / 2, ss.z + 3 - g.z - g.d / 2) < 40) n *= 0.7;
     g.hp -= n; this.statSchaden += n;
     if (!leise) this.ereignisse.push({ art: 'schaden', geb: g });
     if (g.hp <= 0) {
@@ -871,7 +946,7 @@ export class Spiel {
     const tx = g.x + g.w / 2, tz = g.z + g.d / 2, liste: { e: Gegner; hell: boolean; prio: number }[] = [];
     for (const e of this.gegner) {
       if (e.tot || (k.nurBoden && e.flug)) continue;
-      const d = Math.hypot(e.x - tx, e.z - tz); if (d > k.reichweite) continue;
+      const d = mhypot(e.x - tx, e.z - tz); if (d > k.reichweite) continue;
       const l = this.licht(e.x, e.z), hell = !nacht || l.wert > 0.15;
       if (e.verborgen && nacht && !l.enthuellt && !runen && d > 4 && l.wert < 0.3) continue;
       if (!hell && d > k.reichweite * 0.6) continue;
@@ -886,9 +961,9 @@ export class Spiel {
       const def = GEBAEUDE[g.typ];
       if (def.kegel) {
         let ziel: Gegner | null = null, bd = def.licht;
-        for (const e of this.gegner) { const d = Math.hypot(e.x - g.x - 1, e.z - g.z - 1); if (d < bd) { bd = d; ziel = e; } }
-        const soll = ziel ? Math.atan2(ziel.x - g.x - 1, ziel.z - g.z - 1) : g.zielen + 0.4 * DT;
-        let da = soll - g.zielen; da = Math.atan2(Math.sin(da), Math.cos(da)); g.zielen += Math.max(-1.4 * DT, Math.min(1.4 * DT, da));
+        for (const e of this.gegner) { const d = mhypot(e.x - g.x - 1, e.z - g.z - 1); if (d < bd) { bd = d; ziel = e; } }
+        const soll = ziel ? matan2(ziel.x - g.x - 1, ziel.z - g.z - 1) : g.zielen + 0.4 * DT;
+        let da = soll - g.zielen; da = matan2(msin(da), mcos(da)); g.zielen += Math.max(-1.4 * DT, Math.min(1.4 * DT, da));
       }
       const k = this.kampf(g); if (!k || g.umbau) { g.strahlen.length = 0; continue; }
       const tx = g.x + g.w / 2, tz = g.z + g.d / 2;
@@ -896,27 +971,27 @@ export class Spiel {
       // Dauerwaffen: Strahl und Sturmkrone wirken jeden Takt
       if (k.geschoss === 'strahl') {
         const z = this.ziele(g, k, k.ziele || 1); g.strahlen = z.map((t) => t.e.id);
-        if (z.length) g.zielen = Math.atan2(z[0].e.x - tx, z[0].e.z - tz);
+        if (z.length) g.zielen = matan2(z[0].e.x - tx, z[0].e.z - tz);
         for (const t of z) this.verletze(t.e, k.schaden * DT * (t.hell ? 1 : 0.6), true, g, 'strahl');
         continue;
       }
       if (k.geschoss === 'aura') {
         g.cd -= DT;
-        let n = 0; for (const e of this.gegner) if (!e.tot && Math.hypot(e.x - tx, e.z - tz) < k.reichweite) { this.verletze(e, k.schaden * DT, true, g, 'blitz'); n++; }
-        if (n && g.cd <= 0) { g.cd = 0.5; const pk: [number, number, number][] = [[tx, sy + 2, tz]]; const e = this.gegner.find((o) => !o.tot && Math.hypot(o.x - tx, o.z - tz) < k.reichweite); if (e) pk.push([e.x, e.y + 1, e.z]); this.ereignisse.push({ art: 'blitz', punkte: pk }); }
+        let n = 0; for (const e of this.gegner) if (!e.tot && mhypot(e.x - tx, e.z - tz) < k.reichweite) { this.verletze(e, k.schaden * DT, true, g, 'blitz'); n++; }
+        if (n && g.cd <= 0) { g.cd = 0.5; const pk: [number, number, number][] = [[tx, sy + 2, tz]]; const e = this.gegner.find((o) => !o.tot && mhypot(o.x - tx, o.z - tz) < k.reichweite); if (e) pk.push([e.x, e.y + 1, e.z]); this.ereignisse.push({ art: 'blitz', punkte: pk }); }
         continue;
       }
       g.cd -= DT; if (g.cd > 0) continue;
       const z = this.ziele(g, k, k.ziele || 1); if (!z.length) continue;
-      g.cd = k.abklingen; g.zielen = Math.atan2(z[0].e.x - tx, z[0].e.z - tz);
+      g.cd = k.abklingen; g.zielen = matan2(z[0].e.x - tx, z[0].e.z - tz);
       this.ereignisse.push({ art: 'schuss', geb: g, x: tx, y: sy, z: tz, geschoss: k.geschoss === 'topf' ? 'topf' : 'pfeil' });
       if (k.geschoss === 'blitz') {
         const pk: [number, number, number][] = [[tx, sy + 2, tz]], getroffen = new Set<number>();
         let aktuell: Gegner | undefined = z[0].e;
         for (let i = 0; aktuell && i <= (k.kette || 0); i++) {
-          getroffen.add(aktuell.id); pk.push([aktuell.x, aktuell.y + 1, aktuell.z]); this.verletze(aktuell, k.schaden * Math.pow(0.85, i), true, g, 'blitz');
+          getroffen.add(aktuell.id); pk.push([aktuell.x, aktuell.y + 1, aktuell.z]); this.verletze(aktuell, k.schaden * mpow(0.85, i), true, g, 'blitz');
           let naechst: Gegner | undefined, bd = 7;
-          for (const e of this.gegner) { if (e.tot || getroffen.has(e.id)) continue; const d = Math.hypot(e.x - aktuell.x, e.z - aktuell.z); if (d < bd) { bd = d; naechst = e; } }
+          for (const e of this.gegner) { if (e.tot || getroffen.has(e.id)) continue; const d = mhypot(e.x - aktuell.x, e.z - aktuell.z); if (d < bd) { bd = d; naechst = e; } }
           aktuell = naechst;
         }
         this.ereignisse.push({ art: 'blitz', punkte: pk });
@@ -924,15 +999,15 @@ export class Spiel {
       }
       for (const { e: best, hell } of z) {
         if (k.geschoss === 'pfeil') {
-          const d = Math.hypot(best.x - tx, best.z - tz);
+          const d = mhypot(best.x - tx, best.z - tz);
           this.geschosse.push({ art: 'pfeil', x: tx, y: sy, z: tz, sx: tx, sy, sz: tz, tx: best.x, ty: best.y + (best.flug ? 0 : 1), tz: best.z, t: 0, dauer: d / 30 + 0.05, ziel: best.id, schaden: k.schaden, flaeche: k.flaeche || 0, trifft: this.r() > (hell ? 0.05 : 0.38), bogen: d * 0.06, brand: k.brand || 0, brechend: !!k.panzerbrechend, von: g.id });
         } else {
           for (let s = 0; s < (k.salve || 1); s++) {
-            const dauer = 1.25, vx = best.ziel ? (best.ziel[0] - best.x) : 0, vz = best.ziel ? (best.ziel[1] - best.z) : 0, vl = Math.hypot(vx, vz) || 1;
+            const dauer = 1.25, vx = best.ziel ? (best.ziel[0] - best.x) : 0, vz = best.ziel ? (best.ziel[1] - best.z) : 0, vl = mhypot(vx, vz) || 1;
             const px = best.x + (vx / vl) * best.tempo * dauer, pz = best.z + (vz / vl) * best.tempo * dauer;
             const streu = (hell ? 0.6 : 2.2) + (k.salve ? 3 : 0);
             const zx = px + (this.r() - 0.5) * streu, zz = pz + (this.r() - 0.5) * streu;
-            this.geschosse.push({ art: 'topf', x: tx, y: sy, z: tz, sx: tx, sy, sz: tz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -s * 0.12, dauer, ziel: 0, schaden: k.schaden, flaeche: k.flaeche!, trifft: true, bogen: 6 + Math.hypot(zx - tx, zz - tz) * 0.25, brand: k.brand || 0, brechend: !!k.panzerbrechend, von: g.id });
+            this.geschosse.push({ art: 'topf', x: tx, y: sy, z: tz, sx: tx, sy, sz: tz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -s * 0.12, dauer, ziel: 0, schaden: k.schaden, flaeche: k.flaeche!, trifft: true, bogen: 6 + mhypot(zx - tx, zz - tz) * 0.25, brand: k.brand || 0, brechend: !!k.panzerbrechend, von: g.id });
           }
         }
       }
@@ -943,7 +1018,7 @@ export class Spiel {
       p.t += DT; if (p.t < 0) continue;
       if (p.art === 'pfeil' && p.ziel) { const z = this.gegner.find((e) => e.id === p.ziel); if (z) { p.tx = z.x; p.ty = z.y + (z.flug ? 0 : 1); p.tz = z.z; } }
       const f = Math.min(1, p.t / p.dauer);
-      p.x = p.sx + (p.tx - p.sx) * f; p.z = p.sz + (p.tz - p.sz) * f; p.y = p.sy + (p.ty - p.sy) * f + Math.sin(Math.PI * f) * p.bogen;
+      p.x = p.sx + (p.tx - p.sx) * f; p.z = p.sz + (p.tz - p.sz) * f; p.y = p.sy + (p.ty - p.sy) * f + msin(Math.PI * f) * p.bogen;
       if (f < 1) continue;
       const von = p.von ? this.gebaeude.find((g) => g.id === p.von) : undefined, brandZeit = this.erfindungen.has('brandoel') ? 5 : 3;
       if (p.art === 'stein') {
@@ -956,11 +1031,11 @@ export class Spiel {
           this.ereignisse.push({ art: 'treffer', x: z.x, y: z.y + 1, z: z.z }); this.verletze(z, p.schaden, p.brechend, von, 'pfeil');
           if (p.brand) { z.brand = brandZeit; z.brandDps = p.brand; }
           if (z.flug && this.erfindungen.has('fangnetz')) z.langsam = 2.5;
-          if (p.flaeche) for (const e of this.gegner) if (e !== z && !e.flug && Math.hypot(e.x - z.x, e.z - z.z) < p.flaeche) { e.brand = brandZeit; e.brandDps = p.brand || 4; }
+          if (p.flaeche) for (const e of this.gegner) if (e !== z && !e.flug && mhypot(e.x - z.x, e.z - z.z) < p.flaeche) { e.brand = brandZeit; e.brandDps = p.brand || 4; }
         } else this.ereignisse.push({ art: 'fehl', x: p.tx, y: p.ty, z: p.tz });
       } else {
         this.ereignisse.push({ art: 'explosion', x: p.tx, y: p.ty, z: p.tz, r: p.flaeche });
-        for (const e of this.gegner) { if ((e.flug && !GEGNER[e.typ].wirtschaft) || e.tot) continue; const d = Math.hypot(e.x - p.tx, e.z - p.tz); if (d < p.flaeche) { this.verletze(e, p.schaden * (1 - d / p.flaeche * 0.6), p.brechend, von, 'topf'); if (p.brand) { e.brand = brandZeit; e.brandDps = p.brand; } } }
+        for (const e of this.gegner) { if ((e.flug && !GEGNER[e.typ].wirtschaft) || e.tot) continue; const d = mhypot(e.x - p.tx, e.z - p.tz); if (d < p.flaeche) { this.verletze(e, p.schaden * (1 - d / p.flaeche * 0.6), p.brechend, von, 'topf'); if (p.brand) { e.brand = brandZeit; e.brandDps = p.brand; } } }
       }
       p.dauer = -1;
     }
@@ -1009,7 +1084,7 @@ export class Spiel {
     for (const o of this.gebaeude) {
       if (o === g || GEBAEUDE[o.typ].fusion) continue;
       const lb = linie(o.typ); if (!lb) continue;
-      if (Math.hypot(o.x + o.w / 2 - g.x - g.w / 2, o.z + o.d / 2 - g.z - g.d / 2) > 8.5) continue;
+      if (mhypot(o.x + o.w / 2 - g.x - g.w / 2, o.z + o.d / 2 - g.z - g.d / 2) > 8.5) continue;
       const v = VERSCHMELZUNGEN.find((v) => (v.a === la && v.b === lb) || (v.a === lb && v.b === la)); if (!v) continue;
       if (this.zeitalter() < (GEBAEUDE[v.ergebnis].zeitalter || 1)) continue;
       out.push({ partner: o, ergebnis: v.ergebnis });
@@ -1052,12 +1127,12 @@ export class Spiel {
     if (!this.faehigkeitFrei(name)) { this.melde(tr('Diese Fähigkeit ist in dieser Nacht schon verbraucht.'), 'schlecht'); return false; }
     this.genutzt.set(name, (this.genutzt.get(name) || 0) + 1);
     const hx = h.x + h.w / 2, hz = h.z + h.d / 2;
-    if (name === 'feuerregen') for (let i = 0; i < 8; i++) { const a = this.r() * 6.283, d = Math.sqrt(this.r()) * 5, zx = x + Math.cos(a) * d, zz = z + Math.sin(a) * d; this.geschosse.push({ art: 'topf', x: hx, y: h.y + 20, z: hz, sx: hx, sy: h.y + 20, sz: hz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -i * 0.15, dauer: 1.6, ziel: 0, schaden: 45, flaeche: 3, trifft: true, bogen: 14, brand: 6, brechend: true, von: 0 }); }
+    if (name === 'feuerregen') for (let i = 0; i < 8; i++) { const a = this.r() * 6.283, d = Math.sqrt(this.r()) * 5, zx = x + mcos(a) * d, zz = z + msin(a) * d; this.geschosse.push({ art: 'topf', x: hx, y: h.y + 20, z: hz, sx: hx, sy: h.y + 20, sz: hz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -i * 0.15, dauer: 1.6, ziel: 0, schaden: 45, flaeche: 3, trifft: true, bogen: 14, brand: 6, brechend: true, von: 0 }); }
     if (name === 'notreparatur') for (const g of this.gebaeude) g.hp = Math.min(g.max, g.hp + g.max / 3);
     if (name === 'schild') h.schild = this.erfindungen.has('aetherspeicher') ? 25 : 15;
     if (name === 'sturmglocke') this.sturm = 12;
     if (name === 'dampfstoss') for (const e of this.gegner) {
-      const dx = e.x - hx, dz = e.z - hz, d = Math.hypot(dx, dz); if (d > 20 || e.tot) continue;
+      const dx = e.x - hx, dz = e.z - hz, d = mhypot(dx, dz); if (d > 20 || e.tot) continue;
       if (!e.flug) { const nx = e.x + (dx / (d || 1)) * 8, nz = e.z + (dz / (d || 1)) * 8; if (begehbar(spalte(Math.floor(nx), Math.floor(nz))) && !this.gebAn(nx, nz)) { e.x = nx; e.z = nz; e.y = hoehe(nx, nz); e.ziel = null; } }
       e.langsam = 4; this.verletze(e, 40, true);
     }
@@ -1073,6 +1148,7 @@ export class Spiel {
     for (const [res, n] of Object.entries(k)) this.res[res as Res] -= n as number;
     this.ruinen = this.ruinen.filter((o) => o !== r); this.ereignisse.push({ art: 'ruine', ruine: r, neu: false });
     const g = this.setze(r.typ, r.x, r.z); g.zweig = r.zweig;
+    if (!GEBAEUDE[r.typ].bauzeit) this.bauBeginnen(g);
     return true;
   }
   raeumen(r: Ruine): void { this.ruinen = this.ruinen.filter((o) => o !== r); this.ereignisse.push({ art: 'ruine', ruine: r, neu: false }); }
@@ -1129,12 +1205,12 @@ export class Spiel {
   private quellenRoh(typ: GebTyp, cx: number, cz: number, r: number): { x: number; z: number; k: number; d: number; dauerhaft: boolean }[] {
     const out: { x: number; z: number; k: number; d: number; dauerhaft: boolean }[] = [];
     if (typ === 'kristall') {
-      for (const o of orte()) if (o.typ === 'kristall' && Math.hypot(o.x - cx, o.z - cz) < r + 4) for (const [dx, dz] of [[-2, 0], [2, 1], [0, 2], [1, -2]]) out.push({ x: o.x + dx + 0.5, z: o.z + dz + 0.5, k: -1, d: Math.hypot(o.x + dx - cx, o.z + dz - cz), dauerhaft: true });
+      for (const o of orte()) if (o.typ === 'kristall' && mhypot(o.x - cx, o.z - cz) < r + 4) for (const [dx, dz] of [[-2, 0], [2, 1], [0, 2], [1, -2]]) out.push({ x: o.x + dx + 0.5, z: o.z + dz + 0.5, k: -1, d: mhypot(o.x + dx - cx, o.z + dz - cz), dauerhaft: true });
       return out.sort((a, b) => a.d - b.d);
     }
     if (typ === 'hof') { // Felder rund um den Hof: jede freie Graskachel im Umkreis
       for (let x = Math.floor(cx - r); x <= cx + r; x++) for (let z = Math.floor(cz - r); z <= cz + r; z++) {
-        const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r || d < 3.5) continue;
+        const d = mhypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r || d < 3.5) continue;
         const s = spalte(x, z); if (!s || s.a !== 'gras' || this.belegt[this.bi(x, z)] || amPfad(x, z, 1.5)) continue;
         const dk = this.dekoJetzt(x, z, s); if (dk && dk.art !== 'gras') continue;
         if ((x + z * 3) % 4) continue; // jede vierte Kachel: Furchen
@@ -1144,7 +1220,7 @@ export class Spiel {
     }
     if (typ === 'fischer') { // Wasser mit Ufer daneben
       for (let x = Math.floor(cx - r); x <= cx + r; x++) for (let z = Math.floor(cz - r); z <= cz + r; z++) {
-        const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r) continue;
+        const d = mhypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r) continue;
         const s = spalte(x, z); if (!s || s.a !== 'w' || (x + z) % 3) continue;
         if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => begehbar(spalte(x + dx, z + dz)))) continue;
         out.push({ x: x + 0.5, z: z + 0.5, k: -1, d, dauerhaft: true });
@@ -1152,7 +1228,7 @@ export class Spiel {
       return out.sort((a, b) => a.d - b.d);
     }
     for (let x = Math.floor(cx - r); x <= cx + r; x++) for (let z = Math.floor(cz - r); z <= cz + r; z++) {
-      const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r) continue;
+      const d = mhypot(x + 0.5 - cx, z + 0.5 - cz); if (d > r) continue;
       const s = spalte(x, z); if (!s) continue;
       const k = Spiel.kachel(x, z);
       const dk = this.dekoJetzt(x, z, s);
@@ -1171,8 +1247,8 @@ export class Spiel {
       if (!arb0) { // Verarbeitung: Arbeiter stehen am Gebäude und werkeln
         const i = this.arbeiter.filter((o) => o.geb === g.id).indexOf(a), px = g.x + 0.5 + (i % 3) * 1.5, pz = g.z + g.d + 0.7;
         if (!tag) { a.zustand = 'drin'; continue; }
-        const dx = px - a.x, dz = pz - a.z, d = Math.hypot(dx, dz);
-        if (d > 0.3) { const sp = Math.min(d, 3 * DT); a.x += dx / d * sp; a.z += dz / d * sp; a.y = hoehe(a.x, a.z); a.richtung = Math.atan2(dx, dz); a.zustand = 'hin'; }
+        const dx = px - a.x, dz = pz - a.z, d = mhypot(dx, dz);
+        if (d > 0.3) { const sp = Math.min(d, 3 * DT); a.x += dx / d * sp; a.z += dz / d * sp; a.y = hoehe(a.x, a.z); a.richtung = matan2(dx, dz); a.zustand = 'hin'; }
         else { a.zustand = 'arbeit'; a.richtung = Math.PI; a.t += DT; if (Math.floor((a.t - DT) / 0.9) !== Math.floor(a.t / 0.9)) this.ereignisse.push({ art: 'hieb', x: a.x, y: a.y + 1, z: a.z - 0.8, res: g.typ === 'saegewerk' ? 'holz' : g.typ === 'schleiferei' ? 'kristall' : 'stein' }); }
         continue;
       }
@@ -1183,9 +1259,9 @@ export class Spiel {
         let w = this.wege.get(a.id);
         if (!w || Math.abs(w.zx - zx) > 2 || Math.abs(w.zz - zz) > 2) { w = { zx, zz, p: trockenerWeg(a.x, a.z, zx, zz) || [], i: 0 }; this.wege.set(a.id, w); }
         const letzter = w.i >= w.p.length - 1, [tx, tz] = w.i < w.p.length ? w.p[w.i] : [zx, zz];
-        const dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
+        const dx = tx - a.x, dz = tz - a.z, d = mhypot(dx, dz);
         if (d < (letzter ? 0.6 : 0.3)) { if (letzter) { this.wege.delete(a.id); return true; } w.i++; return false; }
-        const sp = Math.min(d, tempo * DT); a.x += (dx / d) * sp; a.z += (dz / d) * sp; a.richtung = Math.atan2(dx, dz); a.y = hoehe(a.x, a.z);
+        const sp = Math.min(d, tempo * DT); a.x += (dx / d) * sp; a.z += (dz / d) * sp; a.richtung = matan2(dx, dz); a.y = hoehe(a.x, a.z);
         return false;
       };
       if (!tag) { if (a.zustand !== 'drin') { if (a.quelle >= 0) { this.reserviert.delete(a.quelle); a.quelle = -1; } a.traegt = null; a.zustand = gehe(hx, hz, 3.2) ? 'drin' : 'heim'; } continue; }
@@ -1200,8 +1276,8 @@ export class Spiel {
         a.ziel = [q.x, q.z]; a.quelle = q.k; if (q.k >= 0) this.reserviert.add(q.k); a.zustand = 'hin';
       } else if (a.zustand === 'hin') {
         // nicht ganz auf die Kachel, sondern daneben stehen
-        const [zx, zz] = a.ziel!, dx = a.x - zx, dz = a.z - zz, d = Math.hypot(dx, dz) || 1;
-        if (gehe(zx + (dx / d) * 0.9, zz + (dz / d) * 0.9, 3.2)) { a.zustand = 'arbeit'; a.t = 0; a.richtung = Math.atan2(zx - a.x, zz - a.z); }
+        const [zx, zz] = a.ziel!, dx = a.x - zx, dz = a.z - zz, d = mhypot(dx, dz) || 1;
+        if (gehe(zx + (dx / d) * 0.9, zz + (dz / d) * 0.9, 3.2)) { a.zustand = 'arbeit'; a.t = 0; a.richtung = matan2(zx - a.x, zz - a.z); }
       } else if (a.zustand === 'arbeit') {
         const vor = a.t; a.t += DT;
         if (Math.floor(vor / 0.7) !== Math.floor(a.t / 0.7)) this.ereignisse.push({ art: 'hieb', x: a.ziel![0], y: a.y + 1, z: a.ziel![1], res: arb.res });
@@ -1308,7 +1384,7 @@ export class Spiel {
   }
   private lichterNeu(): void {
     const E = this.erfindungen, plus = (E.has('sternenstaub') ? 4 : 0) + (E.has('prismenlinse') ? 4 : 0);
-    this.lichter = this.gebaeude.filter((g) => GEBAEUDE[g.typ].licht > 0).map((g) => {
+    this.lichter = this.gebaeude.filter((g) => GEBAEUDE[g.typ].licht > 0 && !Spiel.imBau(g)).map((g) => {
       const d = GEBAEUDE[g.typ], st = g.typ === 'haupt' ? HAUPT_STUFEN[g.stufe - 1] : null, gross = d.licht > 6 || g.typ === 'haupt';
       const r = (st ? st.licht : d.licht + (gross ? STUFE_WERT.licht[g.stufe] : 0)) + (gross ? plus + (E.has('spiegelschliff') ? 3 : 0) : 0);
       return { x: g.x + g.w / 2, z: g.z + g.d / 2, r, enthuellt: !!d.enthuellt || (g.typ === 'haupt' && g.stufe >= 5) || (gross && E.has('prismenlinse')), kegel: d.kegel ? d.kegel * (E.has('spiegelschliff') ? 1.35 : 1) : undefined, geb: d.kegel ? g : undefined };
@@ -1340,7 +1416,7 @@ export class Spiel {
     let neu = false;
     for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) {
       const cx = -WR + (i + 0.5) * NZ, cz = -WR + (j + 0.5) * NZ;
-      if (Math.hypot(cx - x, cz - z) <= r && !this.erkundet[i * NN + j]) { this.erkundet[i * NN + j] = 1; neu = true; }
+      if (mhypot(cx - x, cz - z) <= r && !this.erkundet[i * NN + j]) { this.erkundet[i * NN + j] = 1; neu = true; }
     }
     if (neu) this.ereignisse.push({ art: 'erkundet' });
   }
@@ -1351,7 +1427,7 @@ export class Spiel {
     let s = ''; for (let i = 0; i < this.erkundet.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) b |= this.erkundet[i + k] << k; s += String.fromCharCode(b); }
     return { v: 4, volk: this.volk, leitsaetze: [...this.leitsaetze], leitsatzOffen: this.leitsatzOffen, versiegelt: [...this.versiegelt], stat: this.stat, einwohner: this.einwohner, schwierigkeit: this.schwierigkeit, gefaellt: [...this.gefaellt], abgebaut: [...this.abgebaut], gaenge: [...this.gaenge], hoehen: hoehenListe(), code: this.code, nacht: this.nacht, phase: this.phase === 'verloren' ? 'verloren' : 'tag', zeit: this.phase === 'tag' ? this.zeit : 0,
       res: { ...this.res }, bausteine: { ...this.bausteine }, erfindungen: [...this.erfindungen],
-      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: g.umbau && GEBAEUDE[g.typ].bauzeit && g.umbau.nach === g.typ && !g.umbau.stufe ? g.umbau.t : undefined, ritual: g.ritual })), erkundet: btoa(s), besiegt: this.besiegt,
+      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: Spiel.imBau(g) ? g.umbau!.t : undefined, ritual: g.ritual })), erkundet: btoa(s), besiegt: this.besiegt,
       ruinen: this.ruinen.map((r) => ({ typ: r.typ, x: r.x, z: r.z, zweig: r.zweig })), entdeckt: [...this.entdeckt] };
   }
   private laden(st: Spielstand): void {
@@ -1365,7 +1441,7 @@ export class Spiel {
     for (const [k, h] of st.hoehen || []) setzeHoehe(Math.floor(k / 2048) - 600, (k % 2048) - 600, h);
     const bin = atob(st.erkundet); for (let i = 0; i < bin.length; i++) { const b = bin.charCodeAt(i); for (let k = 0; k < 8; k++) this.erkundet[i * 8 + k] = (b >> k) & 1; }
     this.entdeckt = new Set(st.entdeckt || []);
-    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; if (g.bau !== undefined && GEBAEUDE[g.typ].bauzeit) n.umbau = { t: g.bau, dauer: GEBAEUDE[g.typ].bauzeit!, nach: g.typ }; }
+    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; if (g.bau !== undefined) n.umbau = { t: g.bau, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: !GEBAEUDE[g.typ].bauzeit }; }
     for (const r of st.ruinen || []) { const d = GEBAEUDE[r.typ]; if (d) this.ruinen.push({ id: this.naechsteId++, typ: r.typ, x: r.x, z: r.z, w: d.w, d: d.d, y: this.pruefeRoh(r.typ, r.x, r.z), zweig: r.zweig }); }
     this.laedt = false;
     this.lichterNeu(); this.verteileArbeiter();

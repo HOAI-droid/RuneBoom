@@ -4,21 +4,22 @@ import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
   type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand
 } from '@runeboom/core';
-import { neuerRenderer, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
+import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
+import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
 import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.7.1';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.8.0';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
 
 // ================= Einstellungen =================
 const EINST = 'runeboom-einstellungen-1';
-const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl' };
+const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl' };
 try { Object.assign(einst, JSON.parse(localStorage.getItem(EINST) || '{}')); } catch { /* */ }
 registriereSprache('en', EN); registriereSprache('fr', FR); registriereSprache('es', ES);
 setzeSprache(einst.sprache === 'auto' ? systemSprache() : einst.sprache);
@@ -60,7 +61,7 @@ function grafikSetzen(): void {
   const schatten = st !== 'niedrig';
   if (renderer.shadowMap.enabled !== schatten) { renderer.shadowMap.enabled = schatten; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => (x.needsUpdate = true)); }); }
   licht.sun.shadow.mapSize.set(st === 'hoch' ? 2048 : 1024, st === 'hoch' ? 2048 : 1024); if (!FABRIK.gpu) { licht.sun.shadow.map?.dispose(); (licht.sun.shadow as any).map = null; }
-  try { if (obj) obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25; } catch { /* beim Start noch nicht da */ }
+  try { if (obj) { obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25; obj.tierMenge = st === 'hoch' ? 1 : st === 'mittel' ? 0.6 : 0; } } catch { /* beim Start noch nicht da */ }
   groesse();
 }
 grafikSetzen();
@@ -70,7 +71,7 @@ const naehe = (x: number, z: number) => Math.max(0, 1 - Math.hypot(x - controls.
 // ================= Zustand =================
 let spiel: Spiel | null = null, welt: WeltAnsicht | null = null, obj: Objekte | null = null;
 let tempo = 1, werkzeug: { art: 'bau'; typ: GebTyp } | { art: 'spaeher' } | { art: 'ebnen' } | { art: 'feuerregen' } | null = null, gewaehlt: Geb | null = null, ruineGew: Ruine | null = null;
-let fehlerGemeldet = 0, kegelZeit = 0, kegelWarAn = false, berichtPause = false;
+let sturzKamera = 0, fehlerGemeldet = 0, kegelZeit = 0, kegelWarAn = false, berichtPause = false;
 let anzeigeDunkel = 0, akku = 0, planZeit = 0, uiZeit = 0;
 let panelArt: 'geb' | 'werkstatt' | 'einst' | 'ruine' | null = null;
 /** Panel nur neu schreiben, wenn sich der Inhalt ändert (sonst gehen Klicks verloren) */
@@ -88,7 +89,7 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
   welt.onUebersicht = () => { zeichneKartenGrund(); for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
   einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
-  obj = new Objekte(scene, spiel); obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
+  obj = new Objekte(scene, spiel); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
   lichtkarteSetzen(spiel.lichtquellen());
   const ziel = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
   controls.target.copy(ziel); camera.position.copy(ziel).add(new THREE.Vector3(56, 70, 74)); controls.update();
@@ -135,7 +136,7 @@ function baueMenueWelt(): void {
   welt.aenderungen = (cx, cz) => s.dekoAenderungen(cx, cz, CH);
   welt.hoehen = () => [];
   welt.onUebersicht = () => { void wa; };
-  obj = new Objekte(scene, s); obj.zeigePfeile = false;
+  obj = new Objekte(scene, s); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.zeigePfeile = false;
   lichtkarteSetzen(s.lichtquellen());
   imMenue = true; menueZeit = 0;
   enthuellen();
@@ -211,6 +212,8 @@ function seite(name: string | null): void {
       <kbd>${t('Klick auf Gebäude')}</kbd><span>${t('Ausbauen (Stufe I–III), Umrüsten, Verschmelzen, Reparieren')}</span>
       <kbd>X · 9</kbd><span>${t('Späher in den Nebel (15 Holz) · Gelände ebnen')}</span>
       <kbd>T</kbd><span>${t('Erfindungsbaum')}</span>
+      <kbd>M</kbd><span>${t('Karte ein- und ausblenden')}</span>
+      <kbd>${t('Gamepad')}</kbd><span>${t('Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte')}</span>
       <kbd>${t('N · Leertaste')}</kbd><span>${t('Nacht einläuten · Pause')}</span>
       <kbd>${t('Esc · Rechtsklick')}</kbd><span>${t('abbrechen')}</span></div>`;
   }
@@ -282,7 +285,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -352,6 +355,7 @@ function leisteAktualisieren(): void {
   }
 }
 function werkzeugSetzen(w: typeof werkzeug): void {
+  obj?.zeigeLinie(null);
   werkzeug = w;
   if (w?.art === 'bau' && spiel && !spiel.freigeschaltet(w.typ)) { melde(`${t('{a} braucht erst die Erfindung {b}.', { a: t(GEBAEUDE[w.typ].name), b: t(ERFINDUNGEN[GEBAEUDE[w.typ].braucht!].name) })}`, 'schlecht'); werkzeug = null; }
   if (!werkzeug || werkzeug.art !== 'bau') obj?.zeigeVorschau(null);
@@ -363,7 +367,11 @@ function werkzeugSetzen(w: typeof werkzeug): void {
   canvas.style.cursor = werkzeug ? 'crosshair' : '';
   leisteAktualisieren();
 }
-function zeigeTipp(html: string | null): void { const t = $('tipp'); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false; }
+function zeigeTipp(html: string | null): void {
+  const t = $('tipp'); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false;
+  // immer über der Bauleiste (auch wenn eine Gruppe aufgeklappt ist), nie dahinter
+  const l = $('leiste'); if (!l.hidden) t.style.bottom = `${Math.max(84, innerHeight - l.getBoundingClientRect().top + 8)}px`;
+}
 
 // ================= Auswahl und Werkstatt =================
 function schliessePanel(): void { $('panel').hidden = true; $('panel').dataset.html = ''; panelArt = null; ruineGew = null; }
@@ -425,12 +433,12 @@ function panelGeb(): void {
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
       const t = b.dataset.tat;
-      if (t === 'abreissen') { s.abreissen(g); waehle(null); return; }
-      if (t === 'reparieren' && s.reparieren(g)) klang.spiele('bau', 0.8);
-      if (t === 'umr' && s.umruesten(g, b.dataset.nach as GebTyp, b.dataset.zweig)) klang.spiele('bau', 0.8);
-      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && s.verschmelzen(g, v.partner)) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
-      if (t === 'ausbau' && s.hauptAusbauen()) klang.spiele('bau', 0.8);
-      if (t === 'stufe' && s.stufeAusbauen(g)) klang.spiele('bau', 0.8);
+      if (t === 'abreissen') { s.befehl({ art: 'abreissen', geb: g.id }); waehle(null); return; }
+      if (t === 'reparieren' && s.befehl({ art: 'reparieren', geb: g.id })) klang.spiele('bau', 0.8);
+      if (t === 'umr' && s.befehl({ art: 'umruesten', geb: g.id, nach: b.dataset.nach as GebTyp, zweig: b.dataset.zweig })) klang.spiele('bau', 0.8);
+      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && s.befehl({ art: 'verschmelzen', geb: g.id, partner: v.partner.id })) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
+      if (t === 'ausbau' && s.befehl({ art: 'burg' })) klang.spiele('bau', 0.8);
+      if (t === 'stufe' && s.befehl({ art: 'stufe', geb: g.id })) klang.spiele('bau', 0.8);
       panelGeb();
     };
   });
@@ -449,8 +457,8 @@ function panelRuine(): void {
   p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = schliessePanel;
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.tat === 'auf') { if (s.wiederaufbauen(r)) { klang.spiele('bau'); schliessePanel(); } }
-      else { s.raeumen(r); schliessePanel(); }
+      if (b.dataset.tat === 'auf') { if (s.befehl({ art: 'wiederaufbau', ruine: r.id })) { klang.spiele('bau'); schliessePanel(); } }
+      else { s.befehl({ art: 'raeumen', ruine: r.id }); schliessePanel(); }
     };
   });
 }
@@ -472,6 +480,38 @@ function erfStatus(id: ErfId): 'fertig' | 'kann' | 'fehlt' | 'zu' | 'geheim' {
   return hat && s.res.kristall >= s.erfKristall(id) ? 'kann' : 'fehlt';
 }
 let baumHtmlAlt = '';
+const SCHLOSS = '<svg viewBox="0 0 12 12" width="11" height="11"><rect x="2" y="5.5" width="8" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+/** Zeichen der Wissensgebiete (Strichzeichnungen) */
+const WZ = (d: string) => `<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const WISSEN_ZEICHEN: Record<Wissen, string> = {
+  krieg: WZ('M4 16 15 5M12 4h4v4M5 13l2 2M3 17l2-2M16 16 5 5M8 4H4v4M15 13l-2 2M17 17l-2-2'),
+  bau: WZ('M3 16h14M3 12h14M3 8h14M3 4h14M3 4v12M17 4v12M8 4v4M12 8v4M8 12v4'),
+  wirtschaft: WZ('M10 18V6M10 9c-3 0-4-2-4-4 3 0 4 2 4 4zM10 9c3 0 4-2 4-4-3 0-4 2-4 4zM10 13c-3 0-4-2-4-4 3 0 4 2 4 4zM10 13c3 0 4-2 4-4-3 0-4 2-4 4z'),
+  licht: WZ('M10 3v2M4 6l1.5 1.5M16 6l-1.5 1.5M7 11a3 3 0 1 1 6 0c0 1.5-1 2-1 3.5H8c0-1.5-1-2-1-3.5zM8 17h4'),
+  runen: WZ('M7 3v14M7 6l6-3M7 10l6 3M13 13v4'),
+  alchemie: WZ('M8 3h4M9 3v5l-5 8a1.3 1.3 0 0 0 1 2h10a1.3 1.3 0 0 0 1-2l-5-8V3M6 13h8')
+};
+/** Gebäude, das zur Skizze einer Erfindung gezeichnet wird: das erste, das sie freischaltet, sonst eines aus ihrem Wissensgebiet */
+function erfGebaeude(id: ErfId): GebTyp {
+  const frei = (Object.keys(GEBAEUDE) as GebTyp[]).find((g) => GEBAEUDE[g].braucht === id && !GEBAEUDE[g].volk);
+  if (frei) return frei;
+  const ERSATZ: Record<Wissen, GebTyp> = { krieg: 'wachturm', bau: 'tor', wirtschaft: 'hof', licht: 'leuchtfeuer', runen: 'werkstatt', alchemie: 'feuertopf' };
+  return ERSATZ[ERFINDUNGEN[id].wissen];
+}
+/** große Erfinderskizze (bei Schlüssel- und geheimen Erfindungen, im Rezeptbuch erneut) */
+function zeigeSkizze(id: ErfId): void {
+  const e = ERFINDUNGEN[id], g = erfGebaeude(id), el = $('skizze');
+  const zut = Object.entries(e.zutaten).map(([b, n]) => `<span><i class="${b}"></i>${n} ${t(BAUSTEIN_NAME[b as Baustein])}</span>`).join('') + `<span><i class="kristall"></i>${e.kristall} ${t('Kristall')}</span>`;
+  const za = e.zeitalter || e.ab;
+  el.innerHTML = `<div class="sk-blatt sk-papier" role="dialog" aria-label="${t(e.name)}">
+    <div class="sk-kopf"><div><h2>${t(e.name)}</h2><p>${e.zeitalter ? t('Erfindung des Zeitalters {a}', { a: t(ZA_NAMEN[e.zeitalter]) }) : t('Geheimes Rezept')}</p></div><span class="sk-siegel">${['', 'I', 'II', 'III', 'IV', 'V'][za]}</span></div>
+    <div class="sk-mitte">${skizze(g, 620, 360, 1, spiel?.volk || '')}
+      <div class="sk-notizen">${spiegelNotiz(t(GEBAEUDE[g].kurz))}${spiegelNotiz(t(e.wirkung))}</div></div>
+    <div class="sk-fuss"><div class="sk-zut"><b>${t('Bausteine für das Werk')}</b>${zut}</div><p>${t(e.wirkung)}</p></div>
+    <button type="button" class="knopf haupt" id="skizze-zu">${t('Weiter')}</button></div>`;
+  el.hidden = false; klang.spiele('glocke', 0.6);
+  $('skizze-zu').onclick = () => { el.hidden = true; };
+}
 function baumZeichnen(neu = false): void {
   const s = spiel; if (!s || $('baum').hidden) return;
   $('baum-za').textContent = `${t('Zeitalter {a} · {b} · {c} von {d} erfunden', { a: s.zeitalter(), b: t(s.zeitalterName()), c: s.erfindungen.size, d: Object.keys(ERFINDUNGEN).length })}`;
@@ -483,40 +523,67 @@ function baumZeichnen(neu = false): void {
     const aus = (a: number) => (a !== baumZa ? t(' z-aus') : '');
     $('baum-za-reiter').innerHTML = [1, 2, 3, 4, 5].map((a) => `<button type="button" data-za="${a}" aria-pressed="${a === baumZa}">${a}</button>`).join('');
     $('baum-za-reiter').querySelectorAll<HTMLButtonElement>('[data-za]').forEach((b) => { b.onclick = () => { baumZa = Number(b.dataset.za); baumZeichnen(true); }; });
-    html = `<div class="baum-gitter"><div></div>${[1, 2, 3, 4, 5].map((a) => `<div class="zkopf${aus(a)} ${a === z ? 'jetzt' : a > z ? 'zu' : ''}">${t(ZA_NAMEN[a])}<small>${a < z ? 'erreicht' : a === z ? t('jetziges Zeitalter') : t('noch verschlossen')}</small></div>`).join('')}`;
+    const alle = Object.keys(ERFINDUNGEN) as ErfId[];
+    html = `<div class="baum-gitter"><div></div>${[1, 2, 3, 4, 5].map((a) => {
+      const im = alle.filter((i) => ERFINDUNGEN[i].ab === a), fertig = im.filter((i) => s.erfindungen.has(i)).length;
+      return `<div class="zkopf za${a}${aus(a)} ${a === z ? 'jetzt' : a > z ? 'zu' : ''}"><span class="za-nr">${['', 'I', 'II', 'III', 'IV', 'V'][a]}</span>${t(ZA_NAMEN[a])}<small>${a < z ? t('erreicht') : a === z ? t('jetziges Zeitalter') : t('noch verschlossen')} · ${fertig}/${im.length}</small><i class="za-balken"><i style="width:${Math.round((fertig / Math.max(1, im.length)) * 100)}%"></i></i></div>`;
+    }).join('')}`;
     for (const w of Object.keys(WISSEN_NAME) as Wissen[]) {
-      html += `<div class="wkopf">${t(WISSEN_NAME[w])}</div>`;
+      html += `<div class="wkopf">${WISSEN_ZEICHEN[w]}<span>${t(WISSEN_NAME[w])}</span></div>`;
       for (const a of [1, 2, 3, 4, 5]) {
         const ids = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].wissen === w && ERFINDUNGEN[i].ab === a);
-        html += `<div class="zelle${aus(a)}">${ids.map((id) => {
+        html += `<div class="zelle za${a}${aus(a)}">${ids.map((id) => {
           const e = ERFINDUNGEN[id], st = erfStatus(id);
           if (st === 'geheim') return `<button type="button" class="ekarte geheim" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>???</b><span>${t('geheimes Rezept')}</span></button>`;
           const zut = Object.entries(e.zutaten).map(([b, n]) => `<span class="${st !== 'fertig' && s.bausteine[b as Baustein] < (n as number) ? 'fehlt' : ''}"><i class="${b}"></i>${n}</span>`).join('') + `<span class="${st !== 'fertig' && s.res.kristall < s.erfKristall(id) ? 'fehlt' : ''}"><i class="kristall"></i>${s.erfKristall(id)}</span>`;
-          return `<button type="button" class="ekarte ${st} ${e.zeitalter ? 'schluessel' : ''}" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>${e.zeitalter ? '◆ ' : ''}${t(e.name)}${st === 'fertig' ? ' ✓' : ''}</b><span class="zut">${zut}</span></button>`;
+          const zeichen = st === 'fertig' ? '<em class="e-zeichen fertig" aria-label="erfunden">✓</em>' : st === 'zu' ? `<em class="e-zeichen zu" aria-hidden="true">${SCHLOSS}</em>` : '';
+          return `<button type="button" class="ekarte ${st} ${e.zeitalter ? 'schluessel' : ''}" data-erf="${id}" aria-pressed="${baumWahl === id}"><b>${e.zeitalter ? '<span class="raute" aria-hidden="true"></span>' : ''}${t(e.name)}${zeichen}</b><span class="zut">${zut}</span></button>`;
         }).join('')}</div>`;
       }
     }
     html += '</div>';
   } else if (baumReiter === 'buch') {
     const LN = { fern: t('Fernkampf'), flaeche: t('Fläche'), licht: t('Licht') };
-    html = `<div class="baum-liste"><p>${t('Zwei benachbarte Türme lassen sich am Tag verschmelzen. Was einmal gelungen ist, bleibt hier vermerkt.')}</p>${VERSCHMELZUNGEN.map((v) => { const bek = s.entdeckt.has(v.ergebnis); return `<div class="zeile"><span>${LN[v.a]} + ${LN[v.b]}</span><span>${bek ? `<b>${t(GEBAEUDE[v.ergebnis].name)}</b> · ${t(GEBAEUDE[v.ergebnis].kurz)}` : '???'}</span></div>`; }).join('')}</div>`;
+    const LINIE: Record<'fern' | 'flaeche' | 'licht', GebTyp> = { fern: 'wachturm', flaeche: 'feuertopf', licht: 'leuchtfeuer' };
+    const klein = (typ: GebTyp, zu = false) => `<span class="sk-klein${zu ? ' sk-zu' : ''}">${skizze(typ, 120, 96, 3, spiel!.volk)}</span>`;
+    const schluessel = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].zeitalter);
+    const geheim = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].geheim), gefunden = geheim.filter((i) => s.erfindungen.has(i));
+    html = `<div class="buch">
+      <section class="buch-teil"><h3>${t('Verschmelzungen')}</h3><p>${t('Zwei benachbarte Türme lassen sich am Tag verschmelzen. Was einmal gelungen ist, bleibt hier vermerkt.')}</p>
+        <div class="buch-gitter">${VERSCHMELZUNGEN.map((v) => { const bek = s.entdeckt.has(v.ergebnis); return `<div class="rezept sk-papier${bek ? '' : ' unbekannt'}">
+          <div class="rezept-formel">${klein(LINIE[v.a])}<b>+</b>${klein(LINIE[v.b])}<b>=</b>${klein(v.ergebnis, !bek)}</div>
+          <div class="rezept-text"><small>${LN[v.a]} + ${LN[v.b]}</small><strong>${bek ? t(GEBAEUDE[v.ergebnis].name) : t('Noch nicht entdeckt')}</strong><span>${bek ? t(GEBAEUDE[v.ergebnis].kurz) : t('Stelle zwei solche Türme nebeneinander und probiere es aus.')}</span></div></div>`; }).join('')}</div></section>
+      <section class="buch-teil"><h3>${t('Skizzen der großen Erfindungen')}</h3><p>${t('Jede Schlüsselerfindung öffnet ein Zeitalter. Ist sie gelungen, liegt hier ihre Skizze.')}</p>
+        <div class="buch-galerie">${schluessel.map((id) => { const e = ERFINDUNGEN[id], da = s.erfindungen.has(id), g = erfGebaeude(id); return `<button type="button" class="galerie sk-papier${da ? '' : ' unbekannt'}" ${da ? `data-skizze="${id}"` : 'disabled'}>${klein(g, !da)}<strong>${t(e.name)}</strong><small>${t(ZA_NAMEN[e.zeitalter!])}</small></button>`; }).join('')}</div></section>
+      <section class="buch-teil"><h3>${t('Geheime Rezepte')}</h3><p>${gefunden.length ? t('{a} von {b} gefunden.', { a: gefunden.length, b: geheim.length }) : t('Noch keines gefunden. Geheime Rezepte zeigen sich, wenn die richtigen Bausteine beisammen sind.')}</p>
+        <div class="buch-liste">${gefunden.map((id) => `<div class="zeile sk-papier"><b>${t(ERFINDUNGEN[id].name)}</b><span>${t(ERFINDUNGEN[id].wirkung)}</span></div>`).join('')}${geheim.length - gefunden.length ? `<div class="zeile leer sk-papier"><b>???</b><span>${t('{a} weitere warten noch.', { a: geheim.length - gefunden.length })}</span></div>` : ''}</div></section>
+    </div>`;
   } else {
-    html = `<div class="baum-liste"><p>${t('Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.')}</p>${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="zeile"><span><i class="${bs}" style="width:8px;height:8px;display:inline-block;transform:rotate(45deg);border-radius:2px;margin-right:6px"></i>${t(BAUSTEIN_NAME[bs])}</span><span>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).filter((gt) => GEGNER[gt].beute.some(([x]) => x === bs)).map((gt) => { const bt = GEGNER[gt].beute.find(([x]) => x === bs)!; return `${t(GEGNER[gt].name)} ${Math.round(100 * bt[1])} %${bt[2] ? ` (×${bt[2]})` : ''}`; }).join(' · ')}</span></div>`).join('')}
-      <p>${t('Die Wesen der Wildnis:')}</p>${(Object.keys(GEGNER) as (keyof typeof GEGNER)[]).map((gt) => `<div class="zeile"><span>${t(GEGNER[gt].name)}</span><span>${t(GEGNER[gt].kurz)}</span></div>`).join('')}</div>`;
+    const alleG = Object.keys(GEGNER) as (keyof typeof GEGNER)[];
+    html = `<div class="beute">
+      <section class="beute-links"><h3>${t('Bausteine')}</h3><p>${t('Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.')}</p>
+        ${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="bst-karte sk-papier"><i class="${bs} bst-raute"></i><div><strong>${t(BAUSTEIN_NAME[bs])}</strong><small>${t('Vorrat: {a}', { a: s.bausteine[bs] })}</small>
+          <div class="chips">${alleG.filter((gt) => GEGNER[gt].beute.some(([x]) => x === bs)).map((gt) => { const bt = GEGNER[gt].beute.find(([x]) => x === bs)!; return `<span class="chip">${t(GEGNER[gt].name)} ${Math.round(bt[1] * 100)} %${bt[2] && bt[2] > 1 ? ` ×${bt[2]}` : ''}</span>`; }).join('')}</div></div></div>`).join('')}
+      </section>
+      <section class="beute-rechts"><h3>${t('Die Wesen der Wildnis')}</h3>
+        <div class="wesen-gitter">${alleG.map((gt) => { const G = GEGNER[gt]; return `<div class="wesen-karte sk-papier"><span class="wesen-bild">${wesenSkizze(gt, 96, 72, gt === 'rissfuerst' ? 2 : 1)}</span><strong>${t(G.name)}</strong><div class="chips">${G.flug ? `<span class="chip blau">${t('fliegt')}</span>` : ''}${G.verborgen ? `<span class="chip lila">${t('verborgen')}</span>` : ''}${G.boss ? `<span class="chip rot">${t('Anführer')}</span>` : ''}</div><span>${t(G.kurz)}</span><div class="chips">${G.beute.map(([b, w]) => `<span class="chip"><i class="${b}"></i>${Math.round(w * 100)} %</span>`).join('')}</div></div>`; }).join('')}</div>
+      </section>
+    </div>`;
   }
   if (neu || html !== baumHtmlAlt) {
     baumHtmlAlt = html; $('baum-inhalt').innerHTML = html;
     $('baum-inhalt').querySelectorAll<HTMLButtonElement>('[data-erf]').forEach((b) => { b.onclick = () => { baumWahl = b.dataset.erf as ErfId; baumZeichnen(); }; });
+    $('baum-inhalt').querySelectorAll<HTMLButtonElement>('[data-skizze]').forEach((b) => { b.onclick = () => zeigeSkizze(b.dataset.skizze as ErfId); });
   }
   // Einzelheiten der gewählten Erfindung
   const d = $('baum-detail');
   if (!baumWahl || baumReiter !== 'baum') { d.hidden = true; return; }
   const e = ERFINDUNGEN[baumWahl], st = erfStatus(baumWahl);
   const grund = st === 'fertig' ? '' : st === 'geheim' ? t('Ein geheimes Rezept. Es zeigt sich, sobald die richtigen Bausteine beisammen sind.') : s.vorwissenFehlt(baumWahl) || (st === 'fehlt' ? t('Es fehlen noch Bausteine oder Kristall.') : '');
-  const dhtml = `<h3>${st === 'geheim' ? '???' : e.name}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
+  const dhtml = `${st === 'geheim' ? '' : `<div class="detail-skizze sk-papier">${skizze(erfGebaeude(baumWahl), 300, 150, 2, s.volk)}</div>`}<h3>${st === 'geheim' ? '???' : t(e.name)}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
   if (d.dataset.html !== dhtml || d.hidden) {
     d.dataset.html = dhtml; d.innerHTML = dhtml; d.hidden = false;
-    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { if (s.erfinden(baumWahl!)) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); } };
+    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (s.befehl({ art: 'erfinden', erf: id })) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
   }
 }
 document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => { b.onclick = () => { baumReiter = b.dataset.reiter as typeof baumReiter; baumZeichnen(true); }; });
@@ -588,24 +655,28 @@ canvas.addEventListener('pointermove', (e) => {
   const typ = werkzeug.typ, [x0, z0] = GEBAEUDE[typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(typ, p);
   const pr = spiel.pruefe(typ, x0, z0), bezahlbar = spiel.kannBezahlen(GEBAEUDE[typ].kosten);
   obj?.zeigeVorschau(typ, x0, z0, pr.ok && bezahlbar, pr.ok ? pr.y : hoehe(x0 + 0.5, z0 + 0.5));
-  if (unten?.mauer) { mauerZiel = [x0, z0]; const n = linie(unten.mauer, mauerZiel).length; zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: n, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * n]))) })}`); }
+  if (unten?.mauer) { mauerZiel = [x0, z0]; const zug = linie(unten.mauer, mauerZiel);
+    // Verlauf der Mauer auf dem Boden zeigen
+    obj?.zeigeLinie(zug.map(([x, z]) => { const q = spiel!.pruefe(typ, x, z); return [x, q.ok ? q.y : hoehe(x + 0.5, z + 0.5), z, q.ok] as [number, number, number, boolean]; }));
+  } else obj?.zeigeLinie(null);
+  if (unten?.mauer) { const n = linie(unten.mauer, mauerZiel!).length; zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: n, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * n]))) })}`); }
   else zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(GEBAEUDE[typ].kosten)}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
 });
 canvas.addEventListener('pointerup', (e) => {
   const u = unten; unten = null; controls.enabled = true;
   if (!u || !spiel || e.button !== 0) return;
-  if (u.ebene && mauerZiel) { if (spiel.ebnen(u.ebene[0], u.ebene[1], mauerZiel[0], mauerZiel[1])) klang.spiele('hieb_stein'); mauerZiel = null; return; }
+  if (u.ebene && mauerZiel) { if (spiel.befehl({ art: 'ebnen', x0: u.ebene[0], z0: u.ebene[1], x1: mauerZiel[0], z1: mauerZiel[1] })) klang.spiele('hieb_stein'); mauerZiel = null; return; }
   if (u.mauer && mauerZiel) {
     const typ = werkzeug?.art === 'bau' ? werkzeug.typ : 'mauer';
-    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.bauen(typ, x, z, true)) n++;
+    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.befehl({ art: 'bauen', typ, x, z, still: true })) n++;
     if (!n) melde(`${t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) })}`, 'schlecht'); else if (!e.shiftKey) werkzeugSetzen(null);
-    mauerZiel = null; return;
+    mauerZiel = null; obj?.zeigeLinie(null); return;
   }
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
-  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (spiel.bauen(werkzeug.typ, x0, z0) && !e.shiftKey) werkzeugSetzen(null); return; }
-  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (spiel.spaeher(p.x, p.z)) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
-  if (werkzeug?.art === 'feuerregen') { if (spiel.faehigkeit('feuerregen', p.x, p.z)) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (spiel.befehl({ art: 'bauen', typ: werkzeug.typ, x: x0, z: z0 }) && !e.shiftKey) werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (spiel.befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
+  if (werkzeug?.art === 'feuerregen') { if (spiel.befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
   const g = spiel.gebAn(p.x, p.z);
   if (!g) { const ru = spiel.ruineAn(p.x, p.z); if (ru) { waehle(null); ruineGew = ru; panelArt = 'ruine'; $('panel').dataset.html = ''; panelRuine(); return; } }
   waehle(g || null);
@@ -620,14 +691,15 @@ addEventListener('keydown', (e) => {
   if (typ) werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ });
   if (berichtPause && (k === 'enter' || k === ' ' || k === 'escape')) { e.preventDefault(); $('bericht').hidden = true; berichtPause = false; return; }
   if (k === 'f1' || k === '?') { e.preventDefault(); if ($('hilfe').hidden) zeigeHilfe(); else $('hilfe').hidden = true; }
-  if (k === 'escape') { $('hilfe').hidden = true; gruppeZeigen(null); werkzeugSetzen(null); waehle(null); schliessePanel(); baumZu(); $('bericht').hidden = true; }
+  if (k === 'escape') { $('skizze').hidden = true; $('hilfe').hidden = true; gruppeZeigen(null); werkzeugSetzen(null); waehle(null); schliessePanel(); baumZu(); $('bericht').hidden = true; }
   if (k === '9') werkzeugSetzen(werkzeug?.art === 'ebnen' ? null : { art: 'ebnen' });
   const gr = BAUGRUPPEN.find((g) => g.taste.toLowerCase() === k); if (gr) gruppeZeigen(gruppeOffen === gr.id ? null : gr.id);
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
   if (k === 't') $('baum').hidden ? zeigeWerkstatt() : baumZu();
-  if (k === 'n') spiel.nachtEinlaeuten();
+  if (k === 'm') karteSetzen(!einst.karte);
+  if (k === 'n') spiel.befehl({ art: 'nacht' });
   if (k === ' ') { e.preventDefault(); setzeTempo(tempo === 0 ? 1 : 0); }
-  if (k === 'delete' && gewaehlt) { spiel.abreissen(gewaehlt); waehle(null); }
+  if (k === 'delete' && gewaehlt) { spiel.befehl({ art: 'abreissen', geb: gewaehlt.id }); waehle(null); }
 });
 addEventListener('keyup', (e) => tasten.delete(e.key.toLowerCase()));
 addEventListener('blur', () => tasten.clear());
@@ -642,13 +714,95 @@ function tastenBewegung(dt: number): void {
   if (dreh) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * dt * 1.4); camera.position.copy(controls.target).add(off); }
 }
 
+// ================= Gamepad =================
+/**
+ * Steuerung mit dem Gamepad (Standardbelegung, Xbox/PlayStation):
+ * linker Stick schiebt, rechter Stick dreht und zoomt, Schultertasten zoomen; A klickt am Fadenkreuz in der Bildmitte
+ * (halten und schieben zieht Mauern), B bricht ab, X Erfindungsbaum, Y Karte, Start Menü, Zurück Pause,
+ * Steuerkreuz: hoch/runter Baugruppen, links/rechts Gebäude der Gruppe. In Fenstern wandert der Fokus mit dem Steuerkreuz.
+ */
+let padAktiv = false, padFokus: HTMLElement | null = null, padWiederholung = 0, padADruck = false;
+const padAlt: boolean[] = [];
+const taste = (key: string) => { dispatchEvent(new KeyboardEvent('keydown', { key })); dispatchEvent(new KeyboardEvent('keyup', { key })); };
+function sichtbar(el: HTMLElement | null): boolean { return !!el && !el.hidden && el.offsetParent !== null; }
+/** oberstes offenes Fenster, in dem der Fokus wandert (null = Spielwelt) */
+function padFenster(): HTMLElement | null {
+  for (const id of ['skizze', 'ende', 'bericht', 'leitsatz', 'hilfe', 'sieg', 'baum-detail', 'baum', 'start', 'panel']) { const el = $(id); if (sichtbar(el) || (id === 'start' && !el.hidden)) return el; }
+  return null;
+}
+function padZiele(f: HTMLElement): HTMLElement[] {
+  return [...f.querySelectorAll<HTMLElement>('button:not(:disabled), input, [role="button"], [data-seite]')].filter((e) => e.offsetParent !== null);
+}
+function fokusSetzen(el: HTMLElement | null): void {
+  padFokus?.classList.remove('pad-fokus'); padFokus = el;
+  if (el) { el.classList.add('pad-fokus'); el.focus({ preventScroll: false }); el.scrollIntoView({ block: 'nearest' }); }
+}
+function zeigerAnMitte(art: 'pointerdown' | 'pointermove' | 'pointerup'): void {
+  const cx = innerWidth / 2, cy = innerHeight / 2, war = controls.enabled;
+  controls.enabled = false; // die Kamerasteuerung soll den nachgemachten Klick nicht als Ziehen deuten
+  try { canvas.dispatchEvent(new PointerEvent(art, { clientX: cx, clientY: cy, button: 0, buttons: art === 'pointerup' ? 0 : 1, bubbles: true, pointerType: 'mouse' })); }
+  finally { controls.enabled = art === 'pointerup' ? true : war; }
+}
+function padSchritt(dt: number): void {
+  const gp = [...(navigator.getGamepads?.() || [])].find((p) => p && p.connected); if (!gp) return;
+  const ax = (i: number) => { const v = gp.axes[i] || 0; return Math.abs(v) < 0.2 ? 0 : v; };
+  const kn = (i: number) => !!gp.buttons[i]?.pressed, neu = (i: number) => kn(i) && !padAlt[i];
+  const irgendwas = gp.buttons.some((b) => b.pressed) || gp.axes.some((a) => Math.abs(a) > 0.3);
+  if (irgendwas && !padAktiv) { padAktiv = true; document.body.classList.add('pad'); }
+  const f = padFenster();
+  padWiederholung -= dt;
+  const hoch = kn(12) || ax(1) < -0.6, runter = kn(13) || ax(1) > 0.6, links = kn(14) || ax(0) < -0.6, rechts = kn(15) || ax(0) > 0.6;
+  if (f && f.id !== 'panel') { // Fenster: Fokus wandern lassen
+    const ziele = padZiele(f);
+    if (padFokus && !ziele.includes(padFokus)) fokusSetzen(null);
+    if ((hoch || runter || links || rechts) && padWiederholung <= 0) {
+      padWiederholung = 0.18; const i = padFokus ? ziele.indexOf(padFokus) : -1, schritt = hoch || links ? -1 : 1;
+      fokusSetzen(ziele[(i + schritt + ziele.length) % ziele.length] || null);
+    }
+    if (!hoch && !runter && !links && !rechts) padWiederholung = 0;
+    if (neu(0) && padFokus) padFokus.click();
+    if (neu(1)) { taste('Escape'); if (f.id === 'bericht') $('bericht-zu')?.click(); }
+  } else if (spiel && !imMenue) { // Spielwelt
+    const vor = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize(), re = new THREE.Vector3(-vor.z, 0, vor.x);
+    const dist = camera.position.distanceTo(controls.target), v = new THREE.Vector3().addScaledVector(vor, -ax(1)).addScaledVector(re, ax(0));
+    if (v.lengthSq()) { v.multiplyScalar(dist * 0.9 * dt); controls.target.add(v); camera.position.add(v); }
+    const dreh = -ax(2), zoom = ax(3) + ((gp.buttons[6]?.value || 0) - (gp.buttons[7]?.value || 0));
+    if (dreh) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * dt * 1.8); camera.position.copy(controls.target).add(off); }
+    if (zoom) { const off = camera.position.clone().sub(controls.target); off.setLength(THREE.MathUtils.clamp(off.length() * (1 + zoom * dt * 1.6), controls.minDistance, controls.maxDistance)); camera.position.copy(controls.target).add(off); }
+    if (v.lengthSq() || dreh || zoom || werkzeug) zeigerAnMitte('pointermove');
+    // Baugruppen und Gebäude mit dem Steuerkreuz
+    if (neu(12) || neu(13)) { const ids = BAUGRUPPEN.map((g) => g.id), i = gruppeOffen ? ids.indexOf(gruppeOffen) : -1, n = (i + (neu(12) ? -1 : 1) + ids.length + 1) % (ids.length + 1); gruppeZeigen(n === ids.length ? null : ids[n]); fokusSetzen(null); }
+    if ((neu(14) || neu(15)) && gruppeOffen) { const ziele = [...$('aufklapp').querySelectorAll<HTMLElement>('.bau')]; const i = padFokus ? ziele.indexOf(padFokus) : -1; fokusSetzen(ziele[(i + (neu(14) ? -1 : 1) + ziele.length) % ziele.length] || null); }
+    if (neu(0)) {
+      if (padFokus && sichtbar(padFokus)) { padFokus.click(); fokusSetzen(null); }
+      else { // Mauern und Ebnen: halten und schieben; sonst ein kurzer Klick
+        const ziehen = werkzeug?.art === 'ebnen' || (werkzeug?.art === 'bau' && GEBAEUDE[werkzeug.typ].w === 1);
+        zeigerAnMitte('pointerdown'); if (ziehen) padADruck = true; else zeigerAnMitte('pointerup');
+      }
+    }
+    if (padADruck && !kn(0)) { zeigerAnMitte('pointerup'); padADruck = false; }
+    if (neu(1)) { fokusSetzen(null); taste('Escape'); }
+    if (neu(2)) taste('t');
+    if (neu(3)) taste('m');
+    if (neu(8)) taste(' ');
+    // Gebäudefenster: Schultertasten wählen die Knöpfe darin
+    if (f && (neu(4) || neu(5))) { const ziele = padZiele(f); const i = padFokus ? ziele.indexOf(padFokus) : -1; fokusSetzen(ziele[(i + (neu(4) ? -1 : 1) + ziele.length) % ziele.length] || null); }
+  } else if (imMenue) {
+    const z = padZiele($('start')); if ((hoch || runter) && padWiederholung <= 0) { padWiederholung = 0.2; const i = padFokus ? z.indexOf(padFokus) : -1; fokusSetzen(z[(i + (hoch ? -1 : 1) + z.length) % z.length] || null); }
+    if (!hoch && !runter) padWiederholung = 0; if (neu(0) && padFokus) padFokus.click();
+  }
+  if (neu(9)) $('menue').click();
+  gp.buttons.forEach((b, i) => { padAlt[i] = b.pressed; });
+}
+addEventListener('mousemove', () => { if (padAktiv) { padAktiv = false; document.body.classList.remove('pad'); fokusSetzen(null); } });
+
 // ================= Übersichtskarte =================
 const mk = $<HTMLCanvasElement>('minikarte'), mx = mk.getContext('2d')!;
 const kartenGrund = document.createElement('canvas'); kartenGrund.width = kartenGrund.height = 256;
 function zeichneKartenGrund(): void { welt?.kartenBild(kartenGrund.getContext('2d')!); }
 const ebene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -7), hit = new THREE.Vector3();
 function zeichneKarte(): void {
-  if (!spiel) return;
+  if (!spiel || !einst.karte) return;
   const s = 256 / (2 * WR); mx.drawImage(kartenGrund, 0, 0);
   for (const g of spiel.gebaeude) { mx.fillStyle = g.typ === 'haupt' ? '#ffe2a0' : '#ebe3d2'; mx.fillRect((g.x + WR) * s - 0.5, (g.z + WR) * s - 0.5, Math.max(1.5, g.w * s), Math.max(1.5, g.d * s)); }
   mx.fillStyle = '#ff5a4a'; for (const e of spiel.gegner) if (spiel.erkundetAn(e.x, e.z)) mx.fillRect((e.x + WR) * s - 1, (e.z + WR) * s - 1, 2, 2);
@@ -683,7 +837,7 @@ function anzeige(): void {
     const siegelInfo = akt.nr === 4 ? ` · ${t('Risse versiegelt {a} / {b}', { a: s.versiegelt.size, b: s.alleRisse().length })}` : '';
     u.innerHTML = `<div class="akt-zeile">${t('Akt {a} · {b} · Nacht {c} von {d}{e}', { a: akt.nr, b: t(akt.name), c: s.nacht, d: ENDE_NACHT, e: siegelInfo })}</div>${om ? `<div class="omen">${t('Omen heute Nacht:')} <b>${t(OMEN[om].name)}</b> · ${t(OMEN[om].kurz)}</div>` : ''}<div class="titel">${t('Tag {a}', { a: s.nacht })}</div><div class="balken"><div style="width:${(100 * s.zeit) / TAG_DAUER}%"></div></div>
       <div class="unter">${s.abend() ? `${t('Heute Nacht: {a}', { a: vorschau })}` : `${t('Ruhig. Nacht in {a}:{b}', { a: mm, b: ss })}`}</div><div><button type="button" id="einlaeuten">${t('Nacht einläuten')}</button>${s.beschaedigt().length ? ` <button type="button" id="allerep" ${s.kannBezahlen(s.alleReparaturKosten()) ? '' : 'disabled'}>${t('Alles reparieren · {a}', { a: kostenHtml(s.alleReparaturKosten()) })}</button>` : ''}</div>`;
-    $('einlaeuten').onclick = () => s.nachtEinlaeuten();
+    $('einlaeuten').onclick = () => s.befehl({ art: 'nacht' });
     const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
     const f = s.faehigkeiten();
@@ -691,7 +845,7 @@ function anzeige(): void {
     const html = `<div class="akt-zeile">${t('Akt {a} · {b}', { a: s.akt().nr, b: t(s.akt().name) })}</div>${om ? `<div class="omen"><b>${t(OMEN[om].name)}</b></div>` : ''}<div class="titel">${t('Nacht {a}', { a: s.nacht })}</div><div class="unter">${t('Die Welle kommt · {a} Wesen unterwegs', { a: s.gegner.length })}</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${t(FAEHIGKEIT_NAME[n])}</button>`).join(' ')}</div>` : ''}`;
     if (u.dataset.html !== html) {
       u.dataset.html = html; u.innerHTML = html;
-      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.faehigkeit(n)) klang.spiele('glocke', 0.8); }; });
+      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.befehl({ art: 'faehigkeit', name: n })) klang.spiele('glocke', 0.8); }; });
     }
   } else if (s.phase === 'morgen') u.dataset.html = '', u.innerHTML = `<div class="titel">${t('Morgen')}</div><div class="unter">${t('Die Nacht ist überstanden')}</div>`;
   leisteAktualisieren(); einfuehrung();
@@ -760,7 +914,7 @@ function zeigeLeitsatz(): void {
     <div class="leit-wahl">${LEITSAETZE[z].map((l) => `<button type="button" data-leit="${l.id}"><b>${t(l.name)}</b><span>${t(l.kurz)}</span></button>`).join('')}</div>
     <button type="button" class="spaeter" id="leit-spaeter">${t('Später entscheiden')}</button>`;
   el.hidden = false;
-  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (s.waehleLeitsatz(b.dataset.leit!)) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
+  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (s.befehl({ art: 'leitsatz', id: b.dataset.leit! })) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
   $('leit-spaeter').onclick = () => { el.hidden = true; };
 }
 function zeigeAbspann(): void {
@@ -798,6 +952,7 @@ function zeigeHilfe(): void {
       ${karte(t('Ausbauen'), t('Klicke ein Gebäude an: Stufe II und III, Umrüsten mit zwei Zweigen, Verschmelzen mit dem Nachbarturm, Reparieren. Goldene Pfeile zeigen, was gerade geht. Je Zeitalter gibt es ein Wunder aus zweien.'))}
       ${karte(t('Die Partie'), t('40 Nächte in vier Akten. Alle fünf Nächte kommt ein Rissfürst, Omen kündigen besondere Nächte an. In Akt IV versiegeln Siegelsteine die Risse: Sind alle versiegelt oder ist die 40. Nacht überstanden, ist die Partie gewonnen.'))}
       ${karte(t('Tasten'), t('Ziehen: verschieben · Rad: zoomen · rechte Maustaste: drehen · Z R V B: Bauleiste · T: Erfindungsbaum · X: Späher · 9: Ebnen · N: Nacht · Leertaste: Pause · Umschalt + Klick: Auswahl behalten · F1: Hilfe'))}
+      ${karte(t('Klänge'), t('Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.'))}
     </div>`;
   el.hidden = false;
   $('hilfe-zu').onclick = () => { el.hidden = true; };
@@ -818,6 +973,27 @@ function zeigeBericht(b: import('@runeboom/core').Nachtbericht): void {
   berichtPause = true;
   $('bericht-zu').onclick = () => { el.hidden = true; berichtPause = false; };
 }
+
+// ================= Jahreszeiten =================
+/** s = 0…4 über die Partie (je Akt eine Jahreszeit: Frühling, Sommer, Herbst, Winter), Übergang über etwa zwei Nächte */
+function jahreszeit(s: number): void {
+  const sm = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  s = ((s % 4) + 4) % 4;
+  jahreszeitSetzen(1 - sm(0.85, 1.05, s) + sm(3.85, 4, s), sm(1.85, 2.05, s) * (1 - sm(2.85, 3.05, s)), sm(2.85, 3.05, s) * (1 - sm(3.85, 4, s)));
+}
+
+// ================= Querformat =================
+/** Handy und Tablet nur quer: hochkant erscheint ein Hinweis und das Spiel wartet */
+let hochkant = false;
+const fingerGeraet = matchMedia('(pointer: coarse)');
+function lagePruefen(): void {
+  hochkant = fingerGeraet.matches && innerHeight > innerWidth * 1.05;
+  $('drehen').hidden = !hochkant;
+}
+addEventListener('resize', lagePruefen); addEventListener('orientationchange', lagePruefen);
+/** in Apps und im Vollbild wird das Querformat festgehalten, wo der Browser es erlaubt */
+function querSperren(): void { const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }; try { void o.lock?.('landscape')?.catch(() => { /* nicht erlaubt */ }); } catch { /* */ } }
+addEventListener('pointerdown', () => { if (fingerGeraet.matches) querSperren(); }, { once: true });
 
 // ================= Hauptschleife =================
 let letzte = performance.now();
@@ -852,6 +1028,7 @@ function zeichnen(): void {
 renderer.setAnimationLoop(() => {
   const jetzt = performance.now(), roh = (jetzt - letzte) / 1000, dt = Math.min(0.1, roh); letzte = jetzt;
   messAnzeige(roh); renderer.info.reset(); auflSchritt(roh);
+  try { padSchritt(dt); } catch (err) { console.error(err); }
   ZEIT.value += dt;
   if (spiel && welt && obj) {
     enthuellungSchritt(dt);
@@ -860,6 +1037,7 @@ renderer.setAnimationLoop(() => {
       try { spiel.schritt(); } catch (err) { console.error(err); }
       obj.ereignisse(spiel.ereignisse.splice(0).filter((e) => e.art !== 'meldung'));
       const d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
+      jahreszeit(menueZeit / 60);
       licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
       menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
@@ -869,7 +1047,8 @@ renderer.setAnimationLoop(() => {
       zeichnen();
       return;
     }
-    akku += (enth.aktiv && enth.phase === 0) || berichtPause ? 0 : dt * tempo; let n = 0; const ts = performance.now();
+    jahreszeit(Math.min(3.999, (spiel.nacht - 1 + (spiel.phase === 'tag' ? spiel.zeit / TAGD : 1)) / 10));
+    akku += (enth.aktiv && enth.phase === 0) || berichtPause || hochkant ? 0 : dt * tempo; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     while (akku >= DT && n < 12) {
       try { spiel.schritt(); } catch (err) { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } }
@@ -881,7 +1060,7 @@ renderer.setAnimationLoop(() => {
     let lichtNeu = false;
     for (const e of ev) {
       if (e.art === 'gebaut' || e.art === 'weg' || e.art === 'umgebaut') lichtNeu = true;
-      if (e.art === 'umgebaut') klang.spiele('glocke', naehe(e.geb.x, e.geb.z) * 0.5);
+      if (e.art === 'umgebaut' && e.geb.typ !== 'mauer' && !GEBAEUDE[e.geb.typ].falle) klang.spiele('glocke', naehe(e.geb.x, e.geb.z) * 0.5);
       if (e.art === 'blitz') klang.spiele('blitz', naehe(e.punkte[0][0], e.punkte[0][2]) * 0.6);
       if (e.art === 'feuer') klang.spiele('feuer', naehe(e.x, e.z) * 0.5);
       if (e.art === 'brand') klang.spiele('feuer', naehe(e.geb.x, e.geb.z) * 0.6);
@@ -913,7 +1092,8 @@ renderer.setAnimationLoop(() => {
       if (e.art === 'phase' && e.phase === 'gewonnen') { try { localStorage.removeItem(SPEICHER); } catch { /* */ } setTimeout(zeigeAbspann, 2500); }
       if (e.art === 'riss') klang.spiele('horn', 0.9);
       if (e.art === 'phase' && e.phase === 'tag') speichern();
-      if (e.art === 'phase' && e.phase === 'verloren') { $('ende-text').textContent = `${t('Nach {a} überstandenen Nächten und {b} besiegten Wesen hat die Welt {c} gesiegt. Mit demselben Weltcode lässt sich genau diese Welt noch einmal versuchen.', { a: spiel.nacht - 1, b: spiel.besiegt, c: spiel.code })}`; setTimeout(() => { $('ende').hidden = false; }, 1600); try { localStorage.removeItem(SPEICHER); } catch { /* */ } }
+      if (e.art === 'phase' && e.phase === 'verloren') { obj.einsturz(); sturzKamera = 0; klang.spiele('einsturz', 1); setTimeout(() => klang.spiele('einsturz', 0.9), 900); setTimeout(() => klang.spiele('explosion', 0.7), 2200); setTimeout(() => klang.spiele('einsturz', 1), 3300); }
+      if (e.art === 'phase' && e.phase === 'verloren') { $('ende-text').textContent = `${t('Nach {a} überstandenen Nächten und {b} besiegten Wesen hat die Welt {c} gesiegt. Mit demselben Weltcode lässt sich genau diese Welt noch einmal versuchen.', { a: spiel.nacht - 1, b: spiel.besiegt, c: spiel.code })}`; setTimeout(() => { $('ende').hidden = false; }, 5600); try { localStorage.removeItem(SPEICHER); } catch { /* */ } }
     }
     obj.ereignisse(ev);
     kegelZeit -= dt;
@@ -924,8 +1104,17 @@ renderer.setAnimationLoop(() => {
     licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
     const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
     obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);
-    { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.stimmung(spiel.phase === 'nacht', nah / 25); }
-    if (imAbspann) menueKamera(dt); else { tastenBewegung(dt); controls.update(); }
+    { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.setzeVolk(spiel.volk); klang.stimmung(spiel.phase === 'nacht', nah / 25, spiel.abend(), spiel.phase === 'nacht' && spiel.gegner.some((e) => e.typ === 'rissfuerst')); }
+    if (imAbspann) menueKamera(dt);
+    else if (obj.sturzZeit >= 0 && obj.sturzZeit < 6 && spiel.haupt) { // Fall der Feste: langsam um die Burg, leichtes Beben
+      const h = spiel.haupt, ziel = new THREE.Vector3(h.x + h.w / 2, h.y + 6, h.z + h.d / 2), tg = controls.target;
+      tg.lerp(ziel, Math.min(1, dt * 1.5)); sturzKamera += dt;
+      const off = camera.position.clone().sub(tg); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.22);
+      const soll = THREE.MathUtils.clamp(off.length() - dt * 6, 70, 400); off.setLength(soll);
+      camera.position.copy(tg).add(off);
+      if (obj.sturzZeit < 4.2) camera.position.add(new THREE.Vector3((Math.random() - 0.5) * 0.35, (Math.random() - 0.5) * 0.35, 0));
+      camera.lookAt(tg);
+    } else { tastenBewegung(dt); controls.update(); }
     const tg = controls.target, cx = THREE.MathUtils.clamp(tg.x, -WR + 20, WR - 20), cz = THREE.MathUtils.clamp(tg.z, -WR + 20, WR - 20);
     if (cx !== tg.x || cz !== tg.z) { const d = new THREE.Vector3(cx - tg.x, 0, cz - tg.z); tg.add(d); camera.position.add(d); }
     const dist = camera.position.distanceTo(tg);
@@ -937,7 +1126,23 @@ renderer.setAnimationLoop(() => {
   zeichnen();
 });
 
+/** Übersichtskarte ein- und ausblenden (gemerkt) */
+function karteSetzen(an: boolean): void {
+  einst.karte = an; einstSpeichern();
+  $('karte').hidden = !an; document.body.classList.toggle('karte-an', an); $('karte-knopf').setAttribute('aria-pressed', String(an));
+  if (an) zeichneKarte();
+}
+$('karte-knopf').onclick = () => karteSetzen(!einst.karte);
+
+// ================= Offline (installierbare Web-App) =================
+// nur im Browser über https; Desktop- und Handy-Apps bringen alles selbst mit
+const W = window as unknown as { __TAURI_INTERNALS__?: unknown; Capacitor?: { isNativePlatform?: () => boolean } };
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !W.__TAURI_INTERNALS__ && !W.Capacitor?.isNativePlatform?.()) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline weiter */ }); });
+}
+
 // ================= Start (am Ende, wenn alles definiert ist) =================
+karteSetzen(einst.karte); lagePruefen();
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();
 zeigeStart();

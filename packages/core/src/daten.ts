@@ -1,3 +1,4 @@
+import { mpow } from './rechnen.ts';
 /** Spielwerte: Gebäude, Wesen, Erfindungen, Zeitalter, Wellen. Alles an einem Ort, damit sich das Gleichgewicht leicht einstellen lässt. */
 export type Res = 'holz' | 'stein' | 'kristall' | 'nahrung' | 'erz' | 'stahl' | 'balken' | 'linsen';
 export const RES_NAMEN: Record<Res, string> = { holz: 'Holz', stein: 'Stein', kristall: 'Kristall', nahrung: 'Nahrung', erz: 'Roherz', stahl: 'Stahl', balken: 'Balken', linsen: 'Linsen' };
@@ -339,7 +340,7 @@ export function welle(n: number, faktor = 1): { typ: GegTyp; zahl: number }[] {
   return w;
 }
 /** Stärke der Wesen in Nacht n: wächst gleichmäßig, nach Nacht 20 schneller */
-export const staerke = (n: number, wachstum = 0.16) => 1 + wachstum * (n - 1) + 0.012 * Math.pow(Math.max(0, n - 20), 1.4);
+export const staerke = (n: number, wachstum = 0.16) => 1 + wachstum * (n - 1) + 0.012 * mpow(Math.max(0, n - 20), 1.4);
 /** Nahrung, die ein Einwohner je Tag isst */
 export const ESSEN = 3;
 export const START: { res: Record<Res, number>; einwohner: number } = { res: { holz: 300, stein: 120, kristall: 25, nahrung: 45, erz: 0, stahl: 0, balken: 0, linsen: 0 }, einwohner: 12 };

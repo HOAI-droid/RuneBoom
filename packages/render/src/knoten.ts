@@ -1,11 +1,11 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, If, Discard, float, vec2, vec3, vec4, uniform, texture, attribute, varying, positionWorld, positionLocal, diffuseColor,
-  floor, fract, sin, dot, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize
+  floor, fract, sin, dot, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize, normalWorld
 } from 'three/tsl';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { WR } from '@runeboom/core';
-import { FABRIK, LICHT_U, WASSER_U, ZEIT, lichtTex, materialienNeu, type NebelU, type Post, type Beleuchtung } from './grafik.ts';
+import { FABRIK, LICHT_U, JAHR_U, WASSER_U, ZEIT, lichtTex, materialienNeu, type NebelU, type Post, type Beleuchtung } from './grafik.ts';
 
 /**
  * WebGPU-Fassung aller eigenen Materialien und der Nachbearbeitung, geschrieben in Three.js-Knoten (TSL).
@@ -33,9 +33,23 @@ const fbm = Fn(([p0]: N[]) => {
   return s;
 }).setLayout({ name: 'fbm', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
+// ---------- Jahreszeit (wie JAHR_GLSL) ----------
+const uFr = uniform(0).onFrameUpdate(() => JAHR_U.uFruehling.value), uHe = uniform(0).onFrameUpdate(() => JAHR_U.uHerbst.value), uWi = uniform(0).onFrameUpdate(() => JAHR_U.uWinter.value);
+const jahreszeit = (c0: N, n: N): N => {
+  const gruen = smoothstep(0, 0.05, c0.g.sub(max(c0.r, c0.b))), l = dot(c0, vec3(0.299, 0.587, 0.114));
+  let c: N = mix(c0, c0.mul(vec3(1.08, 1.12, 0.78)).add(vec3(0.01, 0.015, 0)), gruen.mul(uFr));
+  const herbst = mix(vec3(l.mul(1.7), l.mul(0.85), l.mul(0.22)), vec3(l.mul(1.25), l.mul(0.48), l.mul(0.12)), step(0.5, fract(c0.g.mul(37))));
+  c = mix(c, herbst, gruen.mul(uHe).mul(0.7));
+  c = mix(c, vec3(l).mul(vec3(0.82, 0.88, 0.92)), gruen.mul(uWi).mul(0.55));
+  return mix(c, vec3(0.86, 0.9, 0.96), smoothstep(0.55, 0.95, n.y).mul(uWi).mul(0.88));
+};
+
 // ---------- Materialien ----------
 function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): THREE.Material {
   const m = new THREE.MeshStandardNodeMaterial(p as any);
+  // nach dem Zusammensetzen der Grundfarbe (Material, Ecken- und Instanzfarbe) die Jahreszeit anwenden
+  const grund = (m as any).setupDiffuseColor.bind(m);
+  (m as any).setupDiffuseColor = (b: unknown) => { grund(b); diffuseColor.assign(vec4(jahreszeit(diffuseColor.rgb, normalWorld), diffuseColor.a)); };
   const lm = lichtWert();
   m.emissiveNode = diffuseColor.rgb.mul(uLichtFarbe).mul(lm.mul(lm)).mul(uNacht).mul(staerke);
   if (maske) { m.opacityNode = select(texture(maske, weltUV(positionWorld)).r.greaterThan(schwelle), float(0), float(1)); m.alphaTest = 0.5; }

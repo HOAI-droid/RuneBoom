@@ -5,3 +5,4 @@ export * from './flow.ts';
 export * from './spiel.ts';
 export * from './sprache.ts';
 export * from './wege.ts';
+export * from './rechnen.ts';

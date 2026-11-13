@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.hoaidroid.runeboom",
+  "appName": "runeBOOM",
+  "webDir": "dist",
+  "backgroundColor": "#11161f",
+  "android": { "backgroundColor": "#11161f" },
+  "ios": { "backgroundColor": "#11161f", "contentInset": "never" }
+}

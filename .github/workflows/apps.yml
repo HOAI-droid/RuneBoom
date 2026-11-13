@@ -1,4 +1,4 @@
-# Desktop-Apps (Mac, Windows, Linux) mit Tauri bauen und als Release veröffentlichen.
+# Apps bauen und als Release veröffentlichen: Mac, Windows, Linux (Tauri), Android und iPhone/iPad (Capacitor).
 # Läuft bei jedem Push auf main und von Hand. Das Release heißt nach der Version in package.json.
 name: Desktop-Apps
 
@@ -70,8 +70,58 @@ jobs:
           name: runeboom-${{ matrix.name }}
           path: ausgabe/*
 
+  android:
+    # Android-App (APK, mit Testschlüssel signiert: direkt installierbar, für Google Play später mit eigenem Schlüssel)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build:web
+      - run: bash tools/handy_vorbereiten.sh android
+      - name: APK bauen
+        run: cd android && ./gradlew assembleDebug --no-daemon
+      - run: mkdir -p ausgabe && cp android/app/build/outputs/apk/debug/app-debug.apk ausgabe/runeBOOM-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runeboom-android
+          path: ausgabe/*
+
+  ios:
+    # iPhone/iPad: ohne Apple-Entwicklerkonto nur für den Simulator (zum Prüfen); fürs Gerät braucht es ein Zertifikat
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - run: bash tools/handy_vorbereiten.sh ios
+      - name: Für den Simulator bauen
+        run: |
+          if [ -d ios/App/App.xcworkspace ]; then quelle="-workspace ios/App/App.xcworkspace"; else quelle="-project ios/App/App.xcodeproj"; fi
+          xcodebuild $quelle -scheme App -configuration Release -sdk iphonesimulator -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          mkdir -p ausgabe
+          (cd build/Build/Products/Release-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/ausgabe/runeBOOM-ios-simulator.zip" App.app)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runeboom-ios
+          path: ausgabe/*
+
   veroeffentlichen:
-    needs: bauen
+    needs: [bauen, android, ios]
+    if: ${{ !cancelled() && needs.bauen.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
