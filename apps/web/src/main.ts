@@ -1134,6 +1134,13 @@ function karteSetzen(an: boolean): void {
 }
 $('karte-knopf').onclick = () => karteSetzen(!einst.karte);
 
+// ================= Offline (installierbare Web-App) =================
+// nur im Browser über https; Desktop- und Handy-Apps bringen alles selbst mit
+const W = window as unknown as { __TAURI_INTERNALS__?: unknown; Capacitor?: { isNativePlatform?: () => boolean } };
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !W.__TAURI_INTERNALS__ && !W.Capacitor?.isNativePlatform?.()) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline weiter */ }); });
+}
+
 // ================= Start (am Ende, wenn alles definiert ist) =================
 karteSetzen(einst.karte); lagePruefen();
 $('fps').hidden = !einst.fps;
