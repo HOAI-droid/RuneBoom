@@ -448,7 +448,18 @@
   .chip i { width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; } .chip.blau { color: #9fd3ff; } .chip.lila { color: #c9a2ff; } .chip.rot { color: #ffb3a6; }
   .wesen-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; }
   .wesen-karte { display: grid; gap: 6px; align-content: start; padding: 12px; background: var(--stone-2); border: 1px solid var(--line); border-radius: 6px; font-size: 14px; color: #d9d1c0; }
-  .wesen-karte { grid-template-columns: minmax(0, 1fr) 80px; } .wesen-karte > :not(.wesen-bild) { grid-column: 1; } .wesen-bild { grid-column: 2; grid-row: 1 / span 4; align-self: start; border-radius: 4px; padding: 2px; } .wesen-bild svg { width: 100%; height: auto; }
+  .wesen-karte { grid-template-columns: minmax(0, 1fr) 96px; } .wesen-karte > :not(.wesen-bild) { grid-column: 1; } .wesen-bild { grid-column: 2; grid-row: 1 / span 4; align-self: start; border-radius: 4px; padding: 2px; } .wesen-bild svg { width: 100%; height: auto; }
+  /* Bestand: Pergamentkarten wie im Rezeptbuch, Skizzen direkt auf dem Papier */
+  .bst-karte.sk-papier, .wesen-karte.sk-papier { background: radial-gradient(ellipse at 50% 42%, #efdcab 0%, #e2c58c 58%, #b88a4c 100%); border-color: #8a6230; color: #3a2210; font-family: "IM Fell English", Georgia, serif; box-shadow: inset 0 0 30px rgba(120,80,30,.3), 0 6px 18px rgba(0,0,0,.35); }
+  .bst-karte.sk-papier strong, .wesen-karte.sk-papier strong { font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; color: #3a2210; font-size: 17px; }
+  .bst-karte.sk-papier small { color: #5a3d24; font-style: italic; }
+  .sk-papier .chip { background: rgba(255,248,230,.45); border-color: rgba(90,58,30,.45); color: #3a2210; font-family: var(--body); }
+  .sk-papier .chip.blau { color: #1f4f7a; } .sk-papier .chip.lila { color: #5a2f8a; } .sk-papier .chip.rot { color: #8e2a1e; }
+  .sk-papier i.bst-raute { border: 1px solid #3f2612; }
+  .wesen-karte.sk-papier > span:not(.wesen-bild) { font-size: 15px; line-height: 1.35; }
+  .wesen-bild { background: none; }
+  .buch-liste .zeile.sk-papier { background: radial-gradient(ellipse at 50% 42%, #efdcab 0%, #e2c58c 58%, #b88a4c 100%); border-color: #8a6230; color: #3a2210; font-family: "IM Fell English", Georgia, serif; font-size: 15px; }
+  .buch-liste .zeile.sk-papier b { font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; }
   .wesen-karte strong { font-family: var(--display); color: var(--parch); font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
   /* Einstellungen: Zeilen umbrechen statt über den Rand, Häkchen neben dem Text, im Kasten scrollen */
   .panel:has(#e-musik) { overflow-y: auto; overflow-x: hidden; }

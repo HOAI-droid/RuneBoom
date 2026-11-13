@@ -555,17 +555,17 @@ function baumZeichnen(neu = false): void {
       <section class="buch-teil"><h3>${t('Skizzen der großen Erfindungen')}</h3><p>${t('Jede Schlüsselerfindung öffnet ein Zeitalter. Ist sie gelungen, liegt hier ihre Skizze.')}</p>
         <div class="buch-galerie">${schluessel.map((id) => { const e = ERFINDUNGEN[id], da = s.erfindungen.has(id), g = erfGebaeude(id); return `<button type="button" class="galerie sk-papier${da ? '' : ' unbekannt'}" ${da ? `data-skizze="${id}"` : 'disabled'}>${klein(g, !da)}<strong>${t(e.name)}</strong><small>${t(ZA_NAMEN[e.zeitalter!])}</small></button>`; }).join('')}</div></section>
       <section class="buch-teil"><h3>${t('Geheime Rezepte')}</h3><p>${gefunden.length ? t('{a} von {b} gefunden.', { a: gefunden.length, b: geheim.length }) : t('Noch keines gefunden. Geheime Rezepte zeigen sich, wenn die richtigen Bausteine beisammen sind.')}</p>
-        <div class="buch-liste">${gefunden.map((id) => `<div class="zeile"><b>${t(ERFINDUNGEN[id].name)}</b><span>${t(ERFINDUNGEN[id].wirkung)}</span></div>`).join('')}${geheim.length - gefunden.length ? `<div class="zeile leer"><b>???</b><span>${t('{a} weitere warten noch.', { a: geheim.length - gefunden.length })}</span></div>` : ''}</div></section>
+        <div class="buch-liste">${gefunden.map((id) => `<div class="zeile sk-papier"><b>${t(ERFINDUNGEN[id].name)}</b><span>${t(ERFINDUNGEN[id].wirkung)}</span></div>`).join('')}${geheim.length - gefunden.length ? `<div class="zeile leer sk-papier"><b>???</b><span>${t('{a} weitere warten noch.', { a: geheim.length - gefunden.length })}</span></div>` : ''}</div></section>
     </div>`;
   } else {
     const alleG = Object.keys(GEGNER) as (keyof typeof GEGNER)[];
     html = `<div class="beute">
       <section class="beute-links"><h3>${t('Bausteine')}</h3><p>${t('Bausteine gibt es nur als Beute besiegter Wesen. Verborgene Schattenwölfe brauchen Licht, Drachlinge treffen nur Pfeile und Blitze.')}</p>
-        ${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="bst-karte"><i class="${bs} bst-raute"></i><div><strong>${t(BAUSTEIN_NAME[bs])}</strong><small>${t('Vorrat: {a}', { a: s.bausteine[bs] })}</small>
+        ${(Object.keys(BAUSTEIN_NAME) as Baustein[]).map((bs) => `<div class="bst-karte sk-papier"><i class="${bs} bst-raute"></i><div><strong>${t(BAUSTEIN_NAME[bs])}</strong><small>${t('Vorrat: {a}', { a: s.bausteine[bs] })}</small>
           <div class="chips">${alleG.filter((gt) => GEGNER[gt].beute.some(([x]) => x === bs)).map((gt) => { const bt = GEGNER[gt].beute.find(([x]) => x === bs)!; return `<span class="chip">${t(GEGNER[gt].name)} ${Math.round(bt[1] * 100)} %${bt[2] && bt[2] > 1 ? ` ×${bt[2]}` : ''}</span>`; }).join('')}</div></div></div>`).join('')}
       </section>
       <section class="beute-rechts"><h3>${t('Die Wesen der Wildnis')}</h3>
-        <div class="wesen-gitter">${alleG.map((gt) => { const G = GEGNER[gt]; return `<div class="wesen-karte"><span class="wesen-bild sk-papier">${wesenSkizze(gt, 96, 72, gt === 'rissfuerst' ? 2 : 1)}</span><strong>${t(G.name)}</strong><div class="chips">${G.flug ? `<span class="chip blau">${t('fliegt')}</span>` : ''}${G.verborgen ? `<span class="chip lila">${t('verborgen')}</span>` : ''}${G.boss ? `<span class="chip rot">${t('Anführer')}</span>` : ''}</div><span>${t(G.kurz)}</span><div class="chips">${G.beute.map(([b, w]) => `<span class="chip"><i class="${b}"></i>${Math.round(w * 100)} %</span>`).join('')}</div></div>`; }).join('')}</div>
+        <div class="wesen-gitter">${alleG.map((gt) => { const G = GEGNER[gt]; return `<div class="wesen-karte sk-papier"><span class="wesen-bild">${wesenSkizze(gt, 96, 72, gt === 'rissfuerst' ? 2 : 1)}</span><strong>${t(G.name)}</strong><div class="chips">${G.flug ? `<span class="chip blau">${t('fliegt')}</span>` : ''}${G.verborgen ? `<span class="chip lila">${t('verborgen')}</span>` : ''}${G.boss ? `<span class="chip rot">${t('Anführer')}</span>` : ''}</div><span>${t(G.kurz)}</span><div class="chips">${G.beute.map(([b, w]) => `<span class="chip"><i class="${b}"></i>${Math.round(w * 100)} %</span>`).join('')}</div></div>`; }).join('')}</div>
       </section>
     </div>`;
   }
