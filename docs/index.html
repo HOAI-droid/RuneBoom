@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>runeBOOM · Die Feste der Erfinder</title>
+<meta name="description" content="runeBOOM – ein episches Fantasy-Tower-Defense in Voxeln. Am Tag bauen und erfinden, in der Nacht bestehen. / An epic fantasy tower defense in voxels.">
+<meta property="og:title" content="runeBOOM · Die Feste der Erfinder">
+<meta property="og:image" content="bilder/runeboom-titel-quer.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --ink: #0e1219; --stone: #171d28; --stone-2: #202838; --line: #2f394b; --parch: #ebe3d2; --muted: #a49b8b;
+    --ember: #e3a54e; --frost: #84d8e8; --rune: #b39cff; --rot: #e5735f;
+    --display: "Cinzel", Georgia, serif; --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--ink); color: var(--parch); font-family: var(--body); font-size: 18px; line-height: 1.55; }
+  a { color: var(--ember); }
+  img { max-width: 100%; display: block; }
+  [data-lang] { display: none; }
+  html[lang="de"] [data-lang="de"], html[lang="en"] [data-lang="en"] { display: revert; }
+  .kopf { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 10px max(16px, calc((100vw - 1120px) / 2)); background: rgba(14,18,25,.86); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .marke { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .02em; text-decoration: none; color: var(--parch); }
+  .marke b { color: var(--ember); }
+  .kopf nav { display: flex; gap: 18px; margin-left: auto; font-size: 15px; }
+  .kopf nav a { color: var(--muted); text-decoration: none; } .kopf nav a:hover { color: var(--parch); }
+  .sprache { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .sprache button { background: none; border: 0; color: var(--muted); font: 600 13px var(--mono); padding: 5px 10px; cursor: pointer; }
+  .sprache button[aria-pressed="true"] { background: var(--ember); color: #1a1208; }
+  .held { position: relative; min-height: min(86vh, 760px); display: grid; align-items: end; overflow: hidden; }
+  .held img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .held::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,25,0) 45%, rgba(14,18,25,.92) 92%); }
+  .held-text { position: relative; z-index: 1; padding: 0 max(16px, calc((100vw - 1120px) / 2)) 56px; display: grid; gap: 16px; max-width: 1120px; }
+  .held-text p { margin: 0; font-size: clamp(18px, 2.2vw, 23px); max-width: 720px; text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+  .knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
+  .knopf { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 18px; border: 1px solid var(--line); background: rgba(32,40,56,.85); color: var(--parch); }
+  .knopf.haupt { background: linear-gradient(180deg, #e8b35e, #c98a35); color: #1a1208; border-color: var(--ember); box-shadow: 0 8px 24px rgba(227,165,78,.25); }
+  .knopf:hover { filter: brightness(1.08); }
+  main section { padding: 72px max(16px, calc((100vw - 1120px) / 2)); }
+  main section:nth-of-type(even) { background: #121722; }
+  h2 { font-family: var(--display); font-size: clamp(28px, 4vw, 40px); margin: 0 0 8px; color: var(--ember); line-height: 1.15; }
+  .vorspann { color: #d9d1c0; max-width: 760px; margin: 0 0 32px; font-size: 19px; }
+  .zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; }
+  .bild { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0,0,0,.5); background: var(--stone); }
+  .bild figcaption { padding: 10px 14px; font-size: 15px; color: var(--muted); }
+  .karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .karte { background: var(--stone); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .karte h3 { margin: 0 0 6px; font-family: var(--display); font-size: 19px; }
+  .karte p { margin: 0; color: #cfc6b4; font-size: 16px; }
+  .karte .art { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--rune); }
+  .volk h3 { font-size: 22px; } .volk ul { margin: 10px 0 0; padding-left: 18px; color: #cfc6b4; font-size: 15px; }
+  .volk.glut { border-top: 3px solid #ff8a2a; } .volk.hain { border-top: 3px solid #5e9a44; } .volk.sturm { border-top: 3px solid #8fb4d9; }
+  .zeitalter { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 22px; }
+  .zeitalter div { background: var(--stone); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  .zeitalter b { display: block; font-family: var(--display); font-size: 15px; color: var(--ember); }
+  .zeitalter span { font-size: 14px; color: var(--muted); }
+  .akte { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .akte div { padding: 16px; border-radius: 8px; background: linear-gradient(180deg, rgba(179,156,255,.12), rgba(23,29,40,.9)); border: 1px solid var(--line); }
+  .akte b { font-family: var(--mono); font-size: 12px; letter-spacing: .2em; color: var(--rune); display: block; }
+  .akte h3 { margin: 4px 0; font-family: var(--display); }
+  .akte p { margin: 0; font-size: 15px; color: #cfc6b4; }
+  .plan { display: grid; gap: 8px; max-width: 820px; }
+  .plan div { display: grid; grid-template-columns: 90px 1fr; gap: 14px; padding: 10px 14px; border-radius: 6px; background: var(--stone); border: 1px solid var(--line); }
+  .plan div b { font-family: var(--mono); color: var(--ember); }
+  .plan div.fertig b::after { content: " ✓"; color: #9fd99a; }
+  .tasten { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; font-size: 16px; max-width: 760px; }
+  .tasten kbd { font-family: var(--mono); font-size: 14px; color: var(--parch); background: var(--stone-2); border: 1px solid var(--line); border-radius: 4px; padding: 2px 7px; justify-self: start; }
+  .tasten span { color: #cfc6b4; }
+  footer { padding: 36px max(16px, calc((100vw - 1120px) / 2)); color: var(--muted); font-size: 15px; border-top: 1px solid var(--line); display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between; }
+  @media (max-width: 860px) { .zwei { grid-template-columns: 1fr; } .zeitalter, .akte { grid-template-columns: 1fr 1fr; } .kopf nav { display: none; } }
+</style>
+</head>
+<body>
+<header class="kopf">
+  <a class="marke" href="#">rune<b>BOOM</b></a>
+  <nav>
+    <a href="#spiel"><span data-lang="de">Das Spiel</span><span data-lang="en">The game</span></a>
+    <a href="#erfinden"><span data-lang="de">Erfinden</span><span data-lang="en">Invent</span></a>
+    <a href="#voelker"><span data-lang="de">Völker</span><span data-lang="en">Peoples</span></a>
+    <a href="#partie"><span data-lang="de">Die Partie</span><span data-lang="en">The campaign</span></a>
+    <a href="#plan"><span data-lang="de">Fahrplan</span><span data-lang="en">Roadmap</span></a>
+  </nav>
+  <div class="sprache" role="group" aria-label="Sprache / Language">
+    <button type="button" data-setze="de">DE</button><button type="button" data-setze="en">EN</button>
+  </div>
+</header>
+
+<div class="held">
+  <img src="bilder/runeboom-titel-quer.jpg" alt="runeBOOM – Die Feste der Erfinder">
+  <div class="held-text">
+    <p data-lang="de">Ein episches Fantasy-Tower-Defense in Voxeln. Am Tag baust du deine Feste, versorgst ihre Bewohner und erfindest dich vom Holzturm bis zum Kristall-Laser. In der Nacht brechen die Wesen der Wildnis aus den Rissen hervor.</p>
+    <p data-lang="en">An epic fantasy tower defense in voxels. By day you build your fortress, feed its people and invent your way from wooden towers to crystal lasers. By night the creatures of the wild burst out of the rifts.</p>
+    <div class="knoepfe">
+      <a class="knopf haupt" href="../"><span data-lang="de">Jetzt im Browser spielen</span><span data-lang="en">Play now in your browser</span></a>
+      <a class="knopf" href="konzeptbuch.html"><span data-lang="de">Konzeptbuch</span><span data-lang="en">Concept book (German)</span></a>
+      <a class="knopf" href="https://github.com/HOAI-droid/RuneBoom">GitHub</a>
+    </div>
+  </div>
+</div>
+
+<main>
+<section id="spiel">
+  <h2><span data-lang="de">Tag bauen, Nacht bestehen</span><span data-lang="en">Build by day, endure the night</span></h2>
+  <p class="vorspann" data-lang="de">Der Tag ist ruhig: Holzfäller, Bauern und Bergleute ziehen los, Häuser füllen sich, Türme wachsen. Mit dem Abend zeigt eine leuchtende Linie, woher die Welle kommt. In der Nacht sieht man ohne Licht nur Umrisse und glühende Augen. Am Morgen zählst du die Beute und erfindest Neues.</p>
+  <p class="vorspann" data-lang="en">Days are calm: woodcutters, farmers and miners head out, houses fill up, towers rise. At dusk a glowing line shows where the wave will come from. At night you see nothing but outlines and glowing eyes without light. In the morning you count your loot and invent something new.</p>
+  <div class="zwei">
+    <figure class="bild"><img src="bilder/spiel-tag.jpg" alt="Die Feste am Tag" loading="lazy"><figcaption><span data-lang="de">Goldene Stunde: Die Feste lebt, Einwohner gehen ihrer Arbeit nach.</span><span data-lang="en">Golden hour: the fortress is alive, its people at work.</span></figcaption></figure>
+    <figure class="bild"><img src="bilder/spiel-nacht.jpg" alt="Die Feste in der Nacht" loading="lazy"><figcaption><span data-lang="de">Nacht: Türme, Fackeln und Leuchtfeuer gegen die Welle.</span><span data-lang="en">Night: towers, torches and beacons against the wave.</span></figcaption></figure>
+  </div>
+  <div class="karten" style="margin-top:28px">
+    <div class="karte"><span class="art" data-lang="de">Welt</span><span class="art" data-lang="en">World</span><h3 data-lang="de">Aus einem Weltcode</h3><h3 data-lang="en">From a world code</h3><p data-lang="de">Jede Welt mit 1024 × 1024 Blöcken entsteht aus einem Code wie NEBELKRAKE-4127. Gleicher Code, gleiche Welt, auf jedem Gerät und ganz ohne Server.</p><p data-lang="en">Every 1024 × 1024 world grows from a code like NEBELKRAKE-4127. Same code, same world, on every device and without a server.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Nebel</span><span class="art" data-lang="en">Fog</span><h3 data-lang="de">Erkunden</h3><h3 data-lang="en">Explore</h3><p data-lang="de">Bodennebel liegt über dem Unbekannten, Baumkronen und Bergkuppen ragen heraus. Späher und Außenposten decken auf.</p><p data-lang="en">Ground fog hides the unknown, only treetops and peaks rise above it. Scouts and outposts reveal the land.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Licht</span><span class="art" data-lang="en">Light</span><h3 data-lang="de">Leuchttürme</h3><h3 data-lang="en">Beacons</h3><p data-lang="de">Im Licht treffen Türme weiter und besser. Höhere Leuchtfeuer machen verborgene Schattenwölfe sichtbar.</p><p data-lang="en">Towers in light shoot further and hit more often. Better beacons reveal hidden shadow wolves.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Dorf</span><span class="art" data-lang="en">Village</span><h3 data-lang="de">Leben in der Feste</h3><h3 data-lang="en">Life in the fortress</h3><p data-lang="de">Wohnhäuser, Höfe und Fischer versorgen die Bevölkerung. Wer Arbeit hat, sammelt und verarbeitet: Holz zu Balken, Erz zu Stahl, Kristall zu Linsen.</p><p data-lang="en">Houses, farms and fishers feed your people. Workers gather and refine: wood into beams, ore into steel, crystal into lenses.</p></div>
+  </div>
+</section>
+
+<section id="erfinden">
+  <h2><span data-lang="de">Erfinden statt Forschungsbaum abhaken</span><span data-lang="en">Invent instead of ticking off a tech tree</span></h2>
+  <p class="vorspann" data-lang="de">Wesen lassen Bausteine fallen: Feuerstein, Windrunen, Eisenerz, Drachenschuppen. Zusammen mit Kristall entstehen daraus über 40 Erfindungen in sechs Wissenszweigen. Schlüsselerfindungen öffnen ein neues Zeitalter, geheime Rezepte zeigen sich erst, wenn die richtigen Bausteine beisammen sind. Jeder Turm wird einzeln umgerüstet, mit zwei Zweigen je Zeitalter. Benachbarte Türme lassen sich verschmelzen.</p>
+  <p class="vorspann" data-lang="en">Creatures drop building blocks: flint, wind runes, iron ore, dragon scales. Together with crystal they become more than 40 inventions in six fields of knowledge. Key inventions open a new age, secret recipes only reveal themselves once the right blocks are at hand. Every tower is upgraded on its own, with two branches per age. Neighbouring towers can be fused.</p>
+  <div class="zwei">
+    <figure class="bild"><img src="bilder/spiel-baum.jpg" alt="Erfindungsbaum" loading="lazy"><figcaption><span data-lang="de">Der Erfindungsbaum: fünf Zeitalter, sechs Wissenszweige.</span><span data-lang="en">The invention tree: five ages, six fields of knowledge.</span></figcaption></figure>
+    <figure class="bild"><img src="bilder/spiel-burg.jpg" alt="Burg" loading="lazy"><figcaption><span data-lang="de">Die Burg wächst in sechs Stufen vom Wehrhof zur Kristallzitadelle.</span><span data-lang="en">The keep grows in six stages from a fortified farm to a crystal citadel.</span></figcaption></figure>
+  </div>
+  <div class="zeitalter">
+    <div><b data-lang="de">Holz &amp; Runen</b><b data-lang="en">Wood &amp; Runes</b><span data-lang="de">Pfeile, Fackeln, Palisaden</span><span data-lang="en">Arrows, torches, palisades</span></div>
+    <div><b data-lang="de">Glut &amp; Alchemie</b><b data-lang="en">Ember &amp; Alchemy</b><span data-lang="de">Feuertöpfe, Sprengpulver, Leuchtfeuer</span><span data-lang="en">Fire pots, black powder, beacons</span></div>
+    <div><b data-lang="de">Uhrwerk &amp; Dampf</b><b data-lang="en">Clockwork &amp; Steam</b><span data-lang="de">Repetierer, Kanonen, Scheinwerfer</span><span data-lang="en">Repeaters, cannons, searchlights</span></div>
+    <div><b data-lang="de">Blitz &amp; Kristall</b><b data-lang="en">Lightning &amp; Crystal</b><span data-lang="de">Laser, Blitzspulen, Kristallfeuer</span><span data-lang="en">Lasers, lightning coils, crystal beacons</span></div>
+    <div><b data-lang="de">Äther &amp; Sterne</b><b data-lang="en">Aether &amp; Stars</b><span data-lang="de">Ätherbogen, Sternkanone, Lichtsäule</span><span data-lang="en">Aether bow, star cannon, pillar of light</span></div>
+  </div>
+</section>
+
+<section id="voelker">
+  <h2><span data-lang="de">Drei Völker</span><span data-lang="en">Three peoples</span></h2>
+  <p class="vorspann" data-lang="de">Jedes Volk baut mit eigenen Stoffen, hat eigene Stärken und einen eigenen Turm im fünften Zeitalter.</p>
+  <p class="vorspann" data-lang="en">Each people builds with its own materials, has its own strengths and a unique tower in the fifth age.</p>
+  <div class="karten">
+    <div class="karte volk glut"><span class="art" data-lang="de">Basalt, Kupfer, Glut</span><span class="art" data-lang="en">Basalt, copper, embers</span><h3>Glutborn</h3>
+      <p data-lang="de">Schmiede aus dem Feuerberg. Ihr Feuer brennt heißer, ihre Bauten fangen schwer Feuer.</p><p data-lang="en">Smiths from the fire mountain. Their fire burns hotter, their buildings resist flames.</p>
+      <ul data-lang="de"><li>Brand und Feuertöpfe +30 %</li><li>Brände halb so lang</li><li>Schmelze doppelt so schnell</li><li>Eigener Turm: Plasmawerfer</li></ul>
+      <ul data-lang="en"><li>Fire and fire pots +30 %</li><li>Fires burn half as long</li><li>Smelter twice as fast</li><li>Unique tower: plasma thrower</li></ul></div>
+    <div class="karte volk hain"><span class="art" data-lang="de">Lebendes Holz, Harz</span><span class="art" data-lang="en">Living wood, resin</span><h3>Hainmar</h3>
+      <p data-lang="de">Hüter des Waldes. Ihre Bauten wachsen und heilen sich selbst.</p><p data-lang="en">Keepers of the forest. Their buildings grow and heal themselves.</p>
+      <ul data-lang="de"><li>Gebäude heilen am Tag</li><li>Holz und Nahrung +30 %</li><li>Bäume wachsen doppelt so schnell</li><li>Eigener Turm: Sonnenstrahl</li></ul>
+      <ul data-lang="en"><li>Buildings heal by day</li><li>Wood and food +30 %</li><li>Trees regrow twice as fast</li><li>Unique tower: sunbeam</li></ul></div>
+    <div class="karte volk sturm"><span class="art" data-lang="de">Marmor, Messing, Wind</span><span class="art" data-lang="en">Marble, brass, wind</span><h3>Sturmweber</h3>
+      <p data-lang="de">Baumeister der Höhen. Sie lenken Wind und Blitz.</p><p data-lang="en">Builders of the heights. They command wind and lightning.</p>
+      <ul data-lang="de"><li>Türme reichen 10 % weiter</li><li>Flieger nehmen 25 % mehr Schaden</li><li>Blitze +30 %</li><li>Eigener Turm: Sturmturm</li></ul>
+      <ul data-lang="en"><li>Towers reach 10 % further</li><li>Flyers take 25 % more damage</li><li>Lightning +30 %</li><li>Unique tower: storm tower</li></ul></div>
+  </div>
+</section>
+
+<section id="wesen">
+  <h2><span data-lang="de">Die Wesen der Wildnis</span><span data-lang="en">Creatures of the wild</span></h2>
+  <p class="vorspann" data-lang="de">Sie kommen aus den Rissen und suchen sich ihren Weg selbst. Jedes verlangt eine andere Antwort.</p>
+  <p class="vorspann" data-lang="en">They come out of the rifts and find their own way. Each one needs a different answer.</p>
+  <div class="karten">
+    <div class="karte"><span class="art" data-lang="de">Boden</span><span class="art" data-lang="en">Ground</span><h3 data-lang="de">Moorwicht · Steintroll</h3><h3 data-lang="en">Bog imp · Stone troll</h3><p data-lang="de">Schwärme und schwere Brocken, später mit Kristallpanzer.</p><p data-lang="en">Swarms and heavy brutes, later in crystal armour.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Verborgen</span><span class="art" data-lang="en">Hidden</span><h3 data-lang="de">Schattenwolf</h3><h3 data-lang="en">Shadow wolf</h3><p data-lang="de">Im Dunkeln nur ein Augenpaar. Licht macht ihn sichtbar.</p><p data-lang="en">Only a pair of eyes in the dark. Light reveals it.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Luft</span><span class="art" data-lang="en">Air</span><h3 data-lang="de">Drachling · Nebelrochen · Aschegeist</h3><h3 data-lang="en">Drakeling · Mist ray · Ash wraith</h3><p data-lang="de">Fliegen über Mauern, legen Feuer und tragen Wichte in die Feste.</p><p data-lang="en">Fly over walls, set fires and carry imps into the fortress.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Besondere</span><span class="art" data-lang="en">Special</span><h3 data-lang="de">Steinwerfer · Schamane · Borkenwächter</h3><h3 data-lang="en">Rock thrower · Shaman · Bark warden</h3><p data-lang="de">Belagern aus der Ferne, heilen andere, tragen Schilde gegen Pfeile.</p><p data-lang="en">Siege from afar, heal others, carry shields against arrows.</p></div>
+    <div class="karte"><span class="art" data-lang="de">Alle fünf Nächte</span><span class="art" data-lang="en">Every fifth night</span><h3 data-lang="de">Rissfürst</h3><h3 data-lang="en">Rift lord</h3><p data-lang="de">Ruft Wesen herbei, schützt sich mit einem Schild und lässt reiche Beute zurück.</p><p data-lang="en">Summons creatures, shields itself and leaves rich loot behind.</p></div>
+  </div>
+</section>
+
+<section id="partie">
+  <h2><span data-lang="de">Die Stammfeste: 40 Nächte, vier Akte</span><span data-lang="en">The home fortress: 40 nights, four acts</span></h2>
+  <p class="vorspann" data-lang="de">Eine Partie hat einen Spannungsbogen und ein Ende. Omen kündigen besondere Nächte an, Wunder und Leitsätze machen jede Feste anders. Wer alle Risse versiegelt, besiegt die Wildnis.</p>
+  <p class="vorspann" data-lang="en">A campaign has an arc and an ending. Omens herald special nights, wonders and guiding principles make every fortress different. Seal all rifts to defeat the wild.</p>
+  <div class="akte">
+    <div><b>AKT I</b><h3 data-lang="de">Gründung</h3><h3 data-lang="en">Founding</h3><p data-lang="de">Nächte 1–10: die ersten Türme, Häuser und Erfindungen.</p><p data-lang="en">Nights 1–10: first towers, houses and inventions.</p></div>
+    <div><b>AKT II</b><h3 data-lang="de">Ausbreitung</h3><h3 data-lang="en">Expansion</h3><p data-lang="de">Nächte 11–20: neue Risse, Außenposten an fernen Feldern.</p><p data-lang="en">Nights 11–20: new rifts, outposts at distant fields.</p></div>
+    <div><b>AKT III</b><h3 data-lang="de">Krieg der Risse</h3><h3 data-lang="en">War of the rifts</h3><p data-lang="de">Nächte 21–30: größere Wellen, mehr Rissfürsten.</p><p data-lang="en">Nights 21–30: bigger waves, more rift lords.</p></div>
+    <div><b>AKT IV</b><h3 data-lang="de">Versiegelung</h3><h3 data-lang="en">Sealing</h3><p data-lang="de">Nächte 31–40: Siegelsteine an den Rissen. Jeder ruft einen Ansturm hervor.</p><p data-lang="en">Nights 31–40: seal stones at the rifts. Each one provokes an onslaught.</p></div>
+  </div>
+  <div class="karten" style="margin-top:20px">
+    <div class="karte"><h3 data-lang="de">Omen</h3><h3 data-lang="en">Omens</h3><p data-lang="de">Blutmond, Nebelnacht, Sturm, Sternenregen, Stille Nacht: einen Tag vorher sichtbar.</p><p data-lang="en">Blood moon, fog night, storm, star rain, silent night: visible a day ahead.</p></div>
+    <div class="karte"><h3 data-lang="de">Wunder</h3><h3 data-lang="en">Wonders</h3><p data-lang="de">Je Zeitalter eines aus zweien: Großer Leuchtturm, Sternwarte, Uhrwerk-Kolossus, Kristallorgel …</p><p data-lang="en">One of two per age: great lighthouse, observatory, clockwork colossus, crystal organ …</p></div>
+    <div class="karte"><h3 data-lang="de">Leitsätze</h3><h3 data-lang="en">Principles</h3><p data-lang="de">Bei jedem neuen Zeitalter eine Richtung wählen, etwa Mauern und Fallen oder Reichweite und Licht.</p><p data-lang="en">Choose a direction with every new age, such as walls and traps or reach and light.</p></div>
+  </div>
+</section>
+
+<section id="steuerung">
+  <h2><span data-lang="de">Steuerung</span><span data-lang="en">Controls</span></h2>
+  <div class="tasten" data-lang="de" style="display:none">
+    <kbd>Ziehen · Rad</kbd><span>Karte verschieben · zoomen; rechte Maustaste oder zwei Finger drehen</span>
+    <kbd>Z · R · V · B</kbd><span>Bauleiste: Dorf, Rohstoffe, Abwehr, Wunder</span>
+    <kbd>Klick auf Gebäude</kbd><span>Ausbauen, Umrüsten, Verschmelzen, Reparieren</span>
+    <kbd>T · X · 9</kbd><span>Erfindungsbaum · Späher · Gelände ebnen</span>
+    <kbd>N · Leertaste</kbd><span>Nacht einläuten · Pause</span>
+  </div>
+  <div class="tasten" data-lang="en" style="display:none">
+    <kbd>Drag · Wheel</kbd><span>Pan · zoom; right mouse button or two fingers to rotate</span>
+    <kbd>Z · R · V · B</kbd><span>Build menu: village, resources, defence, wonders</span>
+    <kbd>Click a building</kbd><span>Upgrade, convert, fuse, repair</span>
+    <kbd>T · X · 9</kbd><span>Invention tree · scout · level terrain</span>
+    <kbd>N · Space</kbd><span>Ring in the night · pause</span>
+  </div>
+  <p data-lang="en" style="color:var(--muted);margin-top:18px">The game itself is in German for now. English, French and Spanish follow in version 0.6.</p>
+</section>
+
+<section id="plan">
+  <h2><span data-lang="de">Fahrplan</span><span data-lang="en">Roadmap</span></h2>
+  <div class="plan">
+    <div class="fertig"><b>0.1–0.2</b><span data-lang="de">Welt, Nebel, Tag und Nacht, Arbeiter, Türme, Klänge</span><span data-lang="en">World, fog, day and night, workers, towers, sound</span></div>
+    <div class="fertig"><b>0.3</b><span data-lang="de">Vier Zeitalter, Umrüsten, Verschmelzen, Ruinen</span><span data-lang="en">Four ages, upgrades, fusion, ruins</span></div>
+    <div class="fertig"><b>0.4</b><span data-lang="de">Bevölkerung, Ausbaustufen, Burg in sechs Stufen, neue Wesen, Hauptmenü</span><span data-lang="en">Population, upgrade tiers, six-stage keep, new creatures, main menu</span></div>
+    <div class="fertig"><b>0.5</b><span data-lang="de">Drei Völker, fünftes Zeitalter, vier Akte mit Sieg, Omen, Wunder, Leitsätze, Verarbeitung, Fallen</span><span data-lang="en">Three peoples, fifth age, four acts with victory, omens, wonders, principles, refining, traps</span></div>
+    <div><b>0.6</b><span data-lang="de">Sprachen: Deutsch, Englisch, Französisch, Spanisch</span><span data-lang="en">Languages: German, English, French, Spanish</span></div>
+    <div><b>0.7</b><span data-lang="de">Weltreise: kurze Partien in Regionen</span><span data-lang="en">World journey: short matches in regions</span></div>
+    <div><b>0.8</b><span data-lang="de">Apps für Windows, Mac, Linux (Steam), Android, iPhone, Xbox</span><span data-lang="en">Apps for Windows, Mac, Linux (Steam), Android, iPhone, Xbox</span></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <span>runeBOOM · <span data-lang="de">Die Feste der Erfinder</span><span data-lang="en">Fortress of the Inventors</span></span>
+  <span><span data-lang="de">Schwesterspiel von</span><span data-lang="en">Sister game of</span> <a href="https://github.com/HOAI-droid/overBOOM">overBOOM</a></span>
+</footer>
+
+<script>
+  // Sprache: gespeicherte Wahl, sonst die Sprache des Systems
+  const setze = (l) => { document.documentElement.lang = l; document.querySelectorAll('[data-setze]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.setze === l))); document.querySelectorAll('.tasten').forEach((t) => { t.style.display = t.dataset.lang === l ? 'grid' : 'none'; }); try { localStorage.setItem('runeboom-sprache', l); } catch (e) { /* */ } };
+  let l = 'de'; try { l = localStorage.getItem('runeboom-sprache') || ((navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en'); } catch (e) { /* */ }
+  setze(l);
+  document.querySelectorAll('[data-setze]').forEach((b) => { b.onclick = () => setze(b.dataset.setze); });
+</script>
+</body>
+</html>

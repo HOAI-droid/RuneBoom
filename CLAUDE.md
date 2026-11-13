@@ -6,7 +6,7 @@ orientieren sich an dessen Zweig `grafik`.
 
 - Oberfläche, Commit-Nachrichten, README und Releases auf **Deutsch**.
 - Konzeptbuch: `docs/konzeptbuch.html` (eigenständige Seite, Three.js 0.170 vom CDN). Wird bei
-  Konzeptänderungen mitgepflegt.
+  Konzeptänderungen mitgepflegt. Projektseite (DE/EN): `docs/index.html`, Bilder in `docs/bilder/`.
 
 ## Festgelegte Entscheidungen (Konzept)
 
@@ -93,7 +93,11 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Welle gegen die schwächste Seite (`abwehrAmWeg`), neue Wesen + Rissfürst, Feuer (`zuende()`, `braende()`), Schwierigkeit, Nachtbericht.
   Hauptmenü über lebender Feste (`baueMenueWelt()`), Spielstände (Auto + 3 Plätze), Erfindungsbaum als eigene Ansicht.
   Wegfeld nutzt zwischengespeicherte Geländekosten (`grund`), Rohstoffquellen sind zwischengespeichert (`quellVersion`).
-- [ ] 0.5 Die lange Partie: vier Akte (~60 Nächte) mit Versiegeln der Risse als Sieg, Außenposten, Omen, Wunder, Verarbeitungsketten,
-  Leitsätze, fünftes Zeitalter „Äther & Sterne“
-- [ ] 0.6 Völker · 0.7 Weltreise · 0.8 Apps · 1.0 Veröffentlichung
+- [x] 0.5 Die lange Partie: 40 Nächte in vier Akten (`AKTE`, `ENDE_NACHT`), Siegel in Akt IV (`versiegelt`, `g.ritual`), Sieg mit Abspann
+  (`phase 'gewonnen'`, `sieg`, `stat`), Völker (`VOELKER`, `volk`, Farbtausch `VOLK_FARBEN` über `Grid.tausch`), fünftes Zeitalter,
+  Omen (`omenFuer()`), Wunder (`wunder`, eines aus zwei je Zeitalter, `bauzeit`), Leitsätze (`LEITSAETZE`, `leitsatzOffen`),
+  Außenposten (Versorgung: `versorgt`), Verarbeitung (`umwandeln`, `verarbeiten()`), Fallen (`falle`, begehbar über `fallenIds`), Tor.
+  Bauleiste in Gruppen (`BAUGRUPPEN`), Abwahl nach dem Setzen, Fenster ohne Scrollen. Projektseite DE/EN: `docs/index.html`.
+- [ ] 0.6 Sprachen: Auswahl Deutsch, Englisch, Französisch, Spanisch; Standard ist die Systemsprache
+- [ ] 0.7 Weltreise · 0.8 Apps · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

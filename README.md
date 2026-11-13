@@ -1,20 +1,52 @@
 # runeBOOM · Die Feste der Erfinder
 
-<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: links die Feste am goldenen Tag, rechts dieselbe Feste in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
+<p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: die Feste am goldenen Tag und in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
 
-<p align="center"><a href="https://hoai-droid.github.io/RuneBoom/"><b>Im Browser spielen</b></a> · <a href="docs/konzeptbuch.html">Konzeptbuch</a></p>
+<p align="center">
+  <a href="https://hoai-droid.github.io/RuneBoom/"><b>▶ Im Browser spielen · Play in your browser</b></a><br>
+  <a href="https://hoai-droid.github.io/RuneBoom/docs/">Projektseite · Project page</a> ·
+  <a href="docs/konzeptbuch.html">Konzeptbuch</a> ·
+  <a href="#english">English</a>
+</p>
 
-**Ein episches Fantasy-Tower-Defense in Voxeln.** Am Tag baust du deine Feste aus und erfindest dich
-vom Holzturm bis zum Kristall-Laser. In der Nacht kommen die Wesen der Wildnis in Wellen, am Boden
-und aus der Luft.
+**Ein episches Fantasy-Tower-Defense in Voxeln.** Am Tag baust du deine Feste, versorgst ihre Bewohner und
+erfindest dich vom Holzturm bis zum Kristall-Laser. In der Nacht brechen die Wesen der Wildnis aus den Rissen
+hervor, am Boden und aus der Luft. 40 Nächte, vier Akte, drei Völker. Am Ende versiegelst du die Risse oder
+fällst.
+
+| | |
+|---|---|
+| 🏰 **Bauen und versorgen** | Wohnhäuser, Höfe, Fischer, Sägewerk, Schmelze, Schleiferei. Eine Burg in sechs Stufen. |
+| ⚗️ **Erfinden** | Über 40 Erfindungen in sechs Wissenszweigen und fünf Zeitaltern, geheime Rezepte, Verschmelzungen. |
+| 🌙 **Bestehen** | Licht entscheidet: Leuchtfeuer zeigen verborgene Wesen, Türme treffen im Licht besser. |
+| 🜂 **Drei Völker** | Glutborn (Basalt und Glut), Hainmar (lebendes Holz), Sturmweber (Marmor und Wind). |
+| 🗺️ **Weltcode** | Jede Welt mit 1024 × 1024 Blöcken entsteht aus einem Code und lässt sich offline teilen. |
 
 runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/overBOOM). Es soll im
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.4.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
-> Nacht, Bevölkerung mit Wohnhäusern und Höfen, Ausbaustufen, eine Burg in sechs Stufen, Erfindungsbaum mit 37 Erfindungen, alle vier Zeitalter mit Turmzweigen, Umrüsten und Verschmelzen, Runenkraft, neue Risse und Wesen, Rissfürsten, Feuer, Schwierigkeitsgrade, Klänge, Musik und Spielstände. Das Konzeptbuch mit den
-> Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
+> **Stand: Version 0.5.** Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
+> Omen, Wundern, Leitsätzen, Verarbeitung, Fallen, Bevölkerung, Ausbaustufen und Spielständen.
+
+<a id="english"></a>
+<details>
+<summary><b>English</b></summary>
+
+**runeBOOM · Fortress of the Inventors** is an epic fantasy tower defense in voxels. By day you build your
+fortress, feed its people and invent your way from wooden towers to crystal lasers. By night the creatures of the
+wild burst out of the rifts, on the ground and in the air. 40 nights, four acts, three peoples – and in the end you
+seal the rifts or fall.
+
+- **Build and supply:** houses, farms, fishers, sawmill, smelter, lens grinder; a keep that grows in six stages.
+- **Invent:** more than 40 inventions in six fields of knowledge across five ages, secret recipes, tower fusion.
+- **Endure the night:** light matters – beacons reveal hidden creatures, towers hit better in the light.
+- **Three peoples:** Glutborn (basalt and embers), Hainmar (living wood), Sturmweber (marble and wind).
+- **World codes:** every 1024 × 1024 world grows from a code and can be shared offline.
+
+Play it in your browser: <https://hoai-droid.github.io/RuneBoom/> · Project page: <https://hoai-droid.github.io/RuneBoom/docs/>.
+The game is in German for now; English, French and Spanish follow in version 0.6.
+</details>
 
 ## Spielen
 
@@ -28,7 +60,8 @@ einem gemeinsamen Code.
 |---|---|
 | Ziehen (linke oder mittlere Maustaste) · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
 | W A S D · Q E | verschieben · drehen |
-| 1 – 8 · H · F | Gebäude wählen (4 Wohnhaus, H Bauernhof, F Fischerhütte), Klick setzt es; Mauern durch Ziehen |
+| Z · R · V · B | Bauleiste: Dorf, Rohstoffe, Abwehr, Wunder (1 – 8 · H · F wählen Gebäude direkt) |
+| Klick · Umschalt + Klick | Gebäude setzen · setzen und Auswahl behalten; Mauern, Tore und Fallen durch Ziehen |
 | Klick auf Gebäude | Ausbauen (Stufe I–III), Reparieren, Umrüsten (zwei Zweige), Verschmelzen mit dem Nachbarturm |
 | Klick auf Trümmer | Wiederaufbauen (halbe Kosten) oder Räumen |
 | 9 | Gelände ebnen (Fläche aufziehen) |
@@ -38,6 +71,19 @@ einem gemeinsamen Code.
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.5
+
+- **Drei Völker:** Glutborn, Hainmar und Sturmweber, jedes mit eigenen Baustoffen, Stärken und einem eigenen Turm.
+- **Fünftes Zeitalter Äther & Sterne:** Ätherbogen, Sternkanone, Lichtsäule, Plasmawerfer, Sonnenstrahl, Sturmturm (nur von Türmen auf Stufe III).
+- **Vier Akte über 40 Nächte** mit Akt-Tafeln. In Akt IV versiegeln Siegelsteine die Risse. Sieg mit Abspann und Statistik.
+- **Omen:** Blutmond, Nebelnacht, Sturm, Sternenregen, Stille Nacht. **Wunder:** je Zeitalter eines aus zweien.
+  **Leitsätze:** bei jedem neuen Zeitalter eine Richtung aus zweien.
+- **Außenposten** (ab Akt II) und **Verarbeitung:** Erzmine, Schmelze, Sägewerk, Schleiferei mit Roherz, Stahl, Balken und Linsen.
+- **Fallen und Tore:** Dornenfeld, Ölgraben, Sprengfalle.
+- **Bauleiste in Gruppen** (Dorf, Rohstoffe, Abwehr, Wunder), die sich aufklappen. Nach dem Setzen ist die Auswahl wieder frei
+  (Umschalttaste hält sie). Gebäudefenster und Erfindungsbaum kommen ohne Scrollen aus.
+- **Projektseite** auf Deutsch und Englisch unter <https://hoai-droid.github.io/RuneBoom/docs/>.
 
 ### Neu in 0.4
 

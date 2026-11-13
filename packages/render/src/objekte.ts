@@ -6,18 +6,32 @@ import {
   hauptgebaeude, werkstatt, turmHolz, turmAlchemie, leuchtFackel, leuchtFeuer, haus, holzstapel, steinbruch, kristallmine, mauerStueck,
   moorwicht, wolf, troll, drachling, nebelrochen, figur8, turmUhrwerk, turmKristall,
   turmSchuetzen, turmKanone, turmBlitz, lichtFeuerKlein, lichtSpiegelKlein, lichtKristallKlein, turmFusion, ruine, trollPanzer, drachenFeuer,
-  wohnhaus, bauernhof, fischerhuette, stufenSchmuck, mauerSchaden, burg, aschegeist, steinwerfer, schamane, schildwaechter, rissfuerst, pfeilHoch
+  wohnhaus, bauernhof, fischerhuette, stufenSchmuck, mauerSchaden, burg, aschegeist, steinwerfer, schamane, schildwaechter, rissfuerst, pfeilHoch,
+  VOLK_FARBEN, geruest, aussenposten, erzmine, saegewerk, schmelze, schleiferei, tor, falle, siegelstein, wunder, turmZeitalter5
 } from './modelle.ts';
+import { RISSE } from '@runeboom/core';
 import { rng, type Ruine } from '@runeboom/core';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
-function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0): THREE.Group {
+function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, schaden = 0, volk = '', bau = false): THREE.Group {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
-  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden;
+  const key = typ + (stahl ? '+' : '') + zw + '/' + stufe + '/' + schaden + '/' + volk + (bau ? '/bau' : '');
   let m = modellCache.get(key);
   if (!m) {
-    const g = new Grid();
+    const g = new Grid(), def = GEBAEUDE[typ];
+    Grid.tausch = VOLK_FARBEN[volk] || null;
+    if (bau) { geruest(g, def.w, def.d); Grid.tausch = null; m = gridZuGruppe(g, 0.5); modellCache.set(key, m); return m; }
+    if (def.wunder) wunder(g, typ);
+    if (def.zeitalter === 5) turmZeitalter5(g, typ);
+    if (typ === 'aussenposten') aussenposten(g);
+    if (typ === 'erzmine') erzmine(g);
+    if (typ === 'saegewerk') saegewerk(g);
+    if (typ === 'schmelze') schmelze(g);
+    if (typ === 'schleiferei') schleiferei(g);
+    if (typ === 'tor') tor(g, stahl);
+    if (def.falle) falle(g, def.falle);
+    if (typ === 'siegel') siegelstein(g);
     if (typ === 'haupt') burg(g, stufe);
     if (typ === 'haus') wohnhaus(g, stufe);
     if (typ === 'hof') bauernhof(g, stufe);
@@ -39,14 +53,16 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
     if (typ === 'stein') steinbruch(g, 0, 0, 0);
     if (typ === 'kristall') kristallmine(g, 0, 0, 0);
     if (typ === 'mauer') { mauerStueck(g, 0, 0, 0, stahl); mauerSchaden(g, schaden); }
-    if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer') stufenSchmuck(g, GEBAEUDE[typ].w, GEBAEUDE[typ].d, stufe);
+    if (typ !== 'haupt' && typ !== 'mauer' && typ !== 'haus' && typ !== 'hof' && typ !== 'fischer' && !def.wunder && !def.falle && typ !== 'tor' && typ !== 'siegel') stufenSchmuck(g, def.w, def.d, stufe);
+    Grid.tausch = null;
     m = gridZuGruppe(g, 0.5);
     modellCache.set(key, m);
   }
   return m;
 }
 export function gebMitte(g: { x: number; z: number; w: number; d: number }): [number, number] { return [g.x + g.w / 2, g.z + g.d / 2]; }
-const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, haus: 9, hof: 7, fischer: 7, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
+const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, haus: 9, hof: 7, fischer: 7, aussenposten: 18, erzmine: 5, saegewerk: 6, schmelze: 9, schleiferei: 7, tor: 6, dornenfeld: 1, oelgraben: 1, sprengfalle: 1, siegel: 11,
+  w_leuchtturm: 22, w_kornkammer: 11, w_sternwarte: 14, w_kolossus: 16, w_orgel: 14, w_runenschmiede: 12, w_sternenschild: 9, w_aetherquelle: 13, aetherbogen: 16, sonnenstrahl: 15, sternkanone: 14, plasmawerfer: 14, sturmturm: 16, lichtsaeule: 18, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
   schuetzenturm: 16, repetierer: 18, laser: 20, kanone: 12, blitzspule: 15, brandturm: 19, leuchtpfeil: 21, doppelturm: 18, glutmoerser: 13 };
 /** Höhe, aus der Strahlen und Blitze kommen */
 function spitze(g: Geb): number { return g.y + (GEB_HOEHE[g.typ] || 10) - 1; }
@@ -177,7 +193,7 @@ const FARBEN: Record<GegTyp, string[]> = {
   moorwicht: ['#6f8a4a', '#5a4630', '#4f6136'], wolf: ['#2f2a3d', '#251f33', '#a070ff'], troll: ['#6f7a5e', '#4f7a3a', '#8c867f'], drachling: ['#9e2b25', '#d9813a', '#7a2420'], rochen: ['#3b4f6b', '#2c3b52', '#9fe7ff'],
   aschegeist: ['#3a3634', '#5a5048', '#ff7a2a'], steinwerfer: ['#7a6e5e', '#8c867f', '#5d5448'], schamane: ['#556b3a', '#7dff6a', '#e8dcc0'], schildwaechter: ['#5e4128', '#7a5532', '#4f8a3c'], rissfuerst: ['#2d2838', '#b07cff', '#efe2ff']
 };
-const SPAENE: Record<Res, string[]> = { holz: ['#c9a36a', '#8a6340', '#b48a5a'], stein: ['#a8a29a', '#8c867f'], kristall: ['#9fe7ff', '#d8fdff'], nahrung: ['#c9b04a', '#8fae4a', '#e0c060'] };
+const SPAENE: Record<Res, string[]> = { holz: ['#c9a36a', '#8a6340', '#b48a5a'], stein: ['#a8a29a', '#8c867f'], kristall: ['#9fe7ff', '#d8fdff'], nahrung: ['#c9b04a', '#8fae4a', '#e0c060'], erz: ['#8a6a4a', '#5a5550'], stahl: ['#c0c8d0', '#9aa0a6'], balken: ['#c9a36a', '#8a6340'], linsen: ['#c8fbff', '#9fe7ff'] };
 
 /** Alles, was sich bewegt oder gebaut wird: Gebäude, Wesen, Arbeiter, Bogenschützen, Geschosse, Teilchen, Balken, Vorschau. */
 export class Objekte {
@@ -221,7 +237,11 @@ export class Objekte {
     };
     const leute = (kleid: string, werkzeug: string, haar: string) => mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid, haut: '#e0b48c', haar, werkzeug }));
     this.arbeiter = { holz: new Schar(leute('#5d7f9e', 'axt', '#5a3d24'), 0.125, 200, scene), stein: new Schar(leute('#8a4d3a', 'hacke', '#2e2620'), 0.125, 200, scene), kristall: new Schar(leute('#6b5a8a', 'hacke', '#a0703a'), 0.125, 100, scene),
-      nahrung: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#5a4a30', kleid: '#8a9a4a', haut: '#e0b48c', helm: '#d9c27a', werkzeug: 'sack' })), 0.125, 200, scene) };
+      nahrung: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#5a4a30', kleid: '#8a9a4a', haut: '#e0b48c', helm: '#d9c27a', werkzeug: 'sack' })), 0.125, 200, scene),
+      erz: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#5a5550', haut: '#d9a77c', helm: '#c9a043', werkzeug: 'hacke' })), 0.125, 100, scene),
+      stahl: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f2a2a', kleid: '#7a3a2a', haut: '#d9a77c', haar: '#2e2620', schuerze: '#3a3030', werkzeug: 'hacke' })), 0.125, 80, scene),
+      balken: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#6b8a4a', haut: '#e0b48c', haar: '#8a5a2a', werkzeug: 'axt' })), 0.125, 80, scene),
+      linsen: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#5a6a9a', haut: '#e8c09a', haar: '#d9c27a', brille: true })), 0.125, 80, scene) };
     this.buergerSchar = [
       new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#9c5f6a', haut: '#e8c09a', haar: '#3a2a1e', schuerze: '#d4c4a0' })), 0.125, 60, scene),
       new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#4f6b8a', haut: '#d9a77c', haar: '#8a5a2a' })), 0.125, 60, scene),
@@ -231,7 +251,7 @@ export class Objekte {
     this.baumeister = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#b8733f', haut: '#d9a77c', helm: '#9aa0a6', werkzeug: 'hacke', schuerze: '#5a3d24' })), 0.125, 80, scene);
     this.schuetzen = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#4f6b3a', haut: '#e0b48c', kapuze: '#3f5a30' })), 0.125, 120, scene);
     const box = (x: number, y: number, z: number, farbe: string, leucht = false) => new THREE.InstancedMesh(new THREE.BoxGeometry(x, y, z), leucht ? new THREE.MeshBasicMaterial({ color: new THREE.Color(farbe).multiplyScalar(1.6), toneMapped: false }) : new THREE.MeshStandardMaterial({ color: farbe, roughness: 0.9 }), 200);
-    this.traglast = { holz: box(0.28, 0.28, 1.1, '#8a6038'), stein: box(0.5, 0.42, 0.5, '#a8a29a'), kristall: box(0.3, 0.5, 0.3, '#7fe9ff', true), nahrung: box(0.6, 0.45, 0.6, '#c9a04a') };
+    this.traglast = { holz: box(0.28, 0.28, 1.1, '#8a6038'), stein: box(0.5, 0.42, 0.5, '#a8a29a'), kristall: box(0.3, 0.5, 0.3, '#7fe9ff', true), nahrung: box(0.6, 0.45, 0.6, '#c9a04a'), erz: box(0.5, 0.4, 0.5, '#7a5a42'), stahl: box(0.3, 0.2, 0.6, '#c0c8d0'), balken: box(0.3, 0.3, 1.2, '#b48a5a'), linsen: box(0.3, 0.3, 0.3, '#c8fbff', true) };
     // Pfeile: hell und leicht leuchtend, damit man sie auch nachts verfolgen kann
     this.pfeile = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.12, 1.5), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffe9c0').multiplyScalar(1.25), toneMapped: false }), 500);
     this.steckpfeile = new THREE.InstancedMesh(new THREE.BoxGeometry(0.09, 0.09, 1.2), new THREE.MeshStandardMaterial({ color: '#c9b48f' }), 300);
@@ -259,6 +279,13 @@ export class Objekte {
     this.schild = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#8fd8ff', transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
     this.schild.visible = false; this.schild.renderOrder = 25; scene.add(this.schild);
     for (const ru of spiel.ruinen) this.neueRuine(ru);
+    for (const n of spiel.versiegelt) this.siegelAnRiss(n, false);
+  }
+  /** versiegelter Riss: großer Siegelstein mitten im Riss */
+  private siegelAnRiss(name: string, neu: boolean): void {
+    const q = RISSE.find((o) => o.name === name); if (!q) return;
+    const g = new Grid(); siegelstein(g, false); const m = gridZuGruppe(g, 1.1); m.position.set(q.x, hoehe(q.x, q.z), q.z); this.scene.add(m); this.ruinen.set(-1 - RISSE.indexOf(q), m);
+    if (neu) this.teilchen.wurf(q.x, hoehe(q.x, q.z) + 8, q.z, 60, ['#efe2ff', '#b07cff', '#d4a640'], 7, 1, 0.3);
   }
   private neueRuine(ru: Ruine): void {
     const g = new Grid(); ruine(g, ru.w, ru.d, rng(ru.id * 7 + 3));
@@ -282,7 +309,8 @@ export class Objekte {
   private neuesGeb(g: Geb): void {
     const alt = this.gebaeude.get(g.id); if (alt) this.scene.remove(alt);
     const ms = g.typ === 'mauer' ? mauerStufe(g) : 0; this.mauerStufen.set(g.id, ms);
-    const m = gebModell(g.typ, g.typ === 'mauer' && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms).clone();
+    const bau = !!(g.umbau && GEBAEUDE[g.typ].bauzeit && g.umbau.nach === g.typ && !g.umbau.stufe);
+    const m = gebModell(g.typ, (g.typ === 'mauer' || g.typ === 'tor') && this.spiel.erfindungen.has('stahlguss'), g.zweig, g.stufe, ms, this.spiel.volk, bau).clone();
     const [cx, cz] = gebMitte(g); m.position.set(cx, g.y, cz);
     m.userData.y = g.y; this.scene.add(m); this.gebaeude.set(g.id, m);
   }
@@ -311,6 +339,9 @@ export class Objekte {
       if (e.art === 'heilung') T.wurf(e.x, e.y, e.z, 2, ['#9dff8a', '#d0ffc0'], 1.2, 1, 0.12);
       if (e.art === 'riss') { T.wurf(e.x, hoehe(e.x, e.z) + 4, e.z, 60, ['#b07cff', '#efe2ff', '#8a5cff'], 7, 1, 0.3); T.wurf(e.x, hoehe(e.x, e.z) + 2, e.z, 20, ['#2d2838', '#3a3442'], 2, 2, 1.6); }
       if (e.art === 'brand') { const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 3, z, 12, ['#ff8a2a', '#ffb347'], 3, 1, 0.2); }
+      if (e.art === 'versiegelt') this.siegelAnRiss(e.name, true);
+      if (e.art === 'sternschnuppe') { const y = hoehe(e.x, e.z); T.wurf(e.x, y + 1, e.z, 14, ['#c8fbff', '#ffffff', '#9fe7ff'], 3, 1, 0.18); }
+      if (e.art === 'falle') T.wurf(e.x, e.y + 0.5, e.z, 20, ['#ffb347', '#ff6a1a', '#5a5048'], 6, 1, 0.25);
       if (e.art === 'umgebaut') { this.neuesGeb(e.geb); const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 3, z, 24, ['#ffe2a0', '#d4a640', '#ffffff'], 4, 1, 0.16); T.wurf(x, e.geb.y, z, 10, ['#d8cfc0'], 1, 2, 0.9); }
       if (e.art === 'ruine') {
         if (e.neu) this.neueRuine(e.ruine);
@@ -361,7 +392,7 @@ export class Objekte {
     for (const a of S.arbeiter) {
       if (a.zustand === 'drin') continue;
       const g = S.gebaeude.find((o) => o.id === a.geb); if (!g) continue;
-      const res = GEBAEUDE[g.typ].arbeit!.res, schar = this.arbeiter[res];
+      const res = GEBAEUDE[g.typ].arbeit?.res ?? GEBAEUDE[g.typ].umwandeln!.nach, schar = this.arbeiter[res];
       const geht = a.zustand === 'hin' || a.zustand === 'zurueck' || a.zustand === 'heim';
       const hub = a.zustand === 'arbeit' ? Math.max(0, Math.sin(t * 9 + a.id)) * 0.35 : 0;
       schar.setze(a.x, a.y + (geht ? Math.abs(Math.sin(t * 9 + a.id)) * 0.07 : 0), a.z, a.richtung, 0, hub);
@@ -493,7 +524,7 @@ export class Objekte {
     if (!typ) { if (this.vorschau) this.vorschau.visible = false; if (!this.gewaehlt) this.ring.visible = this.lichtRing.visible = false; return; }
     if (this.vorschauTyp !== typ) {
       if (this.vorschau) this.scene.remove(this.vorschau);
-      this.vorschau = gebModell(typ, false).clone(); this.vorschauTyp = typ; this.scene.add(this.vorschau);
+      this.vorschau = gebModell(typ, false, undefined, 1, 0, this.spiel.volk).clone(); this.vorschauTyp = typ; this.scene.add(this.vorschau);
     }
     const v = this.vorschau!; v.visible = true;
     const def = GEBAEUDE[typ]; const cx = x0 + def.w / 2, cz = z0 + def.d / 2;

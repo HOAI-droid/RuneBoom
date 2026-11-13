@@ -149,9 +149,10 @@ export const GEBAEUDE: Record<GebTyp, GebDef> = {
 export const BAULEISTE: GebTyp[] = ['wachturm', 'feuertopf', 'fackel', 'haus', 'mauer', 'holz', 'stein', 'kristall', 'hof', 'fischer'];
 /** Bauleiste in Gruppen, die sich aufklappen */
 export const BAUGRUPPEN: { id: string; name: string; taste: string; typen: GebTyp[] }[] = [
-  { id: 'dorf', name: 'Dorf', taste: 'Z', typen: ['haus', 'hof', 'fischer', 'aussenposten', 'w_leuchtturm', 'w_kornkammer', 'w_sternwarte', 'w_kolossus', 'w_orgel', 'w_runenschmiede', 'w_sternenschild', 'w_aetherquelle', 'siegel'] },
+  { id: 'dorf', name: 'Dorf', taste: 'Z', typen: ['haus', 'hof', 'fischer', 'aussenposten', 'siegel'] },
   { id: 'rohstoffe', name: 'Rohstoffe', taste: 'R', typen: ['holz', 'stein', 'kristall', 'erzmine', 'saegewerk', 'schmelze', 'schleiferei'] },
-  { id: 'abwehr', name: 'Abwehr', taste: 'V', typen: ['wachturm', 'feuertopf', 'fackel', 'mauer', 'tor', 'dornenfeld', 'oelgraben', 'sprengfalle'] }
+  { id: 'abwehr', name: 'Abwehr', taste: 'V', typen: ['wachturm', 'feuertopf', 'fackel', 'mauer', 'tor', 'dornenfeld', 'oelgraben', 'sprengfalle'] },
+  { id: 'wunder', name: 'Wunder', taste: 'B', typen: ['w_leuchtturm', 'w_kornkammer', 'w_sternwarte', 'w_kolossus', 'w_orgel', 'w_runenschmiede', 'w_sternenschild', 'w_aetherquelle'] }
 ];
 /** Akte der Stammfeste: 40 Nächte, am Ende Sieg */
 export const ENDE_NACHT = 40;

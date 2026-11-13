@@ -641,3 +641,133 @@ export function pfeilHoch(g: Grid) {
   for (let i = 0; i < 4; i++) g.box(-3 + i, i, 0, 3 - i, i, 0, '#e8b84a');
   g.box(-1, -4, 0, 1, -1, 0, '#e8b84a');
 }
+
+
+// ================= v0.5: Völker, Verarbeitung, Wunder, Zeitalter 5 =================
+/** Baustoffe der Völker: Stein, Dächer, Holz werden getauscht */
+export const VOLK_FARBEN: Record<string, Record<string, string>> = {
+  glutborn: { '#b9b2a6': '#4f4a55', '#aea79b': '#46414c', '#a59f95': '#4a4550', '#9a948a': '#423e48', '#8f897f': '#3d3a44', '#837d74': '#36333c', '#9a948b': '#4a4652', '#8d877e': '#403c46', '#8c8a86': '#4a4650', '#7c7a76': '#3a3742',
+    '#3f5675': '#b87333', '#36496a': '#9a5f2a', '#8a3f2b': '#b87333', '#7a3424': '#9a5f2a', '#8d3b2a': '#b87333', '#7a3426': '#9a5f2a', '#9c2f2f': '#ff8a2a', '#d4c4a0': '#6a5a52', '#5a3d24': '#2f2a2a', '#6b4a2f': '#3a3030' },
+  hainmar: { '#b9b2a6': '#8a9a6a', '#aea79b': '#7d8d5e', '#a59f95': '#7f8f62', '#9a948a': '#728256', '#8f897f': '#6f7a56', '#837d74': '#64704c', '#9a948b': '#7f8a62', '#8d877e': '#727e58', '#8c8a86': '#7f8a62', '#7c7a76': '#6a7550',
+    '#3f5675': '#4f8a3c', '#36496a': '#3f7433', '#8a3f2b': '#4f8a3c', '#7a3424': '#3f7433', '#8d3b2a': '#5e9a44', '#7a3426': '#3f7433', '#9c2f2f': '#c9722e', '#d4c4a0': '#a08a5a', '#8a6340': '#7a5a32', '#9a7046': '#8a6a3a' },
+  sturmweber: { '#b9b2a6': '#ece8df', '#aea79b': '#e0dbd0', '#a59f95': '#e6e1d6', '#9a948a': '#d8d2c4', '#8f897f': '#cfc8b8', '#837d74': '#c4bdad', '#9a948b': '#e0dbd0', '#8d877e': '#d4cebf', '#8c8a86': '#dcd6ca', '#7c7a76': '#c9c3b6',
+    '#3f5675': '#3f6f9a', '#36496a': '#355f88', '#8a3f2b': '#3f6f9a', '#7a3424': '#355f88', '#8d3b2a': '#4f7fae', '#7a3426': '#355f88', '#9c2f2f': '#3f5f9a', '#5a3d24': '#a07a3a', '#6b4a2f': '#c99a3e' }
+};
+/** Gerüst für Bauten, die mehrere Tage brauchen */
+export function geruest(g: Grid, w: number, d: number) {
+  g.box(-w, 0, -d, w - 1, 0, d - 1, '#8f897f', 0, 0.08);
+  for (const x of [-w, w - 1]) for (const z of [-d, d - 1]) g.box(x, 1, z, x, 14, z, '#6b4a2f');
+  for (const y of [5, 10, 14]) { g.box(-w, y, -d, w - 1, y, -d, '#8a6340'); g.box(-w, y, d - 1, w - 1, y, d - 1, '#8a6340'); g.box(-w, y, -d, -w, y, d - 1, '#8a6340'); g.box(w - 1, y, -d, w - 1, y, d - 1, '#8a6340'); }
+  g.box(-w + 2, 1, -d + 2, w - 3, 4, d - 3, mauerwerk('#b9b2a6', '#aea79b'), 0, 0.06);
+  for (let i = 0; i < 4; i++) g.box(-w + 1 + i * 2, 1, d, -w + 2 + i * 2, 1 + (i % 3), d + 1, '#a8a29a');
+}
+export function aussenposten(g: Grid) {
+  g.box(-5, 0, -5, 4, 0, 4, '#8f897f', 0, 0.08);
+  for (let x = -5; x <= 4; x++) for (let z = -5; z <= 4; z++) if (x === -5 || x === 4 || z === -5 || z === 4) { if (z === 4 && Math.abs(x + 0.5) < 2) continue; g.box(x, 1, z, x, 4, z, (xx, y) => (y === 4 && (x + z) % 2 ? null : '#7a5532'), 0, 0.12); }
+  turmHolz(g, -2, 0, -2); // kleiner Wachturm in der Ecke
+  for (let i = 0; i <= 3; i++) g.box(1 + i * 0, 1 + i, 0 - i, 3, 1 + i, 3 - i, i % 2 ? '#8d3b2a' : '#7a3426');
+  g.box(1, 1, 0, 3, 3, 3, '#d4c4a0'); g.box(2, 1, 3, 2, 2, 3, '#4a3524');
+}
+export function erzmine(g: Grid) {
+  g.box(-4, 0, -4, 3, 0, 3, '#5a5550', 0, 0.12);
+  g.ell(-1, 1, -2, 3.5, 3.4, 2.5, mauerwerk('#76716a', '#6a6560'), 0, 0.1, (_x, y) => y >= 1);
+  g.box(-2, 1, 0, 0, 3, 0, '#2a2420'); for (const x of [-3, 1]) g.box(x, 1, 0, x, 4, 0, '#6b4a2f'); g.box(-3, 4, 0, 1, 4, 0, '#5a3d24');
+  g.box(1, 1, 1, 3, 2, 3, '#4a4c50'); for (const [x, z] of [[1, 1], [3, 3], [2, 2]]) g.set(x, 3, z, '#b0703a');
+  for (let z = 1; z <= 3; z++) g.set(-1, 1, z, '#3a3836');
+}
+export function saegewerk(g: Grid) {
+  g.box(-5, 0, -4, 4, 0, 3, '#8a6340', 0, 0.12);
+  for (const [x, z] of [[-5, -4], [4, -4], [-5, 3], [4, 3]]) g.box(x, 1, z, x, 6, z, '#5a3d24');
+  for (let i = 0; i <= 2; i++) g.box(-6, 7 + i, -5 + i, 5, 7 + i, 4 - i, i % 2 ? '#7a5532' : '#6b4a2f', 0, 0.1);
+  g.box(-3, 1, -1, 2, 2, 0, '#8a6340'); g.cyl(0, -1, 3, 3, 2.2, '#9aa0a6', 0, 0.05); 
+  holzstapel(g, -5, 0, 1);
+  zahnrad(g, 4, 3, -2, 2.4, '#6b4a2f');
+}
+export function schmelze(g: Grid) {
+  g.box(-4, 0, -4, 3, 0, 3, '#6a6560', 0, 0.12);
+  g.cyl(-1, -1, 1, 7, 2.6, mauerwerk('#8b8a86', '#7f7e7a'), 0, 0.06); g.cyl(-1, -1, 8, 14, 1.4, '#5a5a5a');
+  g.box(-2, 2, 1, 0, 3, 1, '#ff8a2a', 2); for (const [x, y, z] of [[-1, 16, -1], [0, 18, -2], [-1, 20, -1]]) g.ell(x, y, z, 1.4, 1, 1.4, '#6a625a');
+  g.box(1, 1, 0, 3, 2, 3, '#4a4c50'); g.box(2, 3, 1, 2, 3, 2, '#d0d4da');
+}
+export function schleiferei(g: Grid) {
+  g.box(-4, 0, -4, 3, 0, 3, '#8f897f', 0, 0.12);
+  g.box(-3, 1, -3, 2, 6, 2, mauerwerk('#a59f95', '#9a948a'), 0, 0.06);
+  for (let i = 0; i <= 3; i++) g.box(-4, 7 + i, -4 + i, 3, 7 + i, 3 - i, i % 2 ? '#3f5675' : '#36496a', 0, 0.08);
+  g.box(-1, 3, 3, 0, 4, 3, '#9fe7ff', -2); zahnrad(g, 3, 3, -1, 1.8, '#c9a043');
+  for (const [x, z] of [[2, 3], [-3, 3]]) g.set(x, 1, z + 1, '#c8fbff', 1.6);
+}
+export function tor(g: Grid, stahl = false) {
+  mauerStueck(g, 0, 0, 0, stahl);
+  for (let y = 1; y <= 6; y++) { g.set(-1, y, -1, y > 5 ? '#6b4a2f' : '#5a3d24'); g.set(0, y, 0, '#5a3d24'); g.set(-1, y, 0, '#4a3524'); g.set(0, y, -1, '#4a3524'); }
+  g.set(-1, 4, 0, '#c9a043');
+}
+export function falle(g: Grid, art: string) {
+  if (art === 'dornen') for (const [x, z] of [[-1, -1], [0, 0], [-1, 0], [0, -1]]) { g.set(x, 0, z, '#5a3d24'); g.set(x, 1, z, '#8a6340'); }
+  if (art === 'oel') { g.box(-1, 0, -1, 0, 0, 0, '#1a1410'); g.set(-1, 0, -1, '#2a2218', 0, 0.2); }
+  if (art === 'spreng') { g.box(-1, 0, -1, 0, 0, 0, '#5a5048'); g.set(0, 1, 0, '#3a3836'); g.set(-1, 1, -1, '#ff6a1a', -1.6); }
+}
+export function siegelstein(g: Grid, aktiv = true) {
+  g.box(-4, 0, -4, 3, 1, 3, mauerwerk('#8f897f', '#837d74'), 0, 0.06);
+  g.box(-2, 2, -2, 1, 16, 1, mauerwerk('#b9b2a6', '#aea79b'), 0, 0.05);
+  for (let y = 4; y <= 14; y += 3) { g.set(-2, y, 1, '#b07cff', aktiv ? 2 : -1.4); g.set(1, y, -2, '#b07cff', aktiv ? 2 : -1.4); }
+  g.ell(-0.5, 19, -0.5, 2.2, 2.6, 2.2, '#efe2ff', aktiv ? 2.4 : 1.2);
+  for (const [x, z] of [[-4, -4], [3, -4], [-4, 3], [3, 3]]) g.box(x, 2, z, x, 6, z, '#d4a640');
+}
+/** Wunder: je ein eigenes Bauwerk auf 6 × 6 Blöcken */
+export function wunder(g: Grid, typ: string) {
+  const stein = mauerwerk('#b9b2a6', '#aea79b');
+  g.box(-6, 0, -6, 5, 1, 5, mauerwerk('#8f897f', '#837d74'), 0, 0.06);
+  if (typ === 'w_leuchtturm') {
+    g.cyl(-0.5, -0.5, 2, 34, 3.2, (x, y) => (Math.floor(y / 6) % 2 ? '#e6e1d6' : '#9c2f2f'), 0, 0.05);
+    g.cyl(-0.5, -0.5, 35, 35, 4.6, '#d4a640', 0, 0.05, true); g.cyl(-0.5, -0.5, 36, 40, 2.6, '#3a3836', 0, 0.05, true);
+    g.ell(-0.5, 39, -0.5, 2.2, 2.6, 2.2, '#ffe9a8', -2.6); g.cone(-0.5, -0.5, 42, 5, 3, '#d4a640');
+  }
+  if (typ === 'w_kornkammer') {
+    for (const [x, z] of [[-3, -3], [2, -3], [-3, 2], [2, 2]]) { g.cyl(x, z, 2, 14, 2.4, '#d4c4a0', 0, 0.05); g.cone(x, z, 15, 5, 2.8, '#c9a04a'); }
+    g.box(-2, 2, -2, 1, 9, 1, stein); for (let i = 0; i <= 3; i++) g.box(-3, 10 + i, -3 + i, 2, 10 + i, 2 - i, '#8d3b2a');
+  }
+  if (typ === 'w_sternwarte') {
+    g.cyl(-0.5, -0.5, 2, 18, 4.6, stein, 0, 0.05);
+    g.ell(-0.5, 20, -0.5, 5, 5, 5, '#c9a043', 0, 0.06, (_x, y) => y >= 19); g.box(-1, 20, -0.5, 0, 25, 3, '#2a2420');
+    g.line(-0.5, 22, 1, 4, 30, 6, '#7d838a', 0, 0, 1); g.set(4, 31, 6, '#9fe7ff', 2);
+  }
+  if (typ === 'w_kolossus') {
+    g.box(-3, 2, -1, -1, 12, 1, '#b38a36'); g.box(1, 2, -1, 3, 12, 1, '#b38a36');
+    g.box(-4, 13, -2, 4, 24, 2, '#c99a3e', 0, 0.05); zahnrad(g, 0, 19, 3, 3, '#8a6a2a');
+    g.box(-2, 25, -1, 2, 29, 2, '#c99a3e'); g.set(-1, 27, 3, '#ffcf5a', 2.4); g.set(1, 27, 3, '#ffcf5a', 2.4);
+    for (const s of [-1, 1]) { g.box(s * 5, 14, -1, s * 6, 24, 1, '#b38a36'); g.box(s * 6, 6, -1, s * 7, 13, 1, '#8a6a2a'); }
+  }
+  if (typ === 'w_orgel') {
+    for (let i = 0; i < 9; i++) { const x = -5 + i, h = 8 + Math.round(Math.sin(i / 8 * Math.PI) * 16); g.box(x, 2, -2, x, h, -2, '#d4a640'); g.set(x, h + 1, -2, '#c8fbff', 2); }
+    g.box(-5, 2, -1, 4, 6, 2, stein); g.box(-3, 7, 0, 2, 7, 1, '#6ff0ff', 1.6);
+  }
+  if (typ === 'w_runenschmiede') {
+    g.box(-5, 2, -5, 4, 10, 4, stein, 0, 0.05); for (let i = 0; i <= 4; i++) g.box(-6 + i, 11 + i, -6 + i, 5 - i, 11 + i, 5 - i, '#3f5675');
+    g.box(-2, 2, 5, 1, 6, 5, '#ff8a2a', 2); g.box(2, 11, -2, 3, 22, -1, '#4a4652');
+    for (const [x, y] of [[-4, 8], [-1, 9], [2, 8]]) g.set(x, y, 5, '#9fe7ff', 1.8);
+  }
+  if (typ === 'w_sternenschild') {
+    for (let a = 0; a < 6; a++) { const x = Math.round(Math.cos(a) * 4) - 0.5, z = Math.round(Math.sin(a) * 4) - 0.5; g.box(x, 2, z, x, 10, z, '#e6e1d6'); g.set(x, 11, z, '#c8fbff', 2); }
+    g.ell(-0.5, 14, -0.5, 3, 3, 3, '#bff7ff', 1.8);
+  }
+  if (typ === 'w_aetherquelle') {
+    g.cyl(-0.5, -0.5, 2, 4, 5, '#4a4655', 0, 0.06, true); g.cyl(-0.5, -0.5, 3, 3, 4, '#6ff0ff', 1.8);
+    for (let y = 4; y <= 24; y++) { const r2 = 1.2 + Math.sin(y * 0.5) * 0.4; g.cyl(-0.5 + Math.sin(y * 0.4), -0.5, y, y, r2, y > 20 ? '#ffffff' : '#bff7ff', 1.6); }
+  }
+}
+/** Türme des fünften Zeitalters und der Völker */
+export function turmZeitalter5(g: Grid, typ: string) {
+  sockel(g, '#4a4655');
+  const gold = '#d4a640';
+  if (typ === 'lichtsaeule') {
+    g.cyl(-0.5, -0.5, 2, 6, 2, '#4a4655'); for (let y = 7; y <= 34; y++) g.cyl(-0.5, -0.5, y, y, 1.2, y % 4 ? '#ffffff' : '#bff7ff', 2.2);
+    return;
+  }
+  g.cyl(0, 0, 4, 20, 4, typ === 'plasmawerfer' ? mauerwerk('#4f4a55', '#46414c') : typ === 'sonnenstrahl' ? (x, y) => (y % 3 ? '#6a8a3c' : '#5e4128') : mauerwerk('#ece8df', '#e0dbd0'), 0, 0.05);
+  for (const y of [8, 14, 20]) g.cyl(0, 0, y, y, 4.4, gold, 0, 0.05, true);
+  if (typ === 'aetherbogen') { for (const s of [-1, 1]) g.line(s * 6, 22, 0, 0, 30, 0, '#e8dcc0', 0, 0, 1); g.ell(0, 25, 0, 2, 2, 2, '#c9a2ff', 2.2); }
+  if (typ === 'sonnenstrahl') { for (let i = 0; i < 8; i++) g.ell(Math.round(Math.cos(i) * 4), 22 + (i % 3), Math.round(Math.sin(i) * 4), 2, 1.4, 2, '#5e9a44'); g.ell(0, 27, 0, 2.6, 2.6, 2.6, '#ffd84a', 2.4); }
+  if (typ === 'sternkanone') { g.cyl(0, 0, 21, 22, 3.6, '#3a3442'); for (let z = 0; z <= 8; z++) g.cyl(0, z, 25, 25, 1.8, '#4a4655'); g.set(0, 25, 9, '#efe2ff', 2.4); }
+  if (typ === 'plasmawerfer') { g.cyl(0, 0, 21, 23, 3.6, '#2f2a2a'); g.ell(0, 26, 0, 2.6, 2.6, 2.6, '#ff6a1a', 2.4); for (let z = 0; z <= 6; z++) g.cyl(0, z, 24, 24, 1.4, '#b87333'); }
+  if (typ === 'sturmturm') { g.cyl(0, 0, 21, 21, 5, gold, 0, 0.05, true); for (let i = 0; i < 6; i++) g.line(0, 22, 0, Math.round(Math.cos(i) * 5), 28, Math.round(Math.sin(i) * 5), '#8fb4d9'); g.ell(0, 29, 0, 2.4, 2.4, 2.4, '#9a8cff', 2.2); }
+}

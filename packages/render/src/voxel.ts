@@ -13,8 +13,11 @@ export class Grid {
   constructor() { this.m = new Map(); this.o = [0, 0, 0, 0]; }
   key(x, y, z) { return ((x + 512) << 20) | ((y + 512) << 10) | (z + 512); }
   at(X: number, Y: number, Z: number, rot: number, fn: () => void) { const alt = this.o; const [px, pz] = rotXZ(X, Z, alt[3]); this.o = [alt[0] + px, alt[1] + Y, alt[2] + pz, (alt[3] + rot) & 3]; fn(); this.o = alt; }
+  /** Farbtausch für Völker: Baustoffe einer Feste (gilt beim Bauen eines Modells) */
+  static tausch: Record<string, string> | null = null;
   set(x: number, y: number, z: number, hex: Farbe, e = 0, j = 0.07) {
     if (typeof hex === 'function') { const h = hex(x, y, z); if (!h) return; hex = h; }
+    if (Grid.tausch && e === 0) hex = Grid.tausch[hex] || hex;
     const [lx, lz] = rotXZ(x, z, this.o[3]);
     const X = Math.round(lx + this.o[0]), Y = Math.round(y + this.o[1]), Z = Math.round(lz + this.o[2]);
     if (X < -511 || X > 511 || Z < -511 || Z > 511 || Y < -511 || Y > 511) return;
