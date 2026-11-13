@@ -133,6 +133,9 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   **Befehlsschicht** als Grundlage für späteren Mehrspieler: jede Spieleraktion als Befehl, überall gleiche Rechnung (eigene sin/cos …),
   Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler (festgelegt, ab 0.9): **klassischer Koop** für 2–4 Spieler, eine Welt, eine Burg, je Spieler eine Himmelsrichtung/ein Riss,
   eigene Rohstoffe und Arbeiter, Erfindungen gemeinsam, fällt die Burg, verlieren alle.
+  Regeln (festgelegt): alle Risse ab Nacht 1 aktiv, Wellen je Riss etwas schwächer als allein; jeder darf pausieren, schneller nur
+  mit Zustimmung aller; der Nachtbericht hält für alle an, bis alle bestätigt haben; wer ausfällt, dessen Seite läuft weiter (Türme
+  kämpfen selbst), Rückkehr möglich; Gastgeber speichert, fortsetzen mit allen, die da sind; Beitreten auch in laufender Partie, nur am Tag.
   Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
 - [ ] später: Steam · Weltreise · Mehrspieler · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
