@@ -634,6 +634,21 @@ export class Objekte {
   }
   private flaeche: THREE.Mesh | null = null;
   /** Vorschau für „Ebnen“: Fläche in Zielhöhe */
+  /** Mauerverlauf beim Ziehen: je Block ein flaches Feld auf dem Boden, grün = baubar, rot = nicht */
+  private linie: THREE.InstancedMesh | null = null;
+  zeigeLinie(felder: [number, number, number, boolean][] | null): void {
+    if (!this.linie) {
+      // leicht erhöht und auch durch Bäume sichtbar, damit der Verlauf klar zu sehen ist
+      const g = new THREE.BoxGeometry(0.84, 0.3, 0.84); g.translate(0.5, 0.15, 0.5);
+      this.linie = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.72, depthWrite: false, depthTest: false, toneMapped: false }), 400);
+      this.linie.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(400 * 3), 3);
+      this.linie.frustumCulled = false; this.linie.renderOrder = 32; this.scene.add(this.linie);
+    }
+    const L = this.linie, m = new THREE.Matrix4(), gut = new THREE.Color('#7dffb4').multiplyScalar(1.3), schlecht = new THREE.Color('#ff5a46').multiplyScalar(1.3);
+    const n = felder ? Math.min(400, felder.length) : 0;
+    for (let i = 0; i < n; i++) { const [x, y, z, ok] = felder![i]; m.makeTranslation(x, y + 0.02, z); L.setMatrixAt(i, m); L.setColorAt(i, ok ? gut : schlecht); }
+    L.count = n; L.visible = n > 0; L.instanceMatrix.needsUpdate = true; if (L.instanceColor) L.instanceColor.needsUpdate = true;
+  }
   zeigeFlaeche(x0: number, z0: number, x1: number, z1: number, y: number, ok: boolean, sichtbar = true): void {
     if (!this.flaeche) { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0.5, -0.5, 0.5); this.flaeche = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.35, depthWrite: false })); this.flaeche.renderOrder = 31; this.scene.add(this.flaeche); }
     const f = this.flaeche; f.visible = sichtbar; if (!sichtbar) return;

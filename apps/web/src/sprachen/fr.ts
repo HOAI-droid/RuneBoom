@@ -703,5 +703,6 @@ export const FR: Record<string, string> = {
  "Schatten": "Ombres",
  "Nachbearbeitung": "Post-traitement",
  "Ferner Wald": "Forêt lointaine",
- "Kacheln": "Tuiles"
+ "Kacheln": "Tuiles",
+ "Karte ein- und ausblenden": "Afficher ou masquer la carte"
 };

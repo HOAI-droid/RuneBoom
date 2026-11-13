@@ -129,6 +129,10 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Sturmweber: Streicher, Glocken, Hackbrett), Schichten Tag/Abend/Nacht/Kampf, Themen für Rissfürst und Sieg,
   **Gamepad-Steuerung**, **Jahreszeiten über die 40 Nächte** (Frühling bis Winter), **Tiere am Tag** (nur wenn es kaum Bildrate kostet),
   **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
+  **Oberfläche:** Tempo-Knöpfe ganz oben rechts, Übersichtskarte ein- und ausblendbar (Taste M); Erfindungsbaum ansprechender,
+  Rezeptbuch reichhaltiger, Bausteine-Seite neu geordnet (beide Hälften genutzt); Hinweise nie hinter der Bauleiste.
+  **Fall der Feste:** kurze Einsturz-Animation der Burg (sinkt, bricht in Brocken, Staub), dann der Endbildschirm.
+  **Erfinderskizzen** (Stil „Leonardo mit Voxeln“) für besondere Erfindungen: erst Mockup, dann Umsetzung nach Freigabe.
   **Mauerverlauf sichtbar:** beim Ziehen einer Mauer erscheint die Linie auf dem Boden, damit man den Verlauf vor dem Bauen sieht.
   **Befehlsschicht** als Grundlage für späteren Mehrspieler: jede Spieleraktion als Befehl, überall gleiche Rechnung (eigene sin/cos …),
   Prüfsumme des Spielstands; ermöglicht auch Wiederholungen und Tests. Mehrspieler (festgelegt, ab 0.9): **klassischer Koop** für 2–4 Spieler, eine Welt, eine Burg, je Spieler eine Himmelsrichtung/ein Riss,

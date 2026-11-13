@@ -385,6 +385,10 @@
   .panel .wahl, .menue-seite .wahl { flex-wrap: wrap; }
   .panel .regler input[type="checkbox"], .menue-seite .regler input[type="checkbox"] { width: auto; margin: 0 8px 0 0; flex: none; }
   .panel .regler > span, .menue-seite .regler > span { display: flex; align-items: center; }
+  /* Karte nur bei Bedarf: ohne Karte beginnt das Gebäudefenster gleich unter den Tempo-Knöpfen */
+  .karte[hidden] { display: none; }
+  .knoepfe button svg { display: block; margin: auto; }
+  body:not(.karte-an) .panel { top: calc(max(10px, env(safe-area-inset-top)) + 56px); max-height: calc(100vh - 56px - 140px); }
   @media (max-height: 700px) { .panel { top: calc(max(10px, env(safe-area-inset-top)) + 250px); max-height: calc(100vh - 250px - 135px); } .karte canvas { width: 150px; height: 150px; } }
 
   .untertitel { white-space: nowrap; }
@@ -408,14 +412,15 @@
   </div>
   <div class="uhr tafel" id="uhr" data-dynamisch></div>
   <div class="oben-rechts">
-    <div class="karte tafel" id="karte" role="button" tabindex="0" aria-label="Übersichtskarte, Klick springt dorthin"><canvas id="minikarte" width="256" height="256"></canvas><span id="weltcode" data-dynamisch></span></div>
     <div class="knoepfe tafel" role="group" aria-label="Tempo">
       <button type="button" data-tempo="0" title="Pause (Leertaste)">II</button>
       <button type="button" data-tempo="1" aria-pressed="true">1×</button>
       <button type="button" data-tempo="2">2×</button>
       <button type="button" data-tempo="4">4×</button>
+      <button type="button" id="karte-knopf" title="Karte (M)" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M1 3.5 5.5 1.5l5 2 4.5-2v11l-4.5 2-5-2L1 14.5z M5.5 1.5v11 M10.5 3.5v11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
       <button type="button" id="menue" title="Einstellungen und Menü">☰</button>
     </div>
+    <div class="karte tafel" id="karte" role="button" tabindex="0" aria-label="Übersichtskarte, Klick springt dorthin" hidden><canvas id="minikarte" width="256" height="256"></canvas><span id="weltcode" data-dynamisch></span></div>
   </div>
   <div id="meldungen" data-dynamisch aria-live="polite"></div>
   <div class="panel tafel" id="panel" data-dynamisch hidden></div>

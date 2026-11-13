@@ -18,7 +18,7 @@ const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([
 
 // ================= Einstellungen =================
 const EINST = 'runeboom-einstellungen-1';
-const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl' };
+const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl' };
 try { Object.assign(einst, JSON.parse(localStorage.getItem(EINST) || '{}')); } catch { /* */ }
 registriereSprache('en', EN); registriereSprache('fr', FR); registriereSprache('es', ES);
 setzeSprache(einst.sprache === 'auto' ? systemSprache() : einst.sprache);
@@ -211,6 +211,7 @@ function seite(name: string | null): void {
       <kbd>${t('Klick auf Gebäude')}</kbd><span>${t('Ausbauen (Stufe I–III), Umrüsten, Verschmelzen, Reparieren')}</span>
       <kbd>X · 9</kbd><span>${t('Späher in den Nebel (15 Holz) · Gelände ebnen')}</span>
       <kbd>T</kbd><span>${t('Erfindungsbaum')}</span>
+      <kbd>M</kbd><span>${t('Karte ein- und ausblenden')}</span>
       <kbd>${t('N · Leertaste')}</kbd><span>${t('Nacht einläuten · Pause')}</span>
       <kbd>${t('Esc · Rechtsklick')}</kbd><span>${t('abbrechen')}</span></div>`;
   }
@@ -282,7 +283,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -352,6 +353,7 @@ function leisteAktualisieren(): void {
   }
 }
 function werkzeugSetzen(w: typeof werkzeug): void {
+  obj?.zeigeLinie(null);
   werkzeug = w;
   if (w?.art === 'bau' && spiel && !spiel.freigeschaltet(w.typ)) { melde(`${t('{a} braucht erst die Erfindung {b}.', { a: t(GEBAEUDE[w.typ].name), b: t(ERFINDUNGEN[GEBAEUDE[w.typ].braucht!].name) })}`, 'schlecht'); werkzeug = null; }
   if (!werkzeug || werkzeug.art !== 'bau') obj?.zeigeVorschau(null);
@@ -363,7 +365,11 @@ function werkzeugSetzen(w: typeof werkzeug): void {
   canvas.style.cursor = werkzeug ? 'crosshair' : '';
   leisteAktualisieren();
 }
-function zeigeTipp(html: string | null): void { const t = $('tipp'); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false; }
+function zeigeTipp(html: string | null): void {
+  const t = $('tipp'); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false;
+  // immer über der Bauleiste (auch wenn eine Gruppe aufgeklappt ist), nie dahinter
+  const l = $('leiste'); if (!l.hidden) t.style.bottom = `${Math.max(84, innerHeight - l.getBoundingClientRect().top + 8)}px`;
+}
 
 // ================= Auswahl und Werkstatt =================
 function schliessePanel(): void { $('panel').hidden = true; $('panel').dataset.html = ''; panelArt = null; ruineGew = null; }
@@ -588,7 +594,11 @@ canvas.addEventListener('pointermove', (e) => {
   const typ = werkzeug.typ, [x0, z0] = GEBAEUDE[typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(typ, p);
   const pr = spiel.pruefe(typ, x0, z0), bezahlbar = spiel.kannBezahlen(GEBAEUDE[typ].kosten);
   obj?.zeigeVorschau(typ, x0, z0, pr.ok && bezahlbar, pr.ok ? pr.y : hoehe(x0 + 0.5, z0 + 0.5));
-  if (unten?.mauer) { mauerZiel = [x0, z0]; const n = linie(unten.mauer, mauerZiel).length; zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: n, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * n]))) })}`); }
+  if (unten?.mauer) { mauerZiel = [x0, z0]; const zug = linie(unten.mauer, mauerZiel);
+    // Verlauf der Mauer auf dem Boden zeigen
+    obj?.zeigeLinie(zug.map(([x, z]) => { const q = spiel!.pruefe(typ, x, z); return [x, q.ok ? q.y : hoehe(x + 0.5, z + 0.5), z, q.ok] as [number, number, number, boolean]; }));
+  } else obj?.zeigeLinie(null);
+  if (unten?.mauer) { const n = linie(unten.mauer, mauerZiel!).length; zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: n, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * n]))) })}`); }
   else zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(GEBAEUDE[typ].kosten)}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
 });
 canvas.addEventListener('pointerup', (e) => {
@@ -599,7 +609,7 @@ canvas.addEventListener('pointerup', (e) => {
     const typ = werkzeug?.art === 'bau' ? werkzeug.typ : 'mauer';
     let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.bauen(typ, x, z, true)) n++;
     if (!n) melde(`${t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) })}`, 'schlecht'); else if (!e.shiftKey) werkzeugSetzen(null);
-    mauerZiel = null; return;
+    mauerZiel = null; obj?.zeigeLinie(null); return;
   }
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
@@ -625,6 +635,7 @@ addEventListener('keydown', (e) => {
   const gr = BAUGRUPPEN.find((g) => g.taste.toLowerCase() === k); if (gr) gruppeZeigen(gruppeOffen === gr.id ? null : gr.id);
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
   if (k === 't') $('baum').hidden ? zeigeWerkstatt() : baumZu();
+  if (k === 'm') karteSetzen(!einst.karte);
   if (k === 'n') spiel.nachtEinlaeuten();
   if (k === ' ') { e.preventDefault(); setzeTempo(tempo === 0 ? 1 : 0); }
   if (k === 'delete' && gewaehlt) { spiel.abreissen(gewaehlt); waehle(null); }
@@ -648,7 +659,7 @@ const kartenGrund = document.createElement('canvas'); kartenGrund.width = karten
 function zeichneKartenGrund(): void { welt?.kartenBild(kartenGrund.getContext('2d')!); }
 const ebene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -7), hit = new THREE.Vector3();
 function zeichneKarte(): void {
-  if (!spiel) return;
+  if (!spiel || !einst.karte) return;
   const s = 256 / (2 * WR); mx.drawImage(kartenGrund, 0, 0);
   for (const g of spiel.gebaeude) { mx.fillStyle = g.typ === 'haupt' ? '#ffe2a0' : '#ebe3d2'; mx.fillRect((g.x + WR) * s - 0.5, (g.z + WR) * s - 0.5, Math.max(1.5, g.w * s), Math.max(1.5, g.d * s)); }
   mx.fillStyle = '#ff5a4a'; for (const e of spiel.gegner) if (spiel.erkundetAn(e.x, e.z)) mx.fillRect((e.x + WR) * s - 1, (e.z + WR) * s - 1, 2, 2);
@@ -937,7 +948,16 @@ renderer.setAnimationLoop(() => {
   zeichnen();
 });
 
+/** Übersichtskarte ein- und ausblenden (gemerkt) */
+function karteSetzen(an: boolean): void {
+  einst.karte = an; einstSpeichern();
+  $('karte').hidden = !an; document.body.classList.toggle('karte-an', an); $('karte-knopf').setAttribute('aria-pressed', String(an));
+  if (an) zeichneKarte();
+}
+$('karte-knopf').onclick = () => karteSetzen(!einst.karte);
+
 // ================= Start (am Ende, wenn alles definiert ist) =================
+karteSetzen(einst.karte);
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();
 zeigeStart();

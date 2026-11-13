@@ -703,5 +703,6 @@ export const EN: Record<string, string> = {
  "Schatten": "Shadows",
  "Nachbearbeitung": "Post-processing",
  "Ferner Wald": "Distant forest",
- "Kacheln": "Tiles"
+ "Kacheln": "Tiles",
+ "Karte ein- und ausblenden": "Show or hide the map"
 };

@@ -703,5 +703,6 @@ export const ES: Record<string, string> = {
  "Schatten": "Sombras",
  "Nachbearbeitung": "Posprocesado",
  "Ferner Wald": "Bosque lejano",
- "Kacheln": "Teselas"
+ "Kacheln": "Teselas",
+ "Karte ein- und ausblenden": "Mostrar u ocultar el mapa"
 };
