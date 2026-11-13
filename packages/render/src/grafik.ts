@@ -41,7 +41,7 @@ export function lichtkarteSetzen(lichter: Lichtquelle[], fest = true, nacht = tr
   lichtTex.needsUpdate = true;
 }
 /** Material bekommt Licht aus der Lichtkarte, nachts */
-export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture): T {
+export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): T {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LICHT_U);
     sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; }');
@@ -49,10 +49,10 @@ export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, m
       `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};`);
     if (maske) { // unter fertigen Kacheln ausblenden
       sh.uniforms.uMaske = { value: maske };
-      sh.fragmentShader = 'uniform sampler2D uMaske;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `if (texture2D(uMaske, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r > 0.5) discard;\n#include <clipping_planes_fragment>`);
+      sh.fragmentShader = 'uniform sampler2D uMaske;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `if (texture2D(uMaske, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r > ${schwelle.toFixed(2)}) discard;\n#include <clipping_planes_fragment>`);
     }
   };
-  if (maske) mat.customProgramCacheKey = () => `lichtkarte-maske-${staerke}`;
+  if (maske) mat.customProgramCacheKey = () => `lichtkarte-maske-${staerke}-${schwelle}`;
   return mat;
 }
 
@@ -62,7 +62,7 @@ export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, m
  */
 export const FABRIK = {
   gpu: false,
-  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske),
+  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle),
   wasser: (): THREE.Material => wasserGL(),
   lava: (): THREE.Material => lavaGL(),
   himmel: (u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color }; uFog: { value: THREE.Color } }): THREE.Material => himmelGL(u),

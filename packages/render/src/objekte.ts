@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GEBAEUDE, type Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
+import { GEBAEUDE, trockenerWeg, trocken, type Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
 import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT, FABRIK } from './grafik.ts';
 import {
@@ -66,32 +66,111 @@ const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, ha
   schuetzenturm: 16, repetierer: 18, laser: 20, kanone: 12, blitzspule: 15, brandturm: 19, leuchtpfeil: 21, doppelturm: 18, glutmoerser: 13 };
 /** Höhe, aus der Strahlen und Blitze kommen */
 function spitze(g: Geb): number { return g.y + (GEB_HOEHE[g.typ] || 10) - 1; }
+/** Schrittlänge je Wesen (Blöcke je halbem Gangzyklus) */
+const SCHRITT: Partial<Record<GegTyp, number>> = { moorwicht: 0.7, wolf: 1.3, troll: 1.6, steinwerfer: 1.8, schamane: 0.8, schildwaechter: 1.4, rissfuerst: 2.8 };
 const WESEN_HOEHE: Record<GegTyp, number> = { moorwicht: 2.8, wolf: 3.1, troll: 5.6, drachling: 2.2, rochen: 1.6, aschegeist: 3, steinwerfer: 7, schamane: 4.4, schildwaechter: 6, rissfuerst: 16 };
 /** Schadensstufe einer Mauer für das Modell */
 const mauerStufe = (g: Geb) => (g.hp > g.max * 0.66 ? 0 : g.hp > g.max * 0.33 ? 1 : 2);
 
-// ---------- Instanzen für viele gleiche Dinge ----------
+// ---------- Instanzen für viele gleiche Dinge, mit beweglichen Gliedern ----------
+/** Glieder einer Figur: Beine und Arme schwingen um die X-Achse, Flügel um Z, Schwänze um Y */
+type GliedArt = 'bein' | 'arm' | 'werkzeug' | 'fluegel' | 'schwanz';
+interface Glied { art: GliedArt; seite: number; p: [number, number, number] }
+/** ordnet jedem Voxel ein Glied zu (Index in der Liste, -1 = Rumpf) */
+interface Bauplan { glieder: Glied[]; teil: (x: number, y: number, z: number) => number }
+const B = (glieder: Glied[], teil: Bauplan['teil']): Bauplan => ({ glieder, teil });
+/** Mensch (figur8): Beine unter der Hüfte, linker Arm, rechter Arm samt Werkzeug */
+const MENSCH = B([
+  { art: 'bein', seite: 1, p: [0, 6, 0] }, { art: 'bein', seite: -1, p: [0, 6, 0] },
+  { art: 'arm', seite: -1, p: [0, 10.5, 0.5] }, { art: 'werkzeug', seite: 1, p: [0, 10.5, 0.5] }
+], (x, y, z) => {
+  if (y <= 5 && x !== 0 && (z <= 0 || y === 0) && Math.abs(x) <= 2) return x < 0 ? 0 : 1;
+  if (z >= -1 && ((x === -3 && y >= 5 && y <= 10))) return 2;
+  if (z >= -1 && ((x === 3 && y >= 5 && y <= 10) || x >= 4)) return 3;
+  return -1;
+});
+/** Vierbeiner (Wolf): diagonaler Gang, Schwanz */
+const WOLF = B([
+  { art: 'bein', seite: 1, p: [0, 5, 5] }, { art: 'bein', seite: -1, p: [0, 5, 5] },
+  { art: 'bein', seite: -1, p: [0, 5, -4] }, { art: 'bein', seite: 1, p: [0, 5, -4] },
+  { art: 'schwanz', seite: 1, p: [0.5, 8.5, -7] }
+], (x, y, z) => {
+  if (y <= 4 && Math.abs(x) >= 2) return (z > 0 ? 0 : 2) + (x < 0 ? 0 : 1);
+  if (z <= -8 && y >= 8) return 4;
+  return -1;
+});
+const ZWEIBEIN = (huefte: number, bein: (x: number, y: number, z: number) => boolean, arm?: { y: number; z: number; teil: (x: number, y: number, z: number) => number }) => B([
+  { art: 'bein', seite: 1, p: [0, huefte, 0.5] }, { art: 'bein', seite: -1, p: [0, huefte, 0.5] },
+  ...(arm ? [{ art: 'arm', seite: -1, p: [0, arm.y, arm.z] } as Glied, { art: 'arm', seite: 1, p: [0, arm.y, arm.z] } as Glied] : [])
+], (x, y, z) => { if (bein(x, y, z)) return x < 0 ? 0 : 1; if (arm) { const a = arm.teil(x, y, z); if (a >= 0) return 2 + a; } return -1; });
+const FLIEGER = (ab: number, py: number, pz: number, schwanzAb: number) => B([
+  { art: 'fluegel', seite: -1, p: [-ab + 0.5, py, pz] }, { art: 'fluegel', seite: 1, p: [ab - 0.5, py, pz] }, { art: 'schwanz', seite: 1, p: [0.5, 0, schwanzAb + 1] }
+], (x, _y, z) => (x <= -ab ? 0 : x >= ab ? 1 : z <= schwanzAb ? 2 : -1));
+const BAUPLAN: Record<string, Bauplan> = {
+  mensch: MENSCH, wolf: WOLF,
+  moorwicht: ZWEIBEIN(2, (x, y) => y <= 1 && x !== 0, { y: 5, z: 0.5, teil: (x, y, z) => (x === -3 && y <= 4 ? 0 : (x === 3 && y <= 4) || (x === 4 && z === 2) ? 1 : -1) }),
+  troll: ZWEIBEIN(5, (x, y) => y <= 4 && Math.abs(x) >= 2, { y: 13, z: 0.5, teil: (x, y) => (x <= -7 || (x <= -6 && y <= 12) ? 0 : x >= 7 || (x >= 6 && y <= 12) ? 1 : -1) }),
+  steinwerfer: ZWEIBEIN(5, (x, y) => y <= 4 && Math.abs(x) >= 2),
+  schamane: ZWEIBEIN(4, (x, y, z) => y <= 3 && x !== 0 && z === 0 && Math.abs(x) <= 2),
+  schildwaechter: ZWEIBEIN(5, (x, y, z) => y <= 4 && Math.abs(x) >= 2 && z <= 1),
+  rissfuerst: ZWEIBEIN(7, (x, y, z) => y <= 6 && Math.abs(x) >= 3 && Math.abs(x) <= 6 && z <= 2 && z >= -2, { y: 18, z: 0.5, teil: (x, y) => (x <= -8 && y >= 5 ? 0 : x >= 8 && y >= 5 ? 1 : -1) }),
+  drachling: FLIEGER(5, 2.5, 1, -8),
+  rochen: FLIEGER(6, 0.5, 0, -10)
+};
+/** Bewegung einer Figur: Gangphase (Bogenmaß), Gangstärke 0–1, Hieb 0–1 (Werkzeug), Flügelschlag */
+export interface Regung { phase: number; gang: number; hieb?: number; flug?: number }
+const X_ACHSE = new THREE.Vector3(1, 0, 0), Y_ACHSE = new THREE.Vector3(0, 1, 0), Z_ACHSE = new THREE.Vector3(0, 0, 1);
 class Schar {
-  meshes: THREE.InstancedMesh[] = [];
+  /** je Glied (Index 0 = Rumpf) die Netze der drei Töpfe */
+  private teile: { glied: Glied | null; meshes: THREE.InstancedMesh[] }[] = [];
   n = 0;
-  constructor(grid: Grid, readonly scale: number, readonly max: number, scene: THREE.Scene, schatten = true) {
-    meshVoxels(grid, grid.m.values()).forEach((T, i) => {
-      if (!T) return;
-      const m = new THREE.InstancedMesh(geometrie(T), [SOLID, GLOW, LAMP][i], max);
-      m.castShadow = schatten && i === 0; m.receiveShadow = i === 0; m.frustumCulled = false; m.count = 0;
-      this.meshes.push(m); scene.add(m);
+  constructor(grid: Grid, readonly scale: number, readonly max: number, scene: THREE.Scene, schatten = true, plan?: Bauplan) {
+    const gruppen: Grid[] = [grid];
+    if (plan) {
+      for (let i = 0; i < plan.glieder.length; i++) gruppen.push(new Grid());
+      const rumpf = new Grid();
+      for (const v of grid.m.values()) { const k = plan.teil(v.x, v.y, v.z); (k >= 0 ? gruppen[k + 1] : rumpf).m.set(grid.key(v.x, v.y, v.z), v); }
+      gruppen[0] = rumpf;
+    }
+    gruppen.forEach((g, k) => {
+      const meshes: THREE.InstancedMesh[] = [];
+      meshVoxels(g, g.m.values()).forEach((T, i) => {
+        if (!T) return;
+        const m = new THREE.InstancedMesh(geometrie(T), [SOLID, GLOW, LAMP][i], max);
+        m.castShadow = schatten && i === 0; m.receiveShadow = i === 0; m.frustumCulled = false; m.count = 0; m.visible = false;
+        meshes.push(m); scene.add(m);
+      });
+      this.teile.push({ glied: k === 0 ? null : plan!.glieder[k - 1], meshes });
     });
   }
   private mat = new THREE.Matrix4(); private q = new THREE.Quaternion(); private s = new THREE.Vector3(); private p = new THREE.Vector3(); private e = new THREE.Euler(0, 0, 0, 'YXZ');
+  private lok = new THREE.Matrix4(); private dreh = new THREE.Matrix4(); private hin = new THREE.Matrix4(); private ges = new THREE.Matrix4();
   beginn() { this.n = 0; }
-  setze(x: number, y: number, z: number, ry: number, rz = 0, rx = 0, groesse = 1): void {
+  setze(x: number, y: number, z: number, ry: number, rz = 0, rx = 0, groesse = 1, r?: Regung): void {
     if (this.n >= this.max) return;
     this.e.set(rx, ry, rz); this.q.setFromEuler(this.e); this.s.setScalar(this.scale * groesse); this.p.set(x, y, z);
     this.mat.compose(this.p, this.q, this.s);
-    for (const m of this.meshes) m.setMatrixAt(this.n, this.mat);
+    for (const t of this.teile) {
+      let M = this.mat;
+      if (t.glied && r) {
+        const G = t.glied, ph = r.phase, sw = Math.sin(ph);
+        let w = 0, achse = X_ACHSE;
+        if (G.art === 'bein') w = G.seite * sw * 0.65 * r.gang;
+        else if (G.art === 'arm') w = G.seite * sw * 0.5 * r.gang;
+        else if (G.art === 'werkzeug') w = r.hieb ? -r.hieb * 1.7 : G.seite * sw * 0.5 * r.gang;
+        else if (G.art === 'fluegel') { achse = Z_ACHSE; w = G.seite * (Math.sin(ph * 1.0) * 0.75 + 0.15) * (r.flug ?? 1); }
+        else if (G.art === 'schwanz') { achse = Y_ACHSE; w = Math.sin(ph * 0.5) * 0.35; }
+        if (w) {
+          this.hin.makeTranslation(G.p[0], G.p[1], G.p[2]); this.dreh.makeRotationAxis(achse, w);
+          this.lok.multiplyMatrices(this.hin, this.dreh); this.hin.makeTranslation(-G.p[0], -G.p[1], -G.p[2]); this.lok.multiply(this.hin);
+          M = this.ges.multiplyMatrices(this.mat, this.lok);
+        }
+      }
+      for (const m of t.meshes) m.setMatrixAt(this.n, M);
+    }
     this.n++;
   }
-  ende(): void { for (const m of this.meshes) { m.count = this.n; m.instanceMatrix.needsUpdate = true; } }
+  ende(): void { for (const t of this.teile) for (const m of t.meshes) { m.count = this.n; m.visible = this.n > 0; m.instanceMatrix.needsUpdate = true; } }
 }
 
 /** Trümmer, Funken und Rauch: kleine Würfel */
@@ -208,7 +287,7 @@ export class Objekte {
   private zeit = 0; private gewaehlt: Geb | null = null;
   private ruinen = new Map<number, THREE.Group>();
   private buergerSchar: Schar[]; private pfeilSchar: Schar; private steine: THREE.InstancedMesh;
-  private buerger: { x: number; z: number; ziel: [number, number]; warte: number; art: number; tempo: number; richtung: number }[] = [];
+  private buerger: { x: number; z: number; ziel: [number, number]; warte: number; art: number; tempo: number; richtung: number; weg?: [number, number][] | null; wi?: number }[] = [];
   /** goldene Pfeile über verbesserbaren Gebäuden zeigen */
   zeigePfeile = true;
   /** höchstens so viele Bürger zeigen (Leistung) */
@@ -221,33 +300,33 @@ export class Objekte {
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
     this.wesen = {
-      moorwicht: new Schar(mk((g) => moorwicht(g, 0, 0, 0, 0)), 0.2, 500, scene),
-      wolf: new Schar(mk((g) => wolf(g, 0, 0, 0, 0)), 0.22, 150, scene),
-      wolfDunkel: new Schar(mk((g) => wolf(g, 0, 0, 0, 0, true)), 0.22, 150, scene),
-      troll: new Schar(mk((g) => troll(g, 0, 0, 0, 0)), 0.3, 60, scene),
-      drachling: new Schar(mk((g) => drachling(g)), 0.3, 60, scene),
-      rochen: new Schar(mk((g) => nebelrochen(g)), 0.3, 40, scene),
+      moorwicht: new Schar(mk((g) => moorwicht(g, 0, 0, 0, 0)), 0.2, 500, scene, true, BAUPLAN.moorwicht),
+      wolf: new Schar(mk((g) => wolf(g, 0, 0, 0, 0)), 0.22, 150, scene, true, WOLF),
+      wolfDunkel: new Schar(mk((g) => wolf(g, 0, 0, 0, 0, true)), 0.22, 150, scene, true, WOLF),
+      troll: new Schar(mk((g) => troll(g, 0, 0, 0, 0)), 0.3, 60, scene, true, BAUPLAN.troll),
+      drachling: new Schar(mk((g) => drachling(g)), 0.3, 60, scene, true, BAUPLAN.drachling),
+      rochen: new Schar(mk((g) => nebelrochen(g)), 0.3, 40, scene, true, BAUPLAN.rochen),
       aschegeist: new Schar(mk((g) => aschegeist(g)), 0.25, 60, scene),
-      steinwerfer: new Schar(mk((g) => steinwerfer(g)), 0.3, 60, scene),
-      schamane: new Schar(mk((g) => schamane(g)), 0.25, 40, scene),
-      schildwaechter: new Schar(mk((g) => schildwaechter(g)), 0.28, 60, scene),
-      rissfuerst: new Schar(mk((g) => rissfuerst(g)), 0.45, 6, scene)
+      steinwerfer: new Schar(mk((g) => steinwerfer(g)), 0.3, 60, scene, true, BAUPLAN.steinwerfer),
+      schamane: new Schar(mk((g) => schamane(g)), 0.25, 40, scene, true, BAUPLAN.schamane),
+      schildwaechter: new Schar(mk((g) => schildwaechter(g)), 0.28, 60, scene, true, BAUPLAN.schildwaechter),
+      rissfuerst: new Schar(mk((g) => rissfuerst(g)), 0.45, 6, scene, true, BAUPLAN.rissfuerst)
     };
     const leute = (kleid: string, werkzeug: string, haar: string) => mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid, haut: '#e0b48c', haar, werkzeug }));
-    this.arbeiter = { holz: new Schar(leute('#5d7f9e', 'axt', '#5a3d24'), 0.125, 200, scene), stein: new Schar(leute('#8a4d3a', 'hacke', '#2e2620'), 0.125, 200, scene), kristall: new Schar(leute('#6b5a8a', 'hacke', '#a0703a'), 0.125, 100, scene),
-      nahrung: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#5a4a30', kleid: '#8a9a4a', haut: '#e0b48c', helm: '#d9c27a', werkzeug: 'sack' })), 0.125, 200, scene),
-      erz: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#5a5550', haut: '#d9a77c', helm: '#c9a043', werkzeug: 'hacke' })), 0.125, 100, scene),
-      stahl: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f2a2a', kleid: '#7a3a2a', haut: '#d9a77c', haar: '#2e2620', schuerze: '#3a3030', werkzeug: 'hacke' })), 0.125, 80, scene),
-      balken: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#6b8a4a', haut: '#e0b48c', haar: '#8a5a2a', werkzeug: 'axt' })), 0.125, 80, scene),
-      linsen: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#5a6a9a', haut: '#e8c09a', haar: '#d9c27a', brille: true })), 0.125, 80, scene) };
+    this.arbeiter = { holz: new Schar(leute('#5d7f9e', 'axt', '#5a3d24'), 0.125, 200, scene, true, MENSCH), stein: new Schar(leute('#8a4d3a', 'hacke', '#2e2620'), 0.125, 200, scene, true, MENSCH), kristall: new Schar(leute('#6b5a8a', 'hacke', '#a0703a'), 0.125, 100, scene, true, MENSCH),
+      nahrung: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#5a4a30', kleid: '#8a9a4a', haut: '#e0b48c', helm: '#d9c27a', werkzeug: 'sack' })), 0.125, 200, scene, true, MENSCH),
+      erz: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#5a5550', haut: '#d9a77c', helm: '#c9a043', werkzeug: 'hacke' })), 0.125, 100, scene, true, MENSCH),
+      stahl: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f2a2a', kleid: '#7a3a2a', haut: '#d9a77c', haar: '#2e2620', schuerze: '#3a3030', werkzeug: 'hacke' })), 0.125, 80, scene, true, MENSCH),
+      balken: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#6b8a4a', haut: '#e0b48c', haar: '#8a5a2a', werkzeug: 'axt' })), 0.125, 80, scene, true, MENSCH),
+      linsen: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#5a6a9a', haut: '#e8c09a', haar: '#d9c27a', brille: true })), 0.125, 80, scene, true, MENSCH) };
     this.buergerSchar = [
-      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#9c5f6a', haut: '#e8c09a', haar: '#3a2a1e', schuerze: '#d4c4a0' })), 0.125, 60, scene),
-      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#4f6b8a', haut: '#d9a77c', haar: '#8a5a2a' })), 0.125, 60, scene),
-      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#b8733f', haut: '#c99a72', haar: '#d9c27a', bart: '#d9c27a' })), 0.125, 60, scene)
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#9c5f6a', haut: '#e8c09a', haar: '#3a2a1e', schuerze: '#d4c4a0' })), 0.125, 60, scene, true, MENSCH),
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#4f6b8a', haut: '#d9a77c', haar: '#8a5a2a' })), 0.125, 60, scene, true, MENSCH),
+      new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#b8733f', haut: '#c99a72', haar: '#d9c27a', bart: '#d9c27a' })), 0.125, 60, scene, true, MENSCH)
     ];
     this.pfeilSchar = new Schar(mk((g) => pfeilHoch(g)), 0.22, 120, scene, false);
-    this.baumeister = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#b8733f', haut: '#d9a77c', helm: '#9aa0a6', werkzeug: 'hacke', schuerze: '#5a3d24' })), 0.125, 80, scene);
-    this.schuetzen = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#4f6b3a', haut: '#e0b48c', kapuze: '#3f5a30' })), 0.125, 120, scene);
+    this.baumeister = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3a3a44', kleid: '#b8733f', haut: '#d9a77c', helm: '#9aa0a6', werkzeug: 'hacke', schuerze: '#5a3d24' })), 0.125, 80, scene, true, MENSCH);
+    this.schuetzen = new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#4f6b3a', haut: '#e0b48c', kapuze: '#3f5a30' })), 0.125, 120, scene, true, MENSCH);
     const box = (x: number, y: number, z: number, farbe: string, leucht = false) => new THREE.InstancedMesh(new THREE.BoxGeometry(x, y, z), leucht ? new THREE.MeshBasicMaterial({ color: new THREE.Color(farbe).multiplyScalar(1.6), toneMapped: false }) : new THREE.MeshStandardMaterial({ color: farbe, roughness: 0.9 }), 200);
     this.traglast = { holz: box(0.28, 0.28, 1.1, '#8a6038'), stein: box(0.5, 0.42, 0.5, '#a8a29a'), kristall: box(0.3, 0.5, 0.3, '#7fe9ff', true), nahrung: box(0.6, 0.45, 0.6, '#c9a04a'), erz: box(0.5, 0.4, 0.5, '#7a5a42'), stahl: box(0.3, 0.2, 0.6, '#c0c8d0'), balken: box(0.3, 0.3, 1.2, '#b48a5a'), linsen: box(0.3, 0.3, 0.3, '#c8fbff', true) };
     // Pfeile: hell und leicht leuchtend, damit man sie auch nachts verfolgen kann
@@ -357,20 +436,36 @@ export class Objekte {
       if (e.art === 'reparatur' && e.fertig) { const [x, z] = gebMitte(e.geb); T.wurf(x, e.geb.y + 2, z, 16, ['#ffe2a0', '#ffffff'], 3, 1, 0.16); }
     }
   }
+  /** Gang je Wesen: Phase wächst mit dem zurückgelegten Weg (keine rutschenden Füße), Stärke folgt der Bewegung */
+  private gaenge = new Map<number, { x: number; z: number; phase: number; gang: number; bild: number }>(); private gangBild = 0;
+  private gangVon(e: { id: number; x: number; z: number; typ: GegTyp }, dt: number): Regung {
+    let g = this.gaenge.get(e.id);
+    if (!g) { g = { x: e.x, z: e.z, phase: e.id, gang: 0, bild: this.gangBild }; this.gaenge.set(e.id, g); }
+    if (dt > 0 && g.bild !== this.gangBild) {
+      g.bild = this.gangBild;
+      const d = Math.hypot(e.x - g.x, e.z - g.z); g.x = e.x; g.z = e.z;
+      const schritt = SCHRITT[e.typ] || 1.2;
+      if (d < 3) g.phase += (d / schritt) * Math.PI;
+      g.gang += ((d / dt > 0.15 ? 1 : 0) - g.gang) * Math.min(1, dt * 8);
+    }
+    return g;
+  }
   /** jedes Bild: Wesen, Arbeiter, Schützen, Geschosse, Balken */
   bild(dt: number, licht: (x: number, z: number) => { wert: number; enthuellt: boolean }, nacht: boolean, kamera: THREE.Camera, wegStaerke: number): void {
-    this.zeit += dt;
+    this.zeit += dt; this.gangBild++;
     const S = this.spiel, t = this.zeit;
+    if (this.gangBild % 300 === 0) { const lebend = new Set(S.gegner.map((e) => e.id)); for (const id of this.gaenge.keys()) if (!lebend.has(id)) this.gaenge.delete(id); }
     this.balken.beginn(kamera);
     // ---- Wesen ----
     for (const s of Object.values(this.wesen)) s.beginn();
     this.feuer.beginn(); this.panzer.beginn();
     for (const e of S.gegner) {
       if (!S.erkundetAn(e.x, e.z)) continue;
-      const lauf = Math.abs(Math.sin(t * e.tempo * 3 + e.id)) * 0.18;
+      const lauf = Math.abs(Math.sin(this.gangVon(e, 0).phase)) * 0.18;
       let schar = this.wesen[e.typ], dunkel = false;
       if (e.typ === 'wolf' && nacht) { const l = licht(e.x, e.z); if (l.wert < 0.3 && !l.enthuellt) { schar = this.wesen.wolfDunkel; dunkel = true; } }
-      schar.setze(e.x, e.y + (e.flug ? 0 : lauf), e.z, e.richtung, e.flug ? Math.sin(t * 2 + e.id) * 0.08 : 0, e.typ === 'rochen' ? Math.sin(t * 1.6 + e.id) * 0.1 : 0);
+      schar.setze(e.x, e.y + (e.flug ? 0 : lauf * this.gangVon(e, dt).gang), e.z, e.richtung, e.flug ? Math.sin(t * 2 + e.id) * 0.08 : 0, e.typ === 'rochen' ? Math.sin(t * 1.6 + e.id) * 0.1 : 0, 1,
+        e.flug ? { phase: t * (e.typ === 'rochen' ? 2.2 : 7) + e.id, gang: 0, flug: e.typ === 'rochen' ? 0.35 : 1 } : this.gangVon(e, dt));
       if (e.feuer > 0 && e.typ === 'drachling') this.feuer.setze(e.x, e.y, e.z, e.richtung, Math.sin(t * 2 + e.id) * 0.08, 0, 0.7 + Math.min(1, e.feuer) * 0.4);
       if (e.panzer && !dunkel) this.panzer.setze(e.x, e.y + lauf, e.z, e.richtung);
       if (e.brand > 0 && Math.random() < dt * 8) this.teilchen.wurf(e.x, e.y + WESEN_HOEHE[e.typ] * 0.6, e.z, 1, ['#ff8a2a', '#ffb347'], 0.8, 1, 0.16);
@@ -389,7 +484,7 @@ export class Objekte {
       const res = GEBAEUDE[g.typ].arbeit?.res ?? GEBAEUDE[g.typ].umwandeln!.nach, schar = this.arbeiter[res];
       const geht = a.zustand === 'hin' || a.zustand === 'zurueck' || a.zustand === 'heim';
       const hub = a.zustand === 'arbeit' ? Math.max(0, Math.sin(t * 9 + a.id)) * 0.35 : 0;
-      schar.setze(a.x, a.y + (geht ? Math.abs(Math.sin(t * 9 + a.id)) * 0.07 : 0), a.z, a.richtung, 0, hub);
+      schar.setze(a.x, a.y + (geht ? Math.abs(Math.sin(t * 9 + a.id)) * 0.07 : 0), a.z, a.richtung, 0, hub * 0.25, 1, { phase: t * 9 + a.id, gang: geht ? 1 : 0, hieb: hub / 0.35 });
       if (a.traegt) {
         const tl = this.traglast[a.traegt];
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a.richtung + (a.traegt === 'holz' ? Math.PI / 2 : 0));
@@ -416,7 +511,7 @@ export class Objekte {
       if (g.rep || g.umbau) {
         for (let i = 0; i < (g.umbau ? 3 : 2); i++) {
           const a = i * Math.PI + g.id, x = cx + Math.cos(a) * (g.w / 2 + 0.8), z = cz + Math.sin(a) * (g.d / 2 + 0.8);
-          this.baumeister.setze(x, hoehe(x, z), z, Math.atan2(cx - x, cz - z), 0, Math.max(0, Math.sin(t * 8 + i * 2)) * 0.4);
+          const hb = Math.max(0, Math.sin(t * 8 + i * 2)); this.baumeister.setze(x, hoehe(x, z), z, Math.atan2(cx - x, cz - z), 0, hb * 0.1, 1, { phase: 0, gang: 0, hieb: hb });
           if (Math.random() < dt * 5) this.teilchen.wurf(x + (cx - x) * 0.3, g.y + 1.5, z + (cz - z) * 0.3, 2, ['#ffe2a0'], 2, 1, 0.1);
         }
         const fort = g.umbau ? g.umbau.t / g.umbau.dauer : g.rep!.t / g.rep!.dauer;
@@ -505,9 +600,16 @@ export class Objekte {
       const dx = b.ziel[0] - b.x, dz = b.ziel[1] - b.z, d = Math.hypot(dx, dz);
       let geht = false;
       if (b.warte > 0) b.warte -= dt;
-      else if (d < 0.4) { b.warte = 2 + Math.random() * 5; if (ziele.length) b.ziel = zielVon(ziele[Math.floor(Math.random() * ziele.length)]); }
-      else { const sp = Math.min(d, b.tempo * dt); b.x += dx / d * sp; b.z += dz / d * sp; b.richtung = Math.atan2(dx, dz); geht = true; }
-      this.buergerSchar[b.art].setze(b.x, hoehe(b.x, b.z) + (geht ? Math.abs(Math.sin(t * 8 + b.tempo * 10)) * 0.07 : 0), b.z, b.richtung);
+      else if (d < 0.4) { b.warte = 2 + Math.random() * 5; b.weg = undefined; if (ziele.length) b.ziel = zielVon(ziele[Math.floor(Math.random() * ziele.length)]); }
+      else {
+        // um Wasser und Lava herum: Wegpunkte, der letzte ist das Ziel
+        if (b.weg === undefined) { b.weg = trockenerWeg(b.x, b.z, b.ziel[0], b.ziel[1]); b.wi = 0; if (b.weg && b.weg.length && !trocken(b.ziel[0], b.ziel[1])) b.ziel = b.weg[b.weg.length - 1]; }
+        let tx = b.ziel[0], tz = b.ziel[1];
+        if (b.weg && b.wi! < b.weg.length - 1) { [tx, tz] = b.weg[b.wi!]; if (Math.hypot(tx - b.x, tz - b.z) < 0.3) b.wi!++; }
+        const ex = tx - b.x, ez = tz - b.z, ed = Math.hypot(ex, ez) || 1, sp = Math.min(ed, b.tempo * dt);
+        b.x += ex / ed * sp; b.z += ez / ed * sp; b.richtung = Math.atan2(ex, ez); geht = true;
+      }
+      this.buergerSchar[b.art].setze(b.x, hoehe(b.x, b.z) + (geht ? Math.abs(Math.sin(t * 8 + b.tempo * 10)) * 0.07 : 0), b.z, b.richtung, 0, 0, 1, { phase: t * 8 + b.tempo * 10, gang: geht ? 1 : 0 });
     }
     for (const s of this.buergerSchar) s.ende();
   }

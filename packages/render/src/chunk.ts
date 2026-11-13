@@ -5,7 +5,8 @@ import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array }
 
 /** Eine Kachel (32 × 32 Blöcke) bauen: Boden, Becken, Pflanzen, Kristallfelder, Risse. Läuft im Hintergrund-Rechner. */
-export function bauChunk(cx: number, cz: number, aenderungen: [number, number, string][] = []): ChunkDaten {
+/** stufe 2 = alles; stufe 1 = nur Boden, Kristallfelder und Risse (weiter weg stehen dort die groben Bäume) */
+export function bauChunk(cx: number, cz: number, aenderungen: [number, number, string][] = [], stufe = 2): ChunkDaten {
   const aend = new Map<number, string>(); for (const [x, z, a] of aenderungen) aend.set(x * 4096 + z, a);
   const ox = cx * CH, oz = cz * CH;
   const g = new Grid(), F = new Grid(); g.o = [-ox, 0, -oz, 0]; F.o = [-2 * ox, 0, -2 * oz, 0];
@@ -27,7 +28,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   }
   const fein = (x: number, z: number): [number, number, number] => { const s = S(x, z); return [2 * x + 1, 2 * ((s ? s.h : 6) + 1), 2 * z + 1]; };
   const r = rng((cx * 7919 + cz * 104729 + seed()) >>> 0);
-  for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) {
+  if (stufe >= 2) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) {
     const s = S(x, z); if (!s) continue;
     const dk = deko(x, z, s); if (!dk) continue;
     const [X, Y, Z] = fein(x, z);

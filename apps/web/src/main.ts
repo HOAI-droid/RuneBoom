@@ -11,7 +11,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.7.0';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.7.1';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -82,7 +82,7 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   enthuellen(); klang.start();
   spiel = new Spiel(code, stand, { schwierigkeit, volk });
   $('sieg').hidden = true;
-  welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3;
+  welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3; welt.detail = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.8 : 0.6;
   const sp = spiel, wa = welt;
   welt.aenderungen = (cx, cz) => sp.dekoAenderungen(cx, cz, CH);
   welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
@@ -130,7 +130,7 @@ function baueMenueWelt(): void {
   s.einwohner = 70; s.verteileArbeiter();
   s.ereignisse.length = 0;
   spiel = s;
-  welt = new WeltAnsicht(scene, s.seed, s.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3;
+  welt = new WeltAnsicht(scene, s.seed, s.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3; welt.detail = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.8 : 0.6;
   const wa = welt;
   welt.aenderungen = (cx, cz) => s.dekoAenderungen(cx, cz, CH);
   welt.hoehen = () => [];
@@ -231,13 +231,18 @@ function grafikHtml(): string {
     <div class="zeile"><span>${t('Darstellung')}</span><span class="wahl">${(['auto', 'webgpu', 'webgl'] as const).map((g) => `<button type="button" data-darstellung="${g}" aria-pressed="${einst.darstellung === g}">${g === 'auto' ? t('Automatisch') : g === 'webgpu' ? 'WebGPU' : 'WebGL'}</button>`).join('')}</span></div>
     <p>${t('Jetzt: {a}.', { a: weg })} ${einst.darstellung !== aktiveDarstellung ? t('Die Änderung gilt ab dem nächsten Start.') : ''}</p>
     <label class="regler"><span><input type="checkbox" id="e-aufl" ${einst.autoAufl ? 'checked' : ''}> ${t('Auflösung automatisch anpassen')}</span></label>
-    <label class="regler"><span><input type="checkbox" id="e-fps" ${einst.fps ? 'checked' : ''}> ${t('Bildrate und Messwerte anzeigen')}</span></label>`;
+    <label class="regler"><span><input type="checkbox" id="e-fps" ${einst.fps ? 'checked' : ''}> ${t('Bildrate und Messwerte anzeigen')}</span></label>
+    ${einst.fps ? `<div class="zeile"><span>${t('Zum Messen ausblenden')}</span><span class="wahl">${MESS_TEILE.map(([k, n]) => `<button type="button" data-aus="${k}" aria-pressed="${messAus.has(k)}">${t(n)}</button>`).join('')}</span></div>` : ''}`;
 }
+/** zum Messen ausblendbare Teile (nicht gespeichert) */
+const MESS_TEILE: [string, string][] = [['nebel', 'Nebel'], ['schatten', 'Schatten'], ['nach', 'Nachbearbeitung'], ['wald', 'Ferner Wald'], ['kacheln', 'Kacheln']];
+const messAus = new Set<string>();
 function grafikVerbinden(p: HTMLElement, neu: () => void): void {
   p.querySelectorAll<HTMLButtonElement>('[data-grafik]').forEach((b) => { b.onclick = () => { einst.grafik = b.dataset.grafik as typeof einst.grafik; einstSpeichern(); grafikSetzen(); neu(); }; });
   p.querySelectorAll<HTMLButtonElement>('[data-darstellung]').forEach((b) => { b.onclick = () => { einst.darstellung = b.dataset.darstellung as typeof einst.darstellung; einstSpeichern(); neu(); }; });
   const au = p.querySelector<HTMLInputElement>('#e-aufl'); if (au) au.onchange = () => { einst.autoAufl = au.checked; einstSpeichern(); };
-  const fp = p.querySelector<HTMLInputElement>('#e-fps'); if (fp) fp.onchange = () => { einst.fps = fp.checked; einstSpeichern(); $('fps').hidden = !einst.fps; };
+  const fp = p.querySelector<HTMLInputElement>('#e-fps'); if (fp) fp.onchange = () => { einst.fps = fp.checked; einstSpeichern(); $('fps').hidden = !einst.fps; if (!einst.fps) messAus.clear(); neu(); };
+  p.querySelectorAll<HTMLButtonElement>('[data-aus]').forEach((b) => { b.onclick = () => { const k = b.dataset.aus!; if (messAus.has(k)) messAus.delete(k); else messAus.add(k); neu(); }; });
 }
 function einstellungenVerbinden(p: HTMLElement, neu: () => void): void {
   const m = p.querySelector<HTMLInputElement>('#e-musik')!, f = p.querySelector<HTMLInputElement>('#e-effekte')!;
@@ -839,7 +844,9 @@ function schattenPlanen(): void {
 licht.sun.shadow.autoUpdate = false;
 function zeichnen(): void {
   const t0 = performance.now(); schattenPlanen();
-  if (einst.grafik === 'niedrig') { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
+  welt?.messSichtbar(!messAus.has('nebel'), !messAus.has('wald'), !messAus.has('kacheln'));
+  const schatten = !messAus.has('schatten'); if (licht.sun.castShadow !== schatten) licht.sun.castShadow = schatten;
+  if (einst.grafik === 'niedrig' || messAus.has('nach')) { renderer.toneMappingExposure = licht.werte.exp; renderer.render(scene, camera); } else post.render();
   mess.bild += performance.now() - t0;
 }
 renderer.setAnimationLoop(() => {

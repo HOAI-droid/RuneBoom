@@ -25,7 +25,15 @@ export function baum(g, X, Y, Z, r, art) {
     const blatt = art === 'leucht' ? ['#5b4e8a', '#6e60a3', '#4a3f75'] : art === 'herbst' ? ['#c9722e', '#d98c35', '#a95a26'] : ['#4f8a3c', '#5e9a44', '#3f7433'];
     const blobs = [[0, 3, 0, 5], [-3, 2, -2, 3.6], [3, 2, 2, 3.6], [1, 5, -1, 3.4]];
     for (const [bx, by, bz, rr] of blobs) g.ell(bx + 0.5, th + by, bz + 0.5, rr + r(), rr * 0.75, rr + r(), (x, y, z) => (y > th + by + 1 ? blatt[1] : (h3(x, y, z) > 0.8 ? blatt[2] : blatt[0])), 0, 0.12);
-    if (art === 'leucht') for (let i = 0; i < 7; i++) g.set(Math.round((r() - 0.5) * 10), th + Math.round(r() * 6), Math.round((r() - 0.5) * 10), '#9fe7ff', 2.4);
+    // Leuchtbeeren sitzen auf der Krone (von außen zur Mitte bis zum ersten Blatt), nie frei in der Luft
+    if (art === 'leucht') for (let i = 0; i < 7; i++) {
+      let x = (r() - 0.5) * 10, y = th + r() * 6, z = (r() - 0.5) * 10; const cy = th + 3;
+      for (let k = 0; k < 12; k++) {
+        const X0 = Math.round(x), Y0 = Math.round(y), Z0 = Math.round(z);
+        if (g.has(X0 + g.o[0], Y0 + g.o[1], Z0 + g.o[2])) { g.set(X0, Y0, Z0, '#86cfe6', 1.5); break; }
+        x *= 0.85; z *= 0.85; y = cy + (y - cy) * 0.85;
+      }
+    }
   });
 }
 export function fels(g, X, Y, Z, s, r, hex = '#8c867f') { g.at(X, Y, Z, 0, () => { g.ell(0, 0, 0, s * 1.2, s * 0.8, s, (x, y) => (y > s * 0.3 ? hex : '#76716a'), 0, 0.1); if (r() > 0.5) g.ell(s, -0.5, s * 0.5, s * 0.6, s * 0.5, s * 0.6, hex, 0, 0.1); }); }
