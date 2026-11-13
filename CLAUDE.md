@@ -123,5 +123,12 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   gerade Linie, sonst A* im Ausschnitt, geglättet), Arbeiter in `spiel.ts` (`wege`, nicht gespeichert), Bürger in `objekte.ts`.
   Kacheln in Stufen: 2 = alles bis `nahRadius()`, 1 = Boden + Kristalle/Risse (Maske 128, grober Wald sichtbar, keine Schatten).
   Messschalter (`messAus`), Leuchtbeeren auf der Krone.
-- [ ] 0.8 Steam, Android, iPhone, Xbox · Weltreise später · 1.0 Veröffentlichung
+- [ ] 0.8 Apps und Klang (festgelegt): **nur Querformat** (Apps gesperrt, Browser: Hinweis „Bitte quer halten“ + Pause),
+  **neue Klänge** (Aufnahmen aus freien Bibliotheken, mehrere Fassungen je Geräusch, gemeinsamer Hall, ferne Arbeiter leiser/seltener),
+  **Musik je Volk**, laufend neu zusammengesetzt aus Motiven (Glutborn: Trommeln, Blech, Amboss · Hainmar: Flöten, Harfe, Holz ·
+  Sturmweber: Streicher, Glocken, Hackbrett), Schichten Tag/Abend/Nacht/Kampf, Themen für Rissfürst und Sieg,
+  **Gamepad-Steuerung**, **Jahreszeiten über die 40 Nächte** (Frühling bis Winter), **Tiere am Tag** (nur wenn es kaum Bildrate kostet),
+  **Apps für Android und iPhone/iPad** (Capacitor) und **Xbox** (WebView2/Microsoft Store). Steam vorerst nicht.
+  Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
+- [ ] später: Steam · Weltreise · Mehrspieler · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
