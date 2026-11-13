@@ -196,6 +196,8 @@ export class Spiel {
   restTag(): number { return Math.max(0, TAG_DAUER - this.zeit); }
   erkundetAn(x: number, z: number): boolean { const i = Math.floor((x + WR) / NZ), j = Math.floor((z + WR) / NZ); return i >= 0 && j >= 0 && i < NN && j < NN && this.erkundet[i * NN + j] === 1; }
   gebAn(x: number, z: number): Geb | undefined { const id = this.belegt[this.bi(x, z)]; return id ? this.gebaeude.find((g) => g.id === id) : undefined; }
+  /** steht an (x, z) ein Gebäude? (für Tiere und Bürger in der Darstellung) */
+  bebaut(x: number, z: number): boolean { return this.belegt[this.bi(x, z)] > 0; }
   private bi(x: number, z: number): number { const i = Math.floor(x) + WR, j = Math.floor(z) + WR; return i < 0 || j < 0 || i >= 2 * WR || j >= 2 * WR ? 0 : j * 2 * WR + i; }
   static kachel(x: number, z: number): number { return (Math.floor(x) + 600) * 2048 + (Math.floor(z) + 600); }
   /** Bewuchs jetzt: berücksichtigt gefällte Bäume und abgebaute Felsen */

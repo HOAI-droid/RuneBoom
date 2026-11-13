@@ -61,7 +61,7 @@ function grafikSetzen(): void {
   const schatten = st !== 'niedrig';
   if (renderer.shadowMap.enabled !== schatten) { renderer.shadowMap.enabled = schatten; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (m) (Array.isArray(m) ? m : [m]).forEach((x) => (x.needsUpdate = true)); }); }
   licht.sun.shadow.mapSize.set(st === 'hoch' ? 2048 : 1024, st === 'hoch' ? 2048 : 1024); if (!FABRIK.gpu) { licht.sun.shadow.map?.dispose(); (licht.sun.shadow as any).map = null; }
-  try { if (obj) obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25; } catch { /* beim Start noch nicht da */ }
+  try { if (obj) { obj.buergerMax = st === 'hoch' ? 150 : st === 'mittel' ? 70 : 25; obj.tierMenge = st === 'hoch' ? 1 : st === 'mittel' ? 0.6 : 0; } } catch { /* beim Start noch nicht da */ }
   groesse();
 }
 grafikSetzen();
@@ -89,7 +89,7 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
   welt.onUebersicht = () => { zeichneKartenGrund(); for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
   einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
-  obj = new Objekte(scene, spiel); obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
+  obj = new Objekte(scene, spiel); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
   lichtkarteSetzen(spiel.lichtquellen());
   const ziel = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
   controls.target.copy(ziel); camera.position.copy(ziel).add(new THREE.Vector3(56, 70, 74)); controls.update();
@@ -136,7 +136,7 @@ function baueMenueWelt(): void {
   welt.aenderungen = (cx, cz) => s.dekoAenderungen(cx, cz, CH);
   welt.hoehen = () => [];
   welt.onUebersicht = () => { void wa; };
-  obj = new Objekte(scene, s); obj.zeigePfeile = false;
+  obj = new Objekte(scene, s); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.zeigePfeile = false;
   lichtkarteSetzen(s.lichtquellen());
   imMenue = true; menueZeit = 0;
   enthuellen();
