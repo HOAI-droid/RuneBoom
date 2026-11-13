@@ -8,9 +8,48 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand:** Konzeptphase. Das Konzeptbuch mit live berechneten 3D-Stilentwürfen liegt unter
-> [`docs/konzeptbuch.html`](docs/konzeptbuch.html). Herunterladen und im Browser öffnen; es braucht
-> eine Internetverbindung für Three.js und die Schriften.
+> **Stand: Prototyp 0.1.** Spielbar im Browser: Weltcode, große Welt mit Nebel und Spähern, Tag und
+> Nacht, Bauen, Türme, Licht, Wellen, Erfindungen und Speichern. Das Konzeptbuch mit den
+> Stilentwürfen liegt unter [`docs/konzeptbuch.html`](docs/konzeptbuch.html).
+
+## Spielen
+
+- **Im Browser:** nach dem Einrichten von GitHub Pages unter <https://hoai-droid.github.io/RuneBoom/>
+  (Repository → Settings → Pages → Source: „GitHub Actions“; jeder Push auf `main` veröffentlicht neu).
+- **Selbst bauen:** `npm install`, dann `npm run dev` und die angezeigte Adresse öffnen.
+
+### Steuerung
+
+| Eingabe | Wirkung |
+|---|---|
+| Ziehen · Mausrad | Karte verschieben · zoomen (rechte Maustaste oder zwei Finger: drehen) |
+| W A S D · Q E | verschieben · drehen |
+| 1 – 8 | Gebäude wählen, Klick setzt es; Mauern durch Ziehen |
+| X | Späher in den Nebel schicken (15 Holz) |
+| T | Erfinderwerkstatt |
+| N · Leertaste | Nacht einläuten · Pause |
+| Esc · Rechtsklick | abbrechen |
+
+Gespeichert wird automatisch zu Beginn jedes Tages im Browser.
+
+### Was der Prototyp schon kann
+
+- Welt mit 1024 × 1024 Blöcken aus dem Weltcode, Kacheln laden im Hintergrund nach, fern eine grobe Übersicht.
+- Bodennebel über dem Unerkundeten; Späher und neue Gebäude decken auf.
+- Tag (Arbeiter sammeln Holz, Stein, Kristall) und Nacht (Wellen aus dem Riss, ab Nacht 5 auch aus einem zweiten).
+- Wachturm, Feuertopf-Schleuder, Fackelmast, Leuchtfeuer, Mauern, Holzfäller, Steinbruch, Kristallmine.
+- Licht in der Nacht über eine Lichtkarte: Türme treffen im Licht weiter und besser, Schattenwölfe sind nur im Licht zu sehen.
+- Moorwichte, Schattenwölfe, Steintrolle und fliegende Drachlinge; Wege um Mauern herum, sonst brechen sie durch.
+- Vier Erfindungen: Sprengpulver, Leuchtfeuer, Runenpfeile, Stahlguss.
+
+## Aufbau des Codes
+
+| Ordner | Inhalt |
+|---|---|
+| `packages/core` | Simulation ohne Grafik: Welt aus dem Seed, Spielwerte, Wegfeld, Spielablauf, Speichern. Tests: `npm test` |
+| `packages/render` | Three.js: Voxel-Modelle, Kacheln im Hintergrund-Rechner, Nebel, Lichtkarte, Tag und Nacht, Nachbearbeitung |
+| `apps/web` | Browser-Fassung: Oberfläche, Eingabe, Hauptschleife |
+| `docs` | Konzeptbuch |
 
 ---
 
@@ -171,7 +210,7 @@ Hintergrund gebaut werden, nah fein und fern grob.
 ## Stufenplan
 
 - [x] Konzept und Stilentwürfe ([`docs/konzeptbuch.html`](docs/konzeptbuch.html))
-- [ ] Erster spielbarer Prototyp: Weltcode, Nebel, Tag-Nacht-Zyklus, Bauen, ein Turm, ein Fackelmast, eine Welle
+- [x] Erster spielbarer Prototyp: Weltcode, Nebel, Tag-Nacht-Zyklus, Bauen, Türme, Licht, Wellen, erste Erfindungen
 - [ ] Erfindungen und die vier Zeitalter
 - [ ] Drei Völker, alle Wesen, Rissfürsten
 - [ ] Weltreise und Stammfeste mit Speichern

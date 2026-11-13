@@ -41,12 +41,35 @@ orientieren sich an dessen Zweig `grafik`.
 - Große Welt: Kacheln 32 × 32, im Web Worker gebaut, Detailstufen (nah fein, fern Übersicht), ferne Kacheln
   freigeben; Lichter später über eine Lichtkarte statt echter Lichtquellen.
 
-## Technik (geplant)
+## Technik
 
-Gerüst wie overBOOM: TypeScript, Three.js, Simulation (`core`) ohne DOM und mit Seed getrennt von der Grafik;
-Tauri (Windows/Mac/Linux, Steam), Capacitor (iOS/Android), UWP-Hülle (Xbox), Browser (GitHub Pages).
+Gerüst wie overBOOM: TypeScript, Three.js, Vite; Simulation (`packages/core`) ohne DOM, nur mit Seed (`rng`, `h3`),
+fester Takt `DT = 1/20`, läuft in Node (`npm test`). Später: Tauri (Windows/Mac/Linux, Steam), Capacitor
+(iOS/Android), UWP-Hülle (Xbox). Browser über GitHub Pages (`.github/workflows/pages.yml`).
+
+```
+packages/core/src/
+  zufall.ts    h3, rng, noise, fbm, Weltcode ↔ Seed
+  welt.ts      Welt 1024 × 1024: spalte(), deko() (Bäume/Felsen, gleich für Grafik und Simulation), orte(), begehbar()
+  daten.ts     Spielwerte: GEBAEUDE, GEGNER, ERFINDUNGEN, welle(n), Tagesdauer
+  flow.ts      Wegfeld (Dijkstra) im Ausschnitt Feste ↔ Risse; Gebäude teuer, aber passierbar (Angriff)
+  spiel.ts     Spiel: Phasen Tag/Nacht/Morgen, Bauen, Ertrag, Wesen, Türme, Geschosse, Licht, Nebel, Speichern
+packages/render/src/
+  voxel.ts     Grid + meshVoxels (Umgebungsverdeckung je Ecke; Töpfe fest/leuchtend/Lampe)
+  modelle.ts   alle Voxel-Modelle (halbe Voxel; Menschen Achtel, Wesen eigene Maßstäbe)
+  chunk.ts     Kachel und Übersicht bauen (läuft im Worker welt.worker.ts, eingebunden mit ?worker&inline)
+  grafik.ts    Materialien, Lichtkarte (1024² R8, nachts als Eigenleuchten), Wasser/Lava, Himmel, Tag↔Nacht, Nachbearbeitung
+  weltansicht.ts Kacheln nachladen/freigeben, Übersicht (ausgeblendet unter feinen Kacheln), Bodennebel
+  objekte.ts   Gebäude (Klone), Wesen/Arbeiter (InstancedMesh), Geschosse, Trümmer, Bauvorschau, Reichweiten
+apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Hauptschleife, Eingabe, Menü)
+```
+
+- `window.runeboom.spiel` gibt in der Konsole Zugriff auf die laufende Partie (für Tests).
+- Einzeldatei-Fassung für eine Vorschau: `npm run build:artifact` → `dist-single/runeboom.html`.
+- Spielstand: `localStorage` `runeboom-spielstand-1`, gespeichert zu Beginn jedes Tages (nachts nicht).
 
 ## Stufenplan
 
 - [x] Konzept und Stilentwürfe (`docs/konzeptbuch.html`)
-- [ ] Prototyp: Tag-Nacht-Zyklus, Bauen, ein Turm, eine Welle, Nebel, Weltcode
+- [x] Prototyp 0.1: Weltcode, Nebel/Späher, Tag-Nacht, Bauen (8 Gebäude), Licht, 4 Wesen, 4 Erfindungen, Speichern
+- [ ] Nächste Schritte: Lebensbalken, Klänge, Turmzweige und Fusion, Völker, Weltreise, Apps

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "strict": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@runeboom/core": ["packages/core/src/index.ts"],
+      "@runeboom/render": ["packages/render/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "apps/web/src/**/*.ts"]
+}
