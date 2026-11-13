@@ -118,6 +118,7 @@
   @media (max-width: 760px) { .einfuehrung { top: auto; bottom: 230px; width: auto; right: 12px; } }
 
   /* ---------- Start und Ende ---------- */
+  .drehen { z-index: 60; text-align: center; } .drehen svg { color: var(--ember); margin: 0 auto 8px; display: block; }
   .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 40%, rgba(17,22,31,.55), rgba(8,10,16,.92)); padding: 20px; overflow-y: auto; }
   .karte-gross { width: min(640px, 100%); padding: 28px 30px; display: grid; gap: 16px; }
   .karte-gross h1 { font-family: var(--display); font-size: clamp(40px, 8vw, 64px); margin: 0; line-height: 1; letter-spacing: .02em; }
@@ -470,6 +471,13 @@
 <div class="leitsatz tafel" id="leitsatz" data-dynamisch hidden></div>
 <div class="sieg" id="sieg" data-dynamisch hidden></div>
 
+<div class="overlay drehen" id="drehen" hidden>
+  <div class="karte-gross tafel">
+    <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><rect x="22" y="8" width="20" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><rect x="12" y="34" width="34" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".55"/><path d="M48 20c6 3 8 9 6 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M52 36l2 4 3-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>Bitte quer halten</h1>
+    <p>runeBOOM spielt sich im Querformat. Das Spiel wartet, bis das Gerät gedreht ist.</p>
+  </div>
+</div>
 <div class="overlay" id="ende" hidden>
   <div class="karte-gross tafel">
     <h1>Die Feste ist gefallen</h1>

@@ -705,5 +705,7 @@ export const FR: Record<string, string> = {
  "Ferner Wald": "Forêt lointaine",
  "Kacheln": "Tuiles",
  "Karte ein- und ausblenden": "Afficher ou masquer la carte",
- "Karte (M)": "Carte (M)"
+ "Karte (M)": "Carte (M)",
+ "Bitte quer halten": "Veuillez tenir en paysage",
+ "runeBOOM spielt sich im Querformat. Das Spiel wartet, bis das Gerät gedreht ist.": "runeBOOM se joue en mode paysage. Le jeu attend que l’appareil soit tourné."
 };

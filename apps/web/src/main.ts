@@ -830,6 +830,19 @@ function zeigeBericht(b: import('@runeboom/core').Nachtbericht): void {
   $('bericht-zu').onclick = () => { el.hidden = true; berichtPause = false; };
 }
 
+// ================= Querformat =================
+/** Handy und Tablet nur quer: hochkant erscheint ein Hinweis und das Spiel wartet */
+let hochkant = false;
+const fingerGeraet = matchMedia('(pointer: coarse)');
+function lagePruefen(): void {
+  hochkant = fingerGeraet.matches && innerHeight > innerWidth * 1.05;
+  $('drehen').hidden = !hochkant;
+}
+addEventListener('resize', lagePruefen); addEventListener('orientationchange', lagePruefen);
+/** in Apps und im Vollbild wird das Querformat festgehalten, wo der Browser es erlaubt */
+function querSperren(): void { const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }; try { void o.lock?.('landscape')?.catch(() => { /* nicht erlaubt */ }); } catch { /* */ } }
+addEventListener('pointerdown', () => { if (fingerGeraet.matches) querSperren(); }, { once: true });
+
 // ================= Hauptschleife =================
 let letzte = performance.now();
 /** Messwerte: Bildrate, Rechenzeit von Spiel und Grafik, Zeichenaufrufe, Dreiecke */
@@ -880,7 +893,7 @@ renderer.setAnimationLoop(() => {
       zeichnen();
       return;
     }
-    akku += (enth.aktiv && enth.phase === 0) || berichtPause ? 0 : dt * tempo; let n = 0; const ts = performance.now();
+    akku += (enth.aktiv && enth.phase === 0) || berichtPause || hochkant ? 0 : dt * tempo; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     while (akku >= DT && n < 12) {
       try { spiel.schritt(); } catch (err) { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } }
@@ -967,7 +980,7 @@ function karteSetzen(an: boolean): void {
 $('karte-knopf').onclick = () => karteSetzen(!einst.karte);
 
 // ================= Start (am Ende, wenn alles definiert ist) =================
-karteSetzen(einst.karte);
+karteSetzen(einst.karte); lagePruefen();
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();
 zeigeStart();

@@ -705,5 +705,7 @@ export const ES: Record<string, string> = {
  "Ferner Wald": "Bosque lejano",
  "Kacheln": "Teselas",
  "Karte ein- und ausblenden": "Mostrar u ocultar el mapa",
- "Karte (M)": "Mapa (M)"
+ "Karte (M)": "Mapa (M)",
+ "Bitte quer halten": "Gira el dispositivo en horizontal",
+ "runeBOOM spielt sich im Querformat. Das Spiel wartet, bis das Gerät gedreht ist.": "runeBOOM se juega en horizontal. El juego espera hasta que gires el dispositivo."
 };
