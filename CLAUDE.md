@@ -22,7 +22,7 @@ orientieren sich an dessen Zweig `grafik`.
   schweben über dem Boden und werfen Schatten.
 - Modi: **Weltreise** (Regionen 256 × 256, 5–20 Min.) und **Stammfeste** (1024 × 1024, nicht endlos, speichern/fortsetzen).
 - Welt prozedural aus **Weltcode** (z. B. NEBELKRAKE-4127), deterministisch, offline teilbar.
-- **Nebel** über Unerkundetem als dichter Bodennebel (ca. 7–8 m hoch): Gelände und Wesen verborgen, Baumkronen und Bergkuppen ragen heraus. Späher/Außenposten decken auf; einmal erspäht bleibt sichtbar.
+- **Nebel** über Unerkundetem als Bodennebel (ca. 7–8 m hoch), der in Schwaden zieht und mal dichter, mal dünner ist: Gelände und Wesen verborgen, Baumkronen und Bergkuppen ragen heraus. Späher/Außenposten decken auf; einmal erspäht bleibt sichtbar.
 - **Licht:** nachts sieht man ohne Licht nur Umrisse/Augen; Leuchttürme geben Bonus auf Reichweite und
   Treffsicherheit; höhere Stufe erkennt Verborgenes besser (Fackelmast, Leuchtfeuer, Spiegel-Scheinwerfer,
   Kristall-Leuchtfeuer).

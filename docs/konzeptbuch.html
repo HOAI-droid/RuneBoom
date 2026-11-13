@@ -287,7 +287,7 @@ footer { padding-block: 30px 50px; color: var(--muted); font-size: .9rem; border
 
   <section>
     <h2>Welt und Weltcode</h2>
-    <p class="lead">Die Stammfeste spielt auf einer Welt von 1024 × 1024 Blöcken, eine Region der Weltreise misst 256 × 256. Die Welt ist nicht endlos, aber so groß, dass man sie erst erkunden muss. Unerkundetes liegt unter dichtem Bodennebel: Baumkronen und Bergkuppen ragen heraus, aber was am Boden geschieht, etwa anrückende Wesen, bleibt verborgen. Späher und Außenposten decken es auf, und was einmal erspäht ist, bleibt sichtbar. Jede Welt entsteht aus einem Weltcode. Gleicher Code ergibt gleiche Landschaft, gleiche Rohstofffelder, gleiche Risse und gleiche Wellen. So lassen sich Welten teilen: „Probier mal diese, die ist fies.“ Das klappt ohne Server und offline.</p>
+    <p class="lead">Die Stammfeste spielt auf einer Welt von 1024 × 1024 Blöcken, eine Region der Weltreise misst 256 × 256. Die Welt ist nicht endlos, aber so groß, dass man sie erst erkunden muss. Unerkundetes liegt unter Bodennebel, der in Schwaden zieht, mal dicht, mal dünner: Baumkronen und Bergkuppen ragen heraus, aber was am Boden geschieht, etwa anrückende Wesen, bleibt verborgen. Späher und Außenposten decken es auf, und was einmal erspäht ist, bleibt sichtbar. Jede Welt entsteht aus einem Weltcode. Gleicher Code ergibt gleiche Landschaft, gleiche Rohstofffelder, gleiche Risse und gleiche Wellen. So lassen sich Welten teilen: „Probier mal diese, die ist fies.“ Das klappt ohne Server und offline.</p>
     <div class="code" aria-label="Beispiel für einen Weltcode">NEBELKRAKE-4127</div>
     <p class="lead">Die Simulation von overBOOM arbeitet schon mit Seed und festem Takt. Das übernehmen wir, damit ein Code auf jedem Gerät exakt dieselbe Welt erzeugt. Die Karte oben ist genau so entstanden: aus einem Seed, in deinem Browser.</p>
     <div class="raster">
@@ -1215,7 +1215,10 @@ function starteBuehne() {
         float frei = smoothstep(0.2, 0.8, texture2D(uMaske, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r);
         vec2 p = vW.xz * 0.03 + vec2(uZeit * 0.012 * (1.0 + uLage * 0.3), uZeit * 0.007) + uLage * 3.7;
         float n = fbm(p);
-        float a = uDichte * (0.5 + 0.9 * n) * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
+        // große Schwaden ziehen langsam übers Land: mal dicht, mal fast durchsichtig; dazu ein leises Atmen
+        float gross = fbm(vW.xz * 0.0065 + vec2(uZeit * 0.006, -uZeit * 0.004));
+        float wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, gross)) * (0.88 + 0.12 * sin(uZeit * 0.21 + gross * 9.0));
+        float a = uDichte * (0.45 + 0.9 * n) * wechsel * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
         if (a < 0.01) discard;
         gl_FragColor = vec4(uFarbe * (0.9 + 0.18 * n), a);
       }`,
