@@ -2,17 +2,18 @@ import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
-  type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand
+  type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME
 } from '@runeboom/core';
 import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
+import { Koop, neuerRaumcode } from './mehrspieler.ts';
 import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
 import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.8.4';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.0';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -82,11 +83,41 @@ let panelArt: 'geb' | 'werkstatt' | 'einst' | 'ruine' | null = null;
 /** Panel nur neu schreiben, wenn sich der Inhalt ändert (sonst gehen Klicks verloren) */
 function panelSetzen(html: string): boolean { const p = $('panel'); if (p.dataset.html === html && !p.hidden) return false; p.dataset.html = html; p.innerHTML = html; p.hidden = false; return true; }
 let einfuehrungSchritt = -1, spaeherGeschickt = false;
+// ================= Mehrspieler =================
+let koop: Koop | null = null, koopZustand = '';
+/** jede Aktion des Spielers läuft hierüber: allein direkt, im Mehrspieler über den Gastgeber */
+function befehl(b: Befehl): boolean { if (!spiel) return false; return koop ? koop.befehl(b) : spiel.befehl(b); }
+const KOOP_NAME = 'runeboom-koop-name';
+function koopName(): string { try { return localStorage.getItem(KOOP_NAME) || ''; } catch { return ''; } }
+const koopRahmen = {
+  spiel: () => spiel,
+  neuerStand: (st: Spielstand, erstes: boolean) => { const tp = tempo; starte(st.code, st, st.schwierigkeit, st.volk, { koop: true, kamera: !erstes }); setzeTempo(tp); },
+  melde: (text: string, ton: 'gut' | 'schlecht' | 'info') => melde(text, ton),
+  zustand: (text: string) => { koopZustand = text; const z = document.getElementById('k-zustand'); if (z) z.textContent = text; koopAnzeige(); }
+};
+async function koopOeffnen(rolle: 'gastgeber' | 'gast', raum: string, name: string): Promise<void> {
+  koop?.ende(); koop = new Koop(rolle, raum, name, koopRahmen, VERSION);
+  try { await koop.start(); } catch (err) { console.error(err); koopRahmen.zustand(t('Verbindung nicht möglich. Prüfe die Internetverbindung.')); koop = null; }
+  koopAnzeige();
+}
+function koopAnzeige(): void {
+  const el = document.getElementById('koop'); if (!el) return;
+  if (!koop || imMenue || !spiel) { el.hidden = true; return; }
+  const k = koop, wer = k.leute.length ? k.leute : spiel.spieler.map((p) => ({ ...p, da: p.id === k.ich, tempo: 1 }));
+  const html = `<div class="raum">${t('Raum {a}', { a: k.raum })}</div>` + wer.map((p) => `<div class="wer${p.da ? '' : ' weg'}"><i></i>${esc(p.name)}${p.id === k.ich ? ` ${t('(du)')}` : ''}<small>${t(SEITEN_NAME[p.seite])}${p.da && p.tempo === 0 ? ' · II' : ''}</small></div>`).join('')
+    + (k.tempo !== tempo ? `<div class="hinweis">${k.tempo === 0 ? t('Pause: jemand hält an oder liest den Bericht.') : t('Tempo {a}× (schneller nur, wenn alle zustimmen)', { a: k.tempo })}</div>` : '')
+    + (koopZustand && k.gast && !spiel.spieler.some((p) => p.id === k.ich) ? `<div class="hinweis">${esc(koopZustand)}</div>` : '');
+  if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
+  el.hidden = false;
+}
+const esc = (x: string) => x.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit = 'normal', volk: Volk = 'glutborn'): void {
+function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit = 'normal', volk: Volk = 'glutborn', opt: { koop?: boolean; kamera?: boolean } = {}): void {
+  const kamPos = camera.position.clone(), kamZiel = controls.target.clone();
   aufraeumen(); imMenue = false; $('start').hidden = true;
   enthuellen(); klang.start();
   spiel = new Spiel(code, stand, { schwierigkeit, volk });
+  if (koop) spiel.ansicht = koop.ich;
   $('sieg').hidden = true;
   welt = new WeltAnsicht(scene, spiel.seed, spiel.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3; welt.detail = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.8 : 0.6;
   const sp = spiel, wa = welt;
@@ -97,20 +128,24 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   obj = new Objekte(scene, spiel); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
   lichtkarteSetzen(spiel.lichtquellen());
   const ziel = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
-  controls.target.copy(ziel); camera.position.copy(ziel).add(new THREE.Vector3(56, 70, 74)); controls.update();
+  controls.target.copy(ziel); camera.position.copy(ziel).add(new THREE.Vector3(56, 70, 74));
+  if (opt.kamera) { controls.target.copy(kamZiel); camera.position.copy(kamPos); }
+  controls.update();
   anzeigeDunkel = spiel.dunkel();
   $('start').hidden = true; $('ende').hidden = true; $('hud').hidden = false;
   $('weltcode').textContent = code;
   baueLeiste(); setzeTempo(1); waehle(null); werkzeugSetzen(null);
   spiel.ereignisse.length = 0;
+  if (opt.koop) { einfuehrungSchritt = -1; koopAnzeige(); return; }
   melde(stand ? `${t('Willkommen zurück. Tag {a}.', { a: spiel.nacht })}` : t('Tag 1. Baue Türme vor dem Tor, bevor die Nacht kommt. Der Pfad zeigt, woher die Wesen kommen.'), 'info');
 }
 function aufraeumen(): void { berichtPause = false; $('bericht').hidden = true; $('hilfe').hidden = true; obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; imAbspann = false; }
-function speichern(): void { if (!spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
+function speichern(): void { if (koop?.gast || !spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
 interface Platz { name: string; datum: number; stand: Spielstand }
 function plaetze(): (Platz | null)[] { try { const p = JSON.parse(localStorage.getItem(PLAETZE) || '[]'); return [0, 1, 2].map((i) => p[i] || null); } catch { return [null, null, null]; } }
 function platzSpeichern(i: number): boolean {
   if (!spiel || imMenue) return false;
+  if (koop?.gast) { melde(t('Im Mehrspieler speichert der Gastgeber.'), 'info'); return false; }
   if (spiel.phase === 'nacht') { melde(t('In der Nacht lässt sich nicht speichern.'), 'schlecht'); return false; }
   const p = plaetze(); p[i] = { name: `${t('{a} · Tag {b}', { a: spiel.code, b: spiel.nacht })}`, datum: Date.now(), stand: spiel.speichern() };
   try { localStorage.setItem(PLAETZE, JSON.stringify(p)); melde(`${t('Gespeichert in Platz {a}.', { a: i + 1 })}`, 'gut'); return true; } catch { melde(t('Speichern nicht möglich.'), 'schlecht'); return false; }
@@ -197,6 +232,22 @@ function seite(name: string | null): void {
     $<HTMLInputElement>('mit-einf').onchange = (e) => { einst.einfuehrung = (e.target as HTMLInputElement).checked; einstSpeichern(); };
     $('los').onclick = () => starte(c.value.trim().toUpperCase() || neuerWeltcode(), undefined, neuSchwer, neuVolk);
   }
+  if (name === 'koop') {
+    const auto = geladen(), raumAusLink = new URLSearchParams(location.search).get('raum') || '';
+    el.innerHTML = `<h2>${t('Gemeinsam spielen')}</h2><p>${t('Klassischer Koop für 2–4 Spieler: eine Welt, eine Burg. Jeder hält eine Himmelsrichtung mit eigenem Riss, eigenen Rohstoffen und Arbeitern. Erfindungen, Kristall, Nahrung und Bausteine gehören allen. Fällt die Burg, verlieren alle.')}</p>
+      <div class="feld"><label for="k-name">${t('Dein Name')}</label><input id="k-name" maxlength="20" spellcheck="false" autocomplete="off" value="${esc(koopName())}"></div>
+      <h3>${t('Raum eröffnen')}</h3><p>${t('Du bist Gastgeber: Deine Partie gibt den Takt vor und wird bei dir gespeichert. Weltcode, Volk und Schwierigkeit kommen aus „Neues Spiel“.')}</p>
+      <div class="reihe"><button type="button" class="knopf haupt" id="k-neu">${t('Neue Partie eröffnen')}</button><button type="button" class="knopf" id="k-weiter" ${auto && auto.phase !== 'verloren' ? '' : 'disabled'}>${t('Letzten Spielstand eröffnen')}</button></div>
+      <h3>${t('Beitreten')}</h3><p>${t('Gib den Raumcode ein, den dir der Gastgeber nennt. Beitreten geht auch in einer laufenden Partie, aber nur am Tag.')}</p>
+      <div class="feld"><label for="k-raum">${t('Raumcode')}</label><input id="k-raum" maxlength="9" spellcheck="false" autocomplete="off" placeholder="ABC-D23" value="${esc(raumAusLink)}"><button type="button" id="k-bei">${t('Beitreten')}</button></div>
+      <p id="k-zustand" class="koop-zustand" data-dynamisch>${esc(koopZustand)}</p>
+      <p><small>${t('Die Geräte finden sich über öffentliche Nostr-Relais und spielen dann direkt miteinander (WebRTC). In sehr strengen Netzen kann die Verbindung scheitern.')}</small></p>`;
+    const nm = $<HTMLInputElement>('k-name'), rm = $<HTMLInputElement>('k-raum');
+    const merkeName = () => { try { localStorage.setItem(KOOP_NAME, nm.value.trim()); } catch { /* */ } return nm.value.trim(); };
+    $('k-neu').onclick = () => { const n = merkeName(); starte(neuCode.trim().toUpperCase() || neuerWeltcode(), undefined, neuSchwer, neuVolk); void koopOeffnen('gastgeber', neuerRaumcode(), n).then(() => melde(t('Raum {a} ist offen. Nenne den Code deinen Mitspielern.', { a: koop?.raum || '' }), 'gut')); };
+    $('k-weiter').onclick = () => { const st = geladen(); if (!st) return; const n = merkeName(); starte(st.code, st, st.schwierigkeit); void koopOeffnen('gastgeber', neuerRaumcode(), n).then(() => melde(t('Raum {a} ist offen. Nenne den Code deinen Mitspielern.', { a: koop?.raum || '' }), 'gut')); };
+    $('k-bei').onclick = () => { const r = rm.value.trim().toUpperCase().replace(/\s+/g, ''); if (r.length < 4) { rm.focus(); return; } void koopOeffnen('gast', r.length === 6 && !r.includes('-') ? r.slice(0, 3) + '-' + r.slice(3) : r, merkeName()); };
+  }
   if (name === 'plaetze') {
     const auto = geladen();
     el.innerHTML = `<h2>${t('Spielstände')}</h2><p>${t('Zu Beginn jedes Tages wird automatisch gespeichert. Im Spiel lässt sich über ☰ zusätzlich in einen der drei Plätze speichern.')}</p>
@@ -279,6 +330,7 @@ function sprachWechsel(): void {
 }
 document.querySelectorAll<HTMLButtonElement>('[data-seite]').forEach((b) => { b.onclick = () => seite(b.getAttribute('aria-pressed') === 'true' ? null : b.dataset.seite!); });
 function zeigeStart(): void {
+  koop?.ende(); koop = null; koopZustand = '';
   aufraeumen(); $('hud').hidden = true; $('ende').hidden = true; $('baum').hidden = true; $('bericht').hidden = true; $('start').hidden = false;
   $('version').textContent = VERSION;
   const s = geladen(); const w = $('weiter');
@@ -290,7 +342,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -356,7 +408,7 @@ function leisteAktualisieren(): void {
     const id = b.dataset.gruppe, t = b.dataset.typ;
     const an = id ? gruppeOffen === id || (werkzeug?.art === 'bau' && BAUGRUPPEN.find((g) => g.id === id)!.typen.includes(werkzeug.typ)) : t === 'baum' ? !$('baum').hidden : werkzeug?.art === t;
     b.setAttribute('aria-pressed', String(!!an));
-    if (t === 'spaeher') b.classList.toggle('teuer', spiel.res.holz < 15);
+    if (t === 'spaeher') b.classList.toggle('teuer', spiel.anzeigeRes().holz < 15);
   }
 }
 function werkzeugSetzen(w: typeof werkzeug): void {
@@ -438,12 +490,12 @@ function panelGeb(): void {
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
       const t = b.dataset.tat;
-      if (t === 'abreissen') { s.befehl({ art: 'abreissen', geb: g.id }); waehle(null); return; }
-      if (t === 'reparieren' && s.befehl({ art: 'reparieren', geb: g.id })) klang.spiele('bau', 0.8);
-      if (t === 'umr' && s.befehl({ art: 'umruesten', geb: g.id, nach: b.dataset.nach as GebTyp, zweig: b.dataset.zweig })) klang.spiele('bau', 0.8);
-      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && s.befehl({ art: 'verschmelzen', geb: g.id, partner: v.partner.id })) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
-      if (t === 'ausbau' && s.befehl({ art: 'burg' })) klang.spiele('bau', 0.8);
-      if (t === 'stufe' && s.befehl({ art: 'stufe', geb: g.id })) klang.spiele('bau', 0.8);
+      if (t === 'abreissen') { befehl({ art: 'abreissen', geb: g.id }); waehle(null); return; }
+      if (t === 'reparieren' && befehl({ art: 'reparieren', geb: g.id })) klang.spiele('bau', 0.8);
+      if (t === 'umr' && befehl({ art: 'umruesten', geb: g.id, nach: b.dataset.nach as GebTyp, zweig: b.dataset.zweig })) klang.spiele('bau', 0.8);
+      if (t === 'vs') { const v = s.verschmelzOptionen(g)[Number(b.dataset.i)]; if (v && befehl({ art: 'verschmelzen', geb: g.id, partner: v.partner.id })) { klang.spiele('bau', 0.8); if (!s.gebaeude.includes(g)) { const zz = s.gebaeude.find((x) => x.umbau?.nach === v.ergebnis); waehle(zz || null); return; } } }
+      if (t === 'ausbau' && befehl({ art: 'burg' })) klang.spiele('bau', 0.8);
+      if (t === 'stufe' && befehl({ art: 'stufe', geb: g.id })) klang.spiele('bau', 0.8);
       panelGeb();
     };
   });
@@ -462,8 +514,8 @@ function panelRuine(): void {
   p.querySelector<HTMLButtonElement>('.schliessen')!.onclick = schliessePanel;
   p.querySelectorAll<HTMLButtonElement>('[data-tat]').forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.tat === 'auf') { if (s.befehl({ art: 'wiederaufbau', ruine: r.id })) { klang.spiele('bau'); schliessePanel(); } }
-      else { s.befehl({ art: 'raeumen', ruine: r.id }); schliessePanel(); }
+      if (b.dataset.tat === 'auf') { if (befehl({ art: 'wiederaufbau', ruine: r.id })) { klang.spiele('bau'); schliessePanel(); } }
+      else { befehl({ art: 'raeumen', ruine: r.id }); schliessePanel(); }
     };
   });
 }
@@ -588,7 +640,7 @@ function baumZeichnen(neu = false): void {
   const dhtml = `${st === 'geheim' ? '' : `<div class="detail-skizze sk-papier">${skizze(erfGebaeude(baumWahl), 300, 150, 2, s.volk)}</div>`}<h3>${st === 'geheim' ? '???' : t(e.name)}</h3><div class="baum-za">${t(WISSEN_NAME[e.wissen])} · ${t(ZA_NAMEN[e.ab])}${e.zeitalter ? ` · ${t('Schlüssel zu {a}', { a: t(ZA_NAMEN[e.zeitalter]) })}` : ''}</div>${st === 'geheim' ? '' : `<p>${t(e.wirkung)}</p>`}${grund ? `<p class="grund">${grund}</p>` : ''}${st === 'fertig' ? '<p>Erfunden.</p>' : st === 'geheim' ? '' : `<button type="button" class="aktion" id="erfinden" ${st === 'kann' ? '' : 'disabled'}>${t('Erfinden')}</button>`}`;
   if (d.dataset.html !== dhtml || d.hidden) {
     d.dataset.html = dhtml; d.innerHTML = dhtml; d.hidden = false;
-    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (s.befehl({ art: 'erfinden', erf: id })) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
+    const k = document.getElementById('erfinden'); if (k) k.onclick = () => { const id = baumWahl!; if (befehl({ art: 'erfinden', erf: id })) { klang.spiele('glocke', 0.8); baumZeichnen(true); leisteAktualisieren(); if (ERFINDUNGEN[id].zeitalter || ERFINDUNGEN[id].geheim) zeigeSkizze(id); } };
   }
 }
 document.querySelectorAll<HTMLButtonElement>('[data-reiter]').forEach((b) => { b.onclick = () => { baumReiter = b.dataset.reiter as typeof baumReiter; baumZeichnen(true); }; });
@@ -670,18 +722,18 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   const u = unten; unten = null; controls.enabled = true;
   if (!u || !spiel || e.button !== 0) return;
-  if (u.ebene && mauerZiel) { if (spiel.befehl({ art: 'ebnen', x0: u.ebene[0], z0: u.ebene[1], x1: mauerZiel[0], z1: mauerZiel[1] })) klang.spiele('hieb_stein'); mauerZiel = null; return; }
+  if (u.ebene && mauerZiel) { if (befehl({ art: 'ebnen', x0: u.ebene[0], z0: u.ebene[1], x1: mauerZiel[0], z1: mauerZiel[1] })) klang.spiele('hieb_stein'); mauerZiel = null; return; }
   if (u.mauer && mauerZiel) {
     const typ = werkzeug?.art === 'bau' ? werkzeug.typ : 'mauer';
-    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (spiel.befehl({ art: 'bauen', typ, x, z, still: true })) n++;
+    let n = 0; for (const [x, z] of linie(u.mauer, mauerZiel)) if (befehl({ art: 'bauen', typ, x, z, still: true })) n++;
     if (!n) melde(`${t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) })}`, 'schlecht'); else if (!e.shiftKey) werkzeugSetzen(null);
     mauerZiel = null; obj?.zeigeLinie(null); return;
   }
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
-  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (spiel.befehl({ art: 'bauen', typ: werkzeug.typ, x: x0, z: z0 }) && !e.shiftKey) werkzeugSetzen(null); return; }
-  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (spiel.befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
-  if (werkzeug?.art === 'feuerregen') { if (spiel.befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (befehl({ art: 'bauen', typ: werkzeug.typ, x: x0, z: z0 }) && !e.shiftKey) werkzeugSetzen(null); return; }
+  if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
+  if (werkzeug?.art === 'feuerregen') { if (befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
   const g = spiel.gebAn(p.x, p.z);
   if (!g) { const ru = spiel.ruineAn(p.x, p.z); if (ru) { waehle(null); ruineGew = ru; panelArt = 'ruine'; $('panel').dataset.html = ''; panelRuine(); return; } }
   waehle(g || null);
@@ -702,9 +754,9 @@ addEventListener('keydown', (e) => {
   if (k === 'x') werkzeugSetzen(werkzeug?.art === 'spaeher' ? null : { art: 'spaeher' });
   if (k === 't') $('baum').hidden ? zeigeWerkstatt() : baumZu();
   if (k === 'm') karteSetzen(!einst.karte);
-  if (k === 'n') spiel.befehl({ art: 'nacht' });
+  if (k === 'n') befehl({ art: 'nacht' });
   if (k === ' ') { e.preventDefault(); setzeTempo(tempo === 0 ? 1 : 0); }
-  if (k === 'delete' && gewaehlt) { spiel.befehl({ art: 'abreissen', geb: gewaehlt.id }); waehle(null); }
+  if (k === 'delete' && gewaehlt) { befehl({ art: 'abreissen', geb: gewaehlt.id }); waehle(null); }
 });
 addEventListener('keyup', (e) => tasten.delete(e.key.toLowerCase()));
 addEventListener('blur', () => tasten.clear());
@@ -826,8 +878,9 @@ $('karte').addEventListener('click', (e) => {
 // ================= Anzeige oben =================
 function anzeige(): void {
   if (!spiel) return;
-  const s = spiel;
-  $('res').innerHTML = (['holz', 'stein', 'kristall', 'nahrung', 'erz', 'balken', 'stahl', 'linsen'] as Res[]).filter((r) => ['holz', 'stein', 'kristall', 'nahrung'].includes(r) || s.res[r] > 0).map((r) => `<span title="${t(RES_NAME[r])}"><i class="${r}"></i>${Math.floor(s.res[r])}</span>`).join('');
+  const s = spiel, R = s.anzeigeRes();
+  koopAnzeige();
+  $('res').innerHTML = (['holz', 'stein', 'kristall', 'nahrung', 'erz', 'balken', 'stahl', 'linsen'] as Res[]).filter((r) => ['holz', 'stein', 'kristall', 'nahrung'].includes(r) || R[r] > 0).map((r) => `<span title="${t(RES_NAME[r])}"><i class="${r}"></i>${Math.floor(R[r])}</span>`).join('');
   const bed = s.arbeiterBedarf(), arb = s.arbeiter.length, essen = s.essen(), rk = s.runenkraftBedarf();
   $('bewohner').innerHTML = `<span>${t('Einwohner')} <b>${s.einwohner}</b> / ${s.wohnraum()}</span><span${arb < bed ? t(' class="warn"') : ''}>${t('Arbeiter')} <b>${arb}</b> / ${bed}</span><span${s.res.nahrung < essen ? t(' class="warn"') : ''}>${t('Essen je Tag')} <b>${essen}</b></span><span>${t('Türme')} <b>${s.turmZahl()}</b> / ${s.turmGrenze()}</span><span${s.res.kristall < rk ? t(' class="warn"') : ''}>${t('Runenkraft')} <b>${rk}</b></span>`;
   $('bausteine').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span class="${s.bausteine[b] ? '' : 'null'}" title="${t(BAUSTEIN_NAME[b])}"><i class="${b}"></i>${t(BAUSTEIN_NAME[b])} ${s.bausteine[b]}</span>`).join('');
@@ -842,7 +895,7 @@ function anzeige(): void {
     const siegelInfo = akt.nr === 4 ? ` · ${t('Risse versiegelt {a} / {b}', { a: s.versiegelt.size, b: s.alleRisse().length })}` : '';
     u.innerHTML = `<div class="akt-zeile">${t('Akt {a} · {b} · Nacht {c} von {d}{e}', { a: akt.nr, b: t(akt.name), c: s.nacht, d: ENDE_NACHT, e: siegelInfo })}</div>${om ? `<div class="omen">${t('Omen heute Nacht:')} <b>${t(OMEN[om].name)}</b> · ${t(OMEN[om].kurz)}</div>` : ''}<div class="titel">${t('Tag {a}', { a: s.nacht })}</div><div class="balken"><div style="width:${(100 * s.zeit) / TAG_DAUER}%"></div></div>
       <div class="unter">${s.abend() ? `${t('Heute Nacht: {a}', { a: vorschau })}` : `${t('Ruhig. Nacht in {a}:{b}', { a: mm, b: ss })}`}</div><div><button type="button" id="einlaeuten">${t('Nacht einläuten')}</button>${s.beschaedigt().length ? ` <button type="button" id="allerep" ${s.kannBezahlen(s.alleReparaturKosten()) ? '' : 'disabled'}>${t('Alles reparieren · {a}', { a: kostenHtml(s.alleReparaturKosten()) })}</button>` : ''}</div>`;
-    $('einlaeuten').onclick = () => s.befehl({ art: 'nacht' });
+    $('einlaeuten').onclick = () => befehl({ art: 'nacht' });
     const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
     const f = s.faehigkeiten();
@@ -850,7 +903,7 @@ function anzeige(): void {
     const html = `<div class="akt-zeile">${t('Akt {a} · {b}', { a: s.akt().nr, b: t(s.akt().name) })}</div>${om ? `<div class="omen"><b>${t(OMEN[om].name)}</b></div>` : ''}<div class="titel">${t('Nacht {a}', { a: s.nacht })}</div><div class="unter">${t('Die Welle kommt · {a} Wesen unterwegs', { a: s.gegner.length })}</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${t(FAEHIGKEIT_NAME[n])}</button>`).join(' ')}</div>` : ''}`;
     if (u.dataset.html !== html) {
       u.dataset.html = html; u.innerHTML = html;
-      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (s.befehl({ art: 'faehigkeit', name: n })) klang.spiele('glocke', 0.8); }; });
+      u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (befehl({ art: 'faehigkeit', name: n })) klang.spiele('glocke', 0.8); }; });
     }
   } else if (s.phase === 'morgen') u.dataset.html = '', u.innerHTML = `<div class="titel">${t('Morgen')}</div><div class="unter">${t('Die Nacht ist überstanden')}</div>`;
   leisteAktualisieren(); einfuehrung();
@@ -919,7 +972,7 @@ function zeigeLeitsatz(): void {
     <div class="leit-wahl">${LEITSAETZE[z].map((l) => `<button type="button" data-leit="${l.id}"><b>${t(l.name)}</b><span>${t(l.kurz)}</span></button>`).join('')}</div>
     <button type="button" class="spaeter" id="leit-spaeter">${t('Später entscheiden')}</button>`;
   el.hidden = false;
-  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (s.befehl({ art: 'leitsatz', id: b.dataset.leit! })) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
+  el.querySelectorAll<HTMLButtonElement>('[data-leit]').forEach((b) => { b.onclick = () => { if (befehl({ art: 'leitsatz', id: b.dataset.leit! })) { el.hidden = true; klang.spiele('glocke', 0.8); } }; });
   $('leit-spaeter').onclick = () => { el.hidden = true; };
 }
 function zeigeAbspann(): void {
@@ -1053,13 +1106,22 @@ renderer.setAnimationLoop(() => {
       return;
     }
     jahreszeit(Math.min(3.999, (spiel.nacht - 1 + (spiel.phase === 'tag' ? spiel.zeit / TAGD : 1)) / 10));
-    akku += (enth.aktiv && enth.phase === 0) || berichtPause || hochkant ? 0 : dt * tempo; let n = 0; const ts = performance.now();
+    koop?.wunsch(hochkant ? 0 : tempo, berichtPause);
+    const tp = koop ? koop.tempo : berichtPause ? 0 : tempo;
+    akku += (enth.aktiv && enth.phase === 0) || hochkant ? 0 : dt * tp; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
-    while (akku >= DT && n < 12) {
-      try { spiel.schritt(); } catch (err) { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } }
-      akku -= DT; n++;
+    const fehler = (err: unknown) => { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } };
+    if (koop?.gast) { koop.nachrechnen(spiel, fehler); akku = 0; } // der Gast rechnet so weit, wie der Gastgeber vorgibt
+    else {
+      while (akku >= DT && n < 12) {
+        try { spiel.schritt(); } catch (err) { fehler(err); }
+        koop?.nachSchritt(spiel);
+        akku -= DT; n++;
+      }
+      if (n >= 12) akku = 0;
     }
-    if (n >= 12) akku = 0;
+    if (koop && !koop.gast) koop.senden(spiel);
+    if (!spiel || !obj || !welt) return;
     mess.spiel += performance.now() - ts;
     const ev = spiel.ereignisse.splice(0);
     let lichtNeu = false;

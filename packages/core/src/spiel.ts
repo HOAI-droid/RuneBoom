@@ -18,7 +18,7 @@ export const DT = 1 / 20;
 /** Nebel-Raster: Zellen zu 8 × 8 Blöcken */
 export const NZ = 8, NN = (2 * WR) / NZ;
 
-export interface Geb { id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
+export interface Geb { /** Besitzer im Mehrspieler */ spieler?: string; id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
   zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number; kurz?: boolean }; strahlen: number[]; schild: number;
   /** brennt noch so viele Sekunden · danach eine Weile geschützt */ brand: number; brandSchutz?: number; /** hat in dieser Nacht Runenkraft */ kraft: boolean; /** Schaden in dieser Nacht */ leistung: number;
   /** Siegel: wartet auf die Nacht des Ansturms */ ritual?: boolean }
@@ -70,7 +70,15 @@ export type Phase = 'tag' | 'nacht' | 'morgen' | 'verloren' | 'gewonnen';
  * Befehle: jede Handlung eines Spielers als kleiner Datensatz. Die Oberfläche ruft nur `befehl()` auf;
  * so lassen sich Partien aufzeichnen, wiederholen und später zwischen Mitspielern austauschen.
  */
-export type Befehl =
+/** Himmelsrichtungen der Mitspieler; Reihenfolge wie RISSE (Süd, Ost, West, Nord) */
+export type Seite = 'sued' | 'ost' | 'west' | 'nord';
+export const SEITEN: Seite[] = ['sued', 'ost', 'west', 'nord'];
+export interface Mitspieler { id: string; name: string; seite: Seite }
+/** im Mehrspieler gehören diese Rohstoffe jedem Spieler selbst; Kristall, Nahrung, Bausteine und Erfindungen sind gemeinsam */
+export const SEITEN_NAME: Record<Seite, string> = { sued: 'Süden', ost: 'Osten', west: 'Westen', nord: 'Norden' };
+export const EIGENE_RES: Res[] = ['holz', 'stein', 'erz', 'stahl', 'balken', 'linsen'];
+export type Befehl = (
+  | { art: 'beitritt'; id: string; name: string; seite: Seite }
   | { art: 'bauen'; typ: GebTyp; x: number; z: number; still?: boolean }
   | { art: 'abreissen'; geb: number }
   | { art: 'reparieren'; geb: number }
@@ -85,13 +93,14 @@ export type Befehl =
   | { art: 'nacht' }
   | { art: 'faehigkeit'; name: string; x?: number; z?: number }
   | { art: 'wiederaufbau'; ruine: number }
-  | { art: 'raeumen'; ruine: number };
+  | { art: 'raeumen'; ruine: number }) & { /** wer den Befehl gibt (Mehrspieler) */ spieler?: string };
 
 export interface Spielstand {
   v: 1 | 2 | 3 | 4; code: string; einwohner?: number; schwierigkeit?: Schwierigkeit;
   volk?: Volk; leitsaetze?: [number, string][]; leitsatzOffen?: number; versiegelt?: string[]; stat?: Statistik; nacht: number; phase: Phase; zeit: number; gefaellt?: [number, number][]; abgebaut?: [number, number][]; gaenge?: [number, number][]; hoehen?: [number, number][]; ruinen?: { typ: GebTyp; x: number; z: number; zweig?: string }[]; entdeckt?: GebTyp[];
   res: Record<Res, number>; bausteine: Record<Baustein, number>; erfindungen: ErfId[];
-  gebaeude: { typ: GebTyp; x: number; z: number; hp: number; zweig?: string; stufe?: number; bau?: number; ritual?: boolean }[]; erkundet: string; besiegt: number;
+  gebaeude: { typ: GebTyp; x: number; z: number; hp: number; zweig?: string; stufe?: number; bau?: number; ritual?: boolean; spieler?: string }[]; erkundet: string; besiegt: number;
+  /** Mehrspieler: Mitspieler und ihre eigenen Rohstoffe */ spieler?: Mitspieler[]; kassen?: [string, Partial<Record<Res, number>>][];
 }
 export interface Statistik { bosse: number; gebaut: number; maxEinwohner: number; zerstoert: number; erfunden: number; wunder: string[] }
 
@@ -234,7 +243,7 @@ export class Spiel {
     return { wert: w, enthuellt: e };
   }
   lichtquellen() { return this.lichter; }
-  kannBezahlen(k: Kosten): boolean { return Object.entries(k).every(([r, n]) => this.res[r as Res] >= (n as number)); }
+  kannBezahlen(k: Kosten): boolean { const R = this.pruefRes; return Object.entries(k).every(([r, n]) => R[r as Res] >= (n as number)); }
   freigeschaltet(typ: GebTyp): boolean { const b = GEBAEUDE[typ].braucht; return !b || this.erfindungen.has(b); }
   /** Zeitalter: höchste Schlüsselerfindung */
   zeitalter(): Zeitalter { let z: Zeitalter = 1; for (const id of this.erfindungen) { const a = ERFINDUNGEN[id].zeitalter; if (a && a > z) z = a; } return z; }
@@ -340,7 +349,7 @@ export class Spiel {
   }
   /** „Es fehlen 39 Stein“ */
   fehlt(k: Kosten): string {
-    const f = Object.entries(k).filter(([r, n]) => this.res[r as Res] < (n as number)).map(([r, n]) => `${Math.ceil((n as number) - this.res[r as Res])} ${tr(RES_NAMEN[r as Res])}`);
+    const R = this.pruefRes; const f = Object.entries(k).filter(([r, n]) => R[r as Res] < (n as number)).map(([r, n]) => `${Math.ceil((n as number) - R[r as Res])} ${tr(RES_NAMEN[r as Res])}`);
     return f.length ? tr('Es fehlen {a}.', { a: f.join(tr(' und ')) }) : '';
   }
   /** Lässt sich das Gebäude jetzt verbessern (Stufe, Umrüsten, Burgausbau)? */
@@ -410,7 +419,7 @@ export class Spiel {
     return (this.erfindungen.has('runenkreis') ? 0.75 : 1) * (this.erfindungen.has('aetherspeicher') ? 0.75 : 1) * (this.hatWunder('w_runenschmiede') ? 0.7 : 1) * (this.leitsatz('aether') ? 0.7 : 1);
   }
   /** Risse, die in Nacht n offen sind */
-  offeneRisse(n = this.nacht): typeof RISSE { return RISSE.filter((q) => q.ab <= n && spalte(q.x, q.z) && !this.versiegelt.has(q.name)); }
+  offeneRisse(n = this.nacht): typeof RISSE { return RISSE.filter((q, i) => (q.ab <= n || this.spieler.some((p) => SEITEN.indexOf(p.seite) === i)) && spalte(q.x, q.z) && !this.versiegelt.has(q.name)); }
   /** alle Risse, die es in dieser Welt gibt (für den Sieg) */
   alleRisse(): typeof RISSE { return RISSE.filter((q) => spalte(q.x, q.z)); }
   /** nächster unversiegelter, offener Riss nahe (x, z) */
@@ -527,6 +536,56 @@ export class Spiel {
   }
 
   // ---------------- Takt ----------------
+  // ---------------- Mehrspieler: Mitspieler und eigene Rohstoffe ----------------
+  spieler: Mitspieler[] = [];
+  private kassen = new Map<string, Partial<Record<Res, number>>>();
+  private kassenSicht = new Map<string, Record<Res, number>>();
+  /** wessen Rohstoffe die Oberfläche zeigt und prüft (nur Anzeige, nie in der Rechnung der Simulation) */
+  ansicht: string | null = null;
+  private inSim = 0; private wer: string | null = null;
+  get mehrspieler(): boolean { return this.spieler.length > 0; }
+  /** Rohstoffe eines Spielers: eigene aus seiner Kasse, gemeinsame aus dem Vorrat der Feste */
+  kasse(id: string): Record<Res, number> {
+    let k = this.kassenSicht.get(id); const eigen = this.kassen.get(id);
+    if (!eigen) return this.res;
+    if (!k) {
+      const S = this;
+      k = new Proxy({} as Record<Res, number>, {
+        get: (_t, r: string) => (EIGENE_RES.includes(r as Res) ? (S.kassen.get(id)![r as Res] ?? 0) : S.gemeinRes[r as Res]),
+        set: (_t, r: string, v: number) => { if (EIGENE_RES.includes(r as Res)) S.kassen.get(id)![r as Res] = v; else S.gemeinRes[r as Res] = v; return true; },
+        ownKeys: () => Reflect.ownKeys(S.gemeinRes), getOwnPropertyDescriptor: (_t, r) => ({ enumerable: true, configurable: true, value: (k as Record<string, number>)[r as string] })
+      });
+      this.kassenSicht.set(id, k);
+    }
+    return k;
+  }
+  /** gemeinsamer Vorrat (außerhalb von Befehlen ist das this.res) */
+  private get gemeinRes(): Record<Res, number> { return this.basis ?? this.res; }
+  private basis: Record<Res, number> | null = null;
+  /** Kasse für Erträge eines Gebäudes: die seines Besitzers */
+  private kasseVon(g: Geb): Record<Res, number> { return g.spieler && this.kassen.has(g.spieler) ? this.kasse(g.spieler) : this.res; }
+  /** für Prüfungen der Oberfläche (Kosten, fehlende Rohstoffe): Kasse des eigenen Spielers */
+  private get pruefRes(): Record<Res, number> { return !this.inSim && this.ansicht && this.kassen.has(this.ansicht) ? this.kasse(this.ansicht) : this.res; }
+  /** Anzeige der Rohstoffe für die Oberfläche */
+  anzeigeRes(): Record<Res, number> { return this.pruefRes; }
+  private beitreten(id: string, name: string, seite: Seite): boolean {
+    const da = this.spieler.find((p) => p.id === id); if (da) { da.name = name; return true; }
+    if (this.spieler.length >= 4) return false;
+    if (this.spieler.some((p) => p.seite === seite)) seite = SEITEN.find((x) => !this.spieler.some((p) => p.seite === x)) || seite;
+    const erster = !this.spieler.length, kasse: Partial<Record<Res, number>> = {};
+    // der erste Spieler übernimmt die eigenen Rohstoffe der Feste, später Kommende bekommen einen Grundstock
+    for (const r of EIGENE_RES) { kasse[r] = erster ? this.res[r] || 0 : r === 'holz' ? 150 : r === 'stein' ? 80 : 0; if (erster) this.res[r] = 0; }
+    this.spieler.push({ id, name, seite }); this.kassen.set(id, kasse);
+    if (erster) for (const g of this.gebaeude) g.spieler = id;
+    else {
+      // wer dazukommt, findet auf seiner Seite einen Wachturm vor (Richtung des eigenen Risses)
+      const q = RISSE[SEITEN.indexOf(seite)], d = mhypot(q.x - B.x, q.z - B.z) || 1, ux = (q.x - B.x) / d, uz = (q.z - B.z) / d;
+      const p = this.findePlatz('wachturm', Math.round(B.x + ux * 18), Math.round(B.z + 6 + uz * 18), 12);
+      if (p) { const g = this.setze('wachturm', p[0], p[1]); g.spieler = id; this.aufdecken(p[0], p[1], 34); this.lichterNeu(); }
+    }
+    this.melde(tr('{a} hält jetzt die Seite {b}.', { a: name, b: tr(SEITEN_NAME[seite]) }), 'info');
+    return true;
+  }
   /** Takte seit Beginn dieser Partie (für das Befehlsprotokoll) */
   takt = 0;
   /** alle ausgeführten Befehle mit ihrem Takt (nicht gespeichert) */
@@ -535,6 +594,12 @@ export class Spiel {
   befehl(b: Befehl): boolean {
     const geb = (id: number) => this.gebaeude.find((g) => g.id === id), ru = (id: number) => this.ruinen.find((r) => r.id === id);
     let ok = false;
+    if (b.art === 'beitritt') { this.inSim++; try { ok = this.beitreten(b.id, b.name, b.seite); } finally { this.inSim--; } if (ok) this.protokoll.push({ takt: this.takt, b }); return ok; }
+    // Mehrspieler: der Befehl zahlt aus der Kasse seines Spielers, neue Gebäude gehören ihm
+    const alt = this.res, wer = b.spieler && this.kassen.has(b.spieler) ? b.spieler : null;
+    if (wer) { this.basis = alt; this.res = this.kasse(wer); }
+    this.wer = wer; this.inSim++;
+    try {
     switch (b.art) {
       case 'bauen': ok = this.bauen(b.typ, b.x, b.z, b.still); break;
       case 'abreissen': { const g = geb(b.geb); if (g) { const n = this.gebaeude.length; this.abreissen(g); ok = this.gebaeude.length < n; } break; }
@@ -552,6 +617,7 @@ export class Spiel {
       case 'wiederaufbau': { const r = ru(b.ruine); ok = !!r && this.wiederaufbauen(r); break; }
       case 'raeumen': { const r = ru(b.ruine); if (r) { this.raeumen(r); ok = true; } break; }
     }
+    } finally { this.res = alt; this.basis = null; this.wer = null; this.inSim--; }
     if (ok) this.protokoll.push({ takt: this.takt, b });
     return ok;
   }
@@ -561,12 +627,14 @@ export class Spiel {
     const mix = (v: number) => { h = Math.imul(h ^ (Math.round(v * 64) | 0), 16777619) >>> 0; };
     mix(this.takt); mix(this.nacht); mix(this.zeit);
     for (const r of Object.keys(this.res).sort()) mix(this.res[r as Res]);
+    for (const p of this.spieler) { const k = this.kassen.get(p.id)!; for (const r of EIGENE_RES) mix(k[r] || 0); }
     for (const g of this.gebaeude) { mix(g.id); mix(g.x); mix(g.z); mix(g.hp); }
     for (const e of this.gegner) { mix(e.id); mix(e.x); mix(e.z); mix(e.hp); }
     for (const a of this.arbeiter) { mix(a.x); mix(a.z); }
     return h;
   }
-  schritt(): void {
+  schritt(): void { this.inSim++; try { this.schrittInnen(); } finally { this.inSim--; } }
+  private schrittInnen(): void {
     if (this.phase === 'verloren' || this.phase === 'gewonnen') return;
     this.takt++;
     this.zeit += DT;
@@ -649,7 +717,8 @@ export class Spiel {
     const dauer = Math.min(60, 24 + this.nacht * 0.8), S = SCHWIERIGKEIT[this.schwierigkeit];
     const omen = this.omenFuer(this.nacht), akt = this.akt().nr;
     const bisher = RISSE.filter((q) => q.ab <= this.nacht && spalte(q.x, q.z)).length;
-    let faktor = S.anzahl * [1, 1, 1.12, 1.25][akt - 1] * Math.sqrt(Math.max(1, risse.length) / Math.max(1, bisher)) * (omen === 'stille' ? 0.4 : 1);
+    // Mehrspieler: mehr Wesen insgesamt, je Riss aber etwas weniger als allein
+    let faktor = S.anzahl * [1, 1, 1.12, 1.25][akt - 1] * (this.spieler.length > 1 ? 1 + 0.5 * (this.spieler.length - 1) : Math.sqrt(Math.max(1, risse.length) / Math.max(1, bisher))) * (omen === 'stille' ? 0.4 : 1);
     if (omen) this.melde(tr('Omen: {a}. {b}', { a: tr(OMEN[omen].name), b: tr(OMEN[omen].kurz) }), 'schlecht');
     // Siegelsteine rufen einen Ansturm ihres Risses hervor
     const ansturm: typeof risse = [];
@@ -760,9 +829,10 @@ export class Spiel {
       g.cd += DT * tempo;
       if (g.cd >= u.dauer) {
         g.cd = 0;
-        if (!this.kannBezahlen(u.von)) continue;
-        for (const [r, m] of Object.entries(u.von)) this.res[r as Res] -= m as number;
-        this.res[u.nach] += u.menge;
+        const K = this.kasseVon(g);
+        if (!Object.entries(u.von).every(([r, m]) => K[r as Res] >= (m as number))) continue;
+        for (const [r, m] of Object.entries(u.von)) K[r as Res] -= m as number;
+        K[u.nach] += u.menge;
         this.ereignisse.push({ art: 'abgeliefert', x: g.x + g.w / 2, y: g.y + 2, z: g.z + g.d / 2, res: u.nach, menge: u.menge });
       }
     }
@@ -1158,7 +1228,7 @@ export class Spiel {
     const def = GEBAEUDE[typ];
     const p = this.pruefeRoh(typ, x0, z0);
     const max = this.grundHp({ typ, stufe: 1 });
-    const g: Geb = { id: this.naechsteId++, typ, x: x0, z: z0, w: def.w, d: def.d, y: p, hp: hp ?? max, max, cd: 0, quellen: this.quellenZahl(typ, x0, z0), zielen: 0, stufe: 1, strahlen: [], schild: 0, brand: 0, kraft: true, leistung: 0 };
+    const g: Geb = { spieler: this.wer ?? undefined, id: this.naechsteId++, typ, x: x0, z: z0, w: def.w, d: def.d, y: p, hp: hp ?? max, max, cd: 0, quellen: this.quellenZahl(typ, x0, z0), zielen: 0, stufe: 1, strahlen: [], schild: 0, brand: 0, kraft: true, leistung: 0 };
     for (let x = x0; x < x0 + def.w; x++) for (let z = z0; z < z0 + def.d; z++) this.belegt[this.bi(x, z)] = g.id;
     this.gebaeude.push(g); if (def.falle) this.fallenIds.add(g.id);
     if (def.arbeit && !this.laedt) this.verteileArbeiter();
@@ -1295,7 +1365,7 @@ export class Spiel {
       } else if (a.zustand === 'zurueck') {
         if (gehe(hx, hz, 3.0)) {
           const menge = arb.menge;
-          this.res[arb.res] += menge; this.ereignisse.push({ art: 'abgeliefert', x: a.x, y: a.y, z: a.z, res: arb.res, menge });
+          this.kasseVon(g)[arb.res] += menge; this.ereignisse.push({ art: 'abgeliefert', x: a.x, y: a.y, z: a.z, res: arb.res, menge });
           a.traegt = null; a.zustand = 'warten'; a.ruhe = 0.6; if (this.r() < 0.2) g.quellen = this.quellenZahl(g.typ, g.x, g.z);
         }
       }
@@ -1318,7 +1388,7 @@ export class Spiel {
     }
     if (!kacheln) return { ok: false, grund: tr('Die Fläche ist schon eben.'), stein: 0, ziel, kacheln };
     if (ziel >= 14) return { ok: false, grund: tr('Zu hoch: oben auf den Bergen lässt sich nicht bauen.'), stein, ziel, kacheln };
-    if (this.res.stein < stein) return { ok: false, grund: tr('Nicht genug Stein ({a} nötig).', { a: stein }), stein, ziel, kacheln };
+    if (this.pruefRes.stein < stein) return { ok: false, grund: tr('Nicht genug Stein ({a} nötig).', { a: stein }), stein, ziel, kacheln };
     return { ok: true, stein, ziel, kacheln };
   }
   ebnen(x0: number, z0: number, x1: number, z1: number): boolean {
@@ -1427,7 +1497,8 @@ export class Spiel {
     let s = ''; for (let i = 0; i < this.erkundet.length; i += 8) { let b = 0; for (let k = 0; k < 8; k++) b |= this.erkundet[i + k] << k; s += String.fromCharCode(b); }
     return { v: 4, volk: this.volk, leitsaetze: [...this.leitsaetze], leitsatzOffen: this.leitsatzOffen, versiegelt: [...this.versiegelt], stat: this.stat, einwohner: this.einwohner, schwierigkeit: this.schwierigkeit, gefaellt: [...this.gefaellt], abgebaut: [...this.abgebaut], gaenge: [...this.gaenge], hoehen: hoehenListe(), code: this.code, nacht: this.nacht, phase: this.phase === 'verloren' ? 'verloren' : 'tag', zeit: this.phase === 'tag' ? this.zeit : 0,
       res: { ...this.res }, bausteine: { ...this.bausteine }, erfindungen: [...this.erfindungen],
-      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: Spiel.imBau(g) ? g.umbau!.t : undefined, ritual: g.ritual })), erkundet: btoa(s), besiegt: this.besiegt,
+      gebaeude: this.gebaeude.map((g) => ({ typ: g.typ, x: g.x, z: g.z, hp: g.hp, zweig: g.zweig, stufe: g.stufe, bau: Spiel.imBau(g) ? g.umbau!.t : undefined, ritual: g.ritual, spieler: g.spieler })),
+      spieler: this.spieler.length ? this.spieler.map((p) => ({ ...p })) : undefined, kassen: this.spieler.length ? [...this.kassen].map(([k, v]) => [k, { ...v }] as [string, Partial<Record<Res, number>>]) : undefined, erkundet: btoa(s), besiegt: this.besiegt,
       ruinen: this.ruinen.map((r) => ({ typ: r.typ, x: r.x, z: r.z, zweig: r.zweig })), entdeckt: [...this.entdeckt] };
   }
   private laden(st: Spielstand): void {
@@ -1441,7 +1512,8 @@ export class Spiel {
     for (const [k, h] of st.hoehen || []) setzeHoehe(Math.floor(k / 2048) - 600, (k % 2048) - 600, h);
     const bin = atob(st.erkundet); for (let i = 0; i < bin.length; i++) { const b = bin.charCodeAt(i); for (let k = 0; k < 8; k++) this.erkundet[i * 8 + k] = (b >> k) & 1; }
     this.entdeckt = new Set(st.entdeckt || []);
-    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; if (g.bau !== undefined) n.umbau = { t: g.bau, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: !GEBAEUDE[g.typ].bauzeit }; }
+    this.spieler = (st.spieler || []).map((p) => ({ ...p })); this.kassen = new Map((st.kassen || []).map(([k, v]) => [k, { ...v }])); this.kassenSicht.clear();
+    for (const g of st.gebaeude) { if (!GEBAEUDE[g.typ]) continue; const n = this.setze(g.typ, g.x, g.z); n.zweig = g.zweig; n.stufe = g.stufe || 1; n.max = this.grundHp(n); n.hp = Math.min(n.max, g.hp); n.ritual = g.ritual; n.spieler = g.spieler; if (g.bau !== undefined) n.umbau = { t: g.bau, dauer: Spiel.bauDauer(g.typ), nach: g.typ, kurz: !GEBAEUDE[g.typ].bauzeit }; }
     for (const r of st.ruinen || []) { const d = GEBAEUDE[r.typ]; if (d) this.ruinen.push({ id: this.naechsteId++, typ: r.typ, x: r.x, z: r.z, w: d.w, d: d.d, y: this.pruefeRoh(r.typ, r.x, r.z), zweig: r.zweig }); }
     this.laedt = false;
     this.lichterNeu(); this.verteileArbeiter();
