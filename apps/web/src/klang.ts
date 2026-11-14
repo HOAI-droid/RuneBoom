@@ -5,7 +5,7 @@
  * Tonleitern und Akkordfolgen zusammen. Schichten: Tag, Abend, Nacht, Kampf; eigenes Motiv für den Rissfürsten.
  * Alles läuft über einen gemeinsamen Hall. Fehlen die Dateien (Einzeldatei-Vorschau), spielen erzeugte Klänge.
  */
-type Ton = 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf' | 'boss' | 'siegel' | 'omen' | 'wunder' | 'falle' | 'blitz' | 'feuer';
+type Ton = 'schlag' | 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf' | 'boss' | 'siegel' | 'omen' | 'wunder' | 'falle' | 'blitz' | 'feuer';
 type Instrument = 'flute' | 'pan_flute' | 'orchestral_harp' | 'kalimba' | 'woodblock' | 'string_ensemble_1' | 'tubular_bells' | 'dulcimer' | 'celesta' | 'french_horn' | 'trombone' | 'taiko_drum' | 'timpani' | 'contrabass' | 'choir_aahs' | 'cello';
 export type MusikVolk = 'glutborn' | 'hainmar' | 'sturmweber';
 
@@ -67,7 +67,11 @@ export class Klang {
     this.musik.gain.setTargetAtTime(m * 0.55, this.ctx.currentTime, 0.1); this.effekte.gain.setTargetAtTime(e, this.ctx.currentTime, 0.1);
   }
   /** nacht, Dichte der Wesen nahe der Burg (0–1), Abend, Nacht mit Rissfürst */
-  stimmung(nacht: boolean, dichte: number, abend = false, boss = false): void { this.nacht = nacht; this.dichte = Math.max(0, Math.min(1, dichte)); this.abendZeit = abend; this.bossNacht = boss; }
+  stimmung(nacht: boolean, dichte: number, abend = false, boss = false): void {
+    this.nacht = nacht; this.dichte = Math.max(0, Math.min(1, dichte)); this.abendZeit = abend; this.bossNacht = boss;
+    // im Kampf tritt die Musik zurück, damit Pfeile, Treffer und Einschläge zu hören sind
+    if (this.ctx) this.musik.gain.setTargetAtTime(this.lautMusik * 0.55 * (nacht ? 0.7 - this.dichte * 0.25 : 1), this.ctx.currentTime, 0.6);
+  }
   setzeVolk(v: string): void { if ((v === 'glutborn' || v === 'hainmar' || v === 'sturmweber') && v !== this.volk) { this.volk = v; this.neueStuecke(); } }
 
   private raum(dauer: number): AudioBuffer {
@@ -123,7 +127,7 @@ export class Klang {
   /** laut: 0..1 (z. B. nach Entfernung zur Kamera) */
   spiele(ton: Ton, laut = 1): void {
     const c = this.ctx; if (!c || laut < 0.03 || this.lautEffekte <= 0) return;
-    const jetzt = c.currentTime, abst = ton === 'sehne' || ton === 'treffer' ? 0.05 : ton.startsWith('hieb') ? 0.09 : 0.04;
+    const jetzt = c.currentTime, abst = ton === 'sehne' || ton === 'treffer' ? 0.06 : ton === 'schlag' ? 0.25 : ton.startsWith('hieb') ? 0.09 : 0.04;
     if ((this.zuletzt.get(ton) || 0) > jetzt - abst) return; this.zuletzt.set(ton, jetzt);
     // viele Arbeiter: höchstens fünf Hiebe je Sekunde, ferne leiser
     if (ton.startsWith('hieb')) { this.hiebe = this.hiebe.filter((x) => x > jetzt - 1); if (this.hiebe.length >= 5) return; this.hiebe.push(jetzt); laut *= 0.75; }
@@ -137,21 +141,23 @@ export class Klang {
       case 'reparatur': if (!A(this.eins(['tuer2', 'tuer3']), 0.32, 1.5, 4200)) this.osz('square', 1200, t, 0.03, 0.05 * v, z, 700); else A('riegel', 0.15, 1.1, 0, 0.12); break;
       case 'abgeliefert': if (!A(this.eins(['muenzen1', 'muenzen2', 'leder']), 0.28, 1)) { this.osz('sine', 880, t, 0.12, 0.03 * v, z); this.osz('sine', 1320, t + 0.05, 0.12, 0.02 * v, z); } break;
       case 'klick': if (!A('blatt', 0.35, 1.2)) this.osz('triangle', 660, t, 0.05, 0.06 * v, z); break;
-      case 'sehne': this.osz('triangle', 330 + Math.random() * 60, t, 0.16, 0.14 * v, z, 140); this.rausch(t, 0.05, 0.07 * v, z, 'bandpass', 2400, undefined, 3); A('schnitt', 0.12, 1.6, 6000); break;
-      case 'treffer': this.rausch(t, 0.06, 0.13 * v, z, 'highpass', 1800); if (!A('klick', 0.2, 0.7)) this.osz('square', 180, t, 0.04, 0.05 * v, z, 90); break;
-      case 'explosion': this.rausch(t, 1.1, 0.5 * v, z, 'lowpass', 1400, 70); this.osz('sine', 72, t, 0.9, 0.55 * v, z, 28); this.rausch(t, 0.05, 0.25 * v, z, 'highpass', 2500); break;
+      // Kampf: deutlich hörbar über der Musik
+      case 'sehne': this.osz('triangle', 300 + Math.random() * 70, t, 0.22, 0.3 * v, z, 120); this.osz('sine', 600 + Math.random() * 80, t, 0.12, 0.12 * v, z, 300); A('klinge', 0.32, 1.7, 7000); this.rausch(t + 0.02, 0.25, 0.1 * v, z, 'bandpass', 1800, 700, 1.4); break;
+      case 'treffer': A('schnitt', 0.5, 0.9, 6000); A('klick', 0.35, 0.65, 3000); this.rausch(t, 0.08, 0.18 * v, z, 'bandpass', 1400, undefined, 1.5); this.osz('sine', 140, t, 0.1, 0.18 * v, z, 70); break;
+      case 'schlag': A(this.eins(['tuer1', 'tuer2', 'tuer3', 'tuer4']), 0.55, 0.62, 2200); A('knarr2', 0.18, 0.8, 1800); this.osz('sine', 90, t, 0.18, 0.25 * v, z, 45); break;
+      case 'explosion': this.rausch(t, 1.2, 0.75 * v, z, 'lowpass', 1600, 70); this.osz('sine', 72, t, 1.0, 0.8 * v, z, 28); A('tuer4', 0.5, 0.45, 1500); this.rausch(t, 0.05, 0.25 * v, z, 'highpass', 2500); break;
       case 'einsturz': this.rausch(t, 1.8, 0.45 * v, z, 'lowpass', 900, 60); this.osz('sine', 52, t, 1.4, 0.38 * v, z, 28); A('knarr1', 0.5, 0.55, 2500); A(this.eins(['tuer1', 'tuer4']), 0.5, 0.6, 1800, 0.25); A(this.eins(['tuer2', 'tuer3']), 0.4, 0.5, 1500, 0.6); break;
       case 'horn': if (!this.note('french_horn', 50, t, 2.6, 0.55 * v, z) || !this.note('trombone', 38, t, 2.6, 0.45 * v, z)) for (const [f, l] of [[110, 0.16], [165, 0.1], [220, 0.06]] as [number, number][]) this.osz('sawtooth', f, t, 2.4, l * v, this.filter(z, 900), f * 0.99, 0.5); break;
       case 'glocke': if (!this.note('tubular_bells', 72, t, 3, 0.4 * v, z)) for (const [f, l] of [[523, 0.12], [784, 0.07], [1046, 0.05], [1568, 0.03]] as [number, number][]) this.osz('sine', f, t, 2.6, l * v, z); break;
-      case 'tod': this.rausch(t, 0.18, 0.1 * v, z, 'bandpass', 700, 300, 2); break;
-      case 'wurf': this.rausch(t, 0.35, 0.12 * v, z, 'bandpass', 500, 1500, 1); break;
+      case 'tod': this.rausch(t, 0.35, 0.22 * v, z, 'bandpass', 600, 180, 2); A('leder', 0.4, 0.7, 2500, 0.05); this.osz('sawtooth', 160 + Math.random() * 60, t, 0.32, 0.08 * v, this.filter(z, 700), 70); break;
+      case 'wurf': this.rausch(t, 0.45, 0.22 * v, z, 'bandpass', 400, 1400, 1.2); A('klinge', 0.2, 0.8, 3000); break;
       case 'boss': if (!this.note('timpani', 36, t, 2, 0.8 * v, z)) this.rausch(t, 2.4, 0.18 * v, z, 'lowpass', 300, 80); this.note('trombone', 38, t + 0.2, 3, 0.5 * v, z); this.note('trombone', 39, t + 1.4, 2.4, 0.45 * v, z);
         for (const [f, l] of [[55, 0.22], [82, 0.12]] as [number, number][]) this.osz('sawtooth', f, t, 3.2, l * v, this.filter(z, 380), f * 0.92, 0.6); break;
       case 'siegel': for (const [m, d] of [[67, 0], [72, 0.25], [76, 0.5], [79, 0.75], [84, 1]] as [number, number][]) if (!this.note('celesta', m, t + d, 2.4, 0.4 * v, z)) this.osz('sine', 440 * Math.pow(2, (m - 69) / 12), t + d, 3, 0.07 * v, z); this.note('choir_aahs', 55, t, 4, 0.35 * v, z); break;
       case 'omen': this.note('choir_aahs', 58, t, 3.2, 0.4 * v, z); this.note('choir_aahs', 61, t + 0.3, 3, 0.3 * v, z); this.osz('sine', 233, t, 2.8, 0.05 * v, this.filter(z, 1200), 220, 0.8); this.rausch(t, 2.6, 0.03 * v, z, 'bandpass', 900, 2400, 4); break;
       case 'wunder': for (let i = 0; i < 6; i++) if (!this.note('orchestral_harp', [60, 64, 67, 72, 76, 79][i], t + i * 0.12, 2.4, 0.45 * v, z)) this.osz('triangle', [262, 330, 392, 523, 659, 784][i], t + i * 0.14, 2.6 - i * 0.2, 0.07 * v, z); this.note('string_ensemble_1', 48, t, 3.4, 0.4 * v, z); this.note('tubular_bells', 72, t + 0.8, 3, 0.35 * v, z); break;
       case 'falle': this.rausch(t, 0.4, 0.4 * v, z, 'lowpass', 2200, 200); if (!A('riegel', 0.6, 0.6)) this.osz('square', 140, t, 0.12, 0.12 * v, z, 60); break;
-      case 'blitz': this.rausch(t, 0.25, 0.2 * v, z, 'highpass', 3000); this.osz('sawtooth', 1400, t, 0.08, 0.05 * v, z, 300); this.rausch(t + 0.05, 1.2, 0.18 * v, z, 'lowpass', 400, 60); break;
+      case 'blitz': this.rausch(t, 0.3, 0.38 * v, z, 'highpass', 2600); this.osz('sawtooth', 1400, t, 0.1, 0.12 * v, z, 300); this.rausch(t + 0.05, 1.4, 0.35 * v, z, 'lowpass', 420, 60); break;
       case 'feuer': this.rausch(t, 0.6, 0.1 * v, z, 'bandpass', 900, 500, 1.5); this.rausch(t, 0.4, 0.04 * v, z, 'highpass', 3500); break;
     }
   }
