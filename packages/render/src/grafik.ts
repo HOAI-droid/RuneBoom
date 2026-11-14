@@ -121,7 +121,8 @@ export const NOISE_GLSL = `
   vec2 h2(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
   float rausch(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     return mix(mix(h1(i), h1(i + vec2(1, 0)), f.x), mix(h1(i + vec2(0, 1)), h1(i + vec2(1, 1)), f.x), f.y); }
-  float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s; }`;
+  float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s; }
+  float fbm3(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 3; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s * 1.07; }`;
 const VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
 const wasserGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: VS,
@@ -177,7 +178,7 @@ const nebelGL = (u: NebelU, lage: number, zahl: number) => new THREE.ShaderMater
       float frei = smoothstep(0.2, 0.8, texture2D(uMaske, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r);
       if (frei > 0.995) discard;
       vec2 p = vW.xz * 0.03 + vec2(uZeit * 0.012 * (1.0 + uLage * 0.3), uZeit * 0.007) + uLage * 3.7;
-      float n = fbm(p);
+      float n = fbm3(p);
       float wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, vGross)) * (0.88 + 0.12 * sin(uZeit * 0.21 + vGross * 9.0));
       float a = uDichte * (0.45 + 0.9 * n) * wechsel * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
       a = 1.0 - pow(1.0 - clamp(a, 0.0, 0.98), uZahl);
@@ -229,7 +230,7 @@ export class Beleuchtung {
   werte = { exp: 1, bloom: 0.3, tint: new THREE.Color(), nebel: new THREE.Color() };
   constructor(scene: THREE.Scene, ausdehnung = 60) {
     const s = this.sun; s.castShadow = true; s.shadow.mapSize.set(2048, 2048);
-    Object.assign(s.shadow.camera, { left: -ausdehnung, right: ausdehnung, top: ausdehnung, bottom: -ausdehnung, near: 1, far: 360 });
+    Object.assign(s.shadow.camera, { left: -ausdehnung, right: ausdehnung, top: ausdehnung, bottom: -ausdehnung, near: 80, far: 240 }); // nur ±80 m um den Blickpunkt entlang des Lichts: weniger Kacheln im Schattenbild
     s.shadow.bias = -0.0005; s.shadow.normalBias = 0.03; s.shadow.radius = 4;
     this.front.position.set(30, 40, 60);
     scene.add(s, s.target, this.hemi, this.front, this.himmel.mesh);

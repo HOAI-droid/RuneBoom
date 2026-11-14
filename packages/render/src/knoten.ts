@@ -32,6 +32,11 @@ const fbm = Fn(([p0]: N[]) => {
   for (const a of [0.5, 0.25, 0.125, 0.0625]) { s.addAssign(rausch(p).mul(a)); p.mulAssign(2.03); }
   return s;
 }).setLayout({ name: 'fbm', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
+const fbm3 = Fn(([p0]: N[]) => {
+  const s = float(0).toVar(), p = vec2(p0).toVar();
+  for (const a of [0.5, 0.25, 0.125]) { s.addAssign(rausch(p).mul(a)); p.mulAssign(2.03); }
+  return s.mul(1.07);
+}).setLayout({ name: 'fbm3', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
 // ---------- Jahreszeit (wie JAHR_GLSL) ----------
 const uFr = uniform(0).onFrameUpdate(() => JAHR_U.uFruehling.value), uHe = uniform(0).onFrameUpdate(() => JAHR_U.uHerbst.value), uWi = uniform(0).onFrameUpdate(() => JAHR_U.uWinter.value);
@@ -113,7 +118,7 @@ function nebel(u: NebelU, lage: number, zahl: number): THREE.Material {
     const frei = smoothstep(0.2, 0.8, texture(u.uMaske.value, weltUV(positionWorld)).r);
     If(frei.greaterThan(0.995), () => { Discard(); });
     const p = positionWorld.xz.mul(0.03).add(vec2(uZeit.mul(0.012 * (1 + lage * 0.3)), uZeit.mul(0.007))).add(lage * 3.7);
-    n.assign(fbm(p));
+    n.assign(fbm3(p));
     const wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, gross)).mul(sin(uZeit.mul(0.21).add(gross.mul(9))).mul(0.12).add(0.88));
     const a0 = dichte.mul(n.mul(0.9).add(0.45)).mul(wechsel).mul(frei.oneMinus()).mul(land).mul(1 - lage * 0.06);
     a.assign(pow(clamp(a0, 0, 0.98).oneMinus(), zahl).oneMinus());
