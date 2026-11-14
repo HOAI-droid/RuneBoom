@@ -1,6 +1,6 @@
 [package]
 name = "runeboom"
-version = "0.8.0"
+version = "0.8.1"
 description = "runeBOOM · Die Feste der Erfinder"
 edition = "2021"
 

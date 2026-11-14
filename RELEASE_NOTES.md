@@ -1,3 +1,12 @@
+## runeBOOM 0.8.1 · Feinschliff
+
+- **Kein Fenster schneidet mehr ab:** Erfindungsbaum, Rezeptbuch, Bausteine, Gebäudefenster, Hilfe, Nachtbericht und Leitsätze scrollen, wenn der Inhalt länger ist.
+- **Flüssiger:** Das Schattenbild umfasst nur noch die Umgebung des Blickpunkts (vorher bis 360 m entlang der Sonne), der Bodennebel rechnet sein Rauschen sparsamer.
+
+Alles aus 0.8 („Lebendige Welt“) steht unten.
+
+---
+
 ## runeBOOM 0.8 · Lebendige Welt
 
 Im Browser: <https://hoai-droid.github.io/RuneBoom/> · Apps für Mac, Windows, Linux und jetzt auch Android unten.
