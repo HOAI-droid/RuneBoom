@@ -471,6 +471,14 @@
   .fadenkreuz::before, .fadenkreuz::after { content: ""; position: absolute; background: rgba(255,240,210,.9); box-shadow: 0 0 3px rgba(0,0,0,.8); }
   .fadenkreuz::before { left: 12px; top: 2px; width: 2px; height: 22px; } .fadenkreuz::after { top: 12px; left: 2px; height: 2px; width: 22px; }
   .pad-fokus { outline: 3px solid var(--ember) !important; outline-offset: 2px; }
+  /* Kein Fenster schneidet unten ab: lange Inhalte scrollen im Fenster (Platz für die Messanzeige unten) */
+  .baum-inhalt { overflow-y: auto !important; overflow-x: hidden; }
+  .baum-inhalt > .buch, .baum-inhalt > .beute { padding-bottom: 72px; }
+  .panel { overflow-y: auto !important; overflow-x: hidden; }
+  .hilfe-gitter { overflow-y: auto; min-height: 0; padding-bottom: 8px; }
+  .bericht { max-height: calc(100vh - 140px); overflow-y: auto; }
+  .leitsatz { max-height: calc(100vh - 24px); overflow-y: auto; }
+  .sieg { overflow-y: auto; padding: 12px 0; } .abspann { max-height: none; }
   /* Einstellungen: Zeilen umbrechen statt über den Rand, Häkchen neben dem Text, im Kasten scrollen */
   .panel:has(#e-musik) { overflow-y: auto; overflow-x: hidden; }
   .panel .zeile:has(.wahl), .menue-seite .zeile:has(.wahl) { flex-wrap: wrap; align-items: center; gap: 4px 8px; }
