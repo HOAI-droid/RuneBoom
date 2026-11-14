@@ -1,3 +1,10 @@
+## runeBOOM 0.8.3 · Scharf bei fester Bildrate
+
+- **Automatische Auflösung klüger:** Ist die Bildrate von außen begrenzt (etwa durch den Energiesparmodus von Chrome oder macOS, der auf 30 Bilder festlegt),
+  bringt weniger Auflösung nichts. Das Spiel erkennt das jetzt, bleibt scharf und zeigt in der Messanzeige einen Hinweis.
+
+---
+
 ## runeBOOM 0.8.2 · Kampf zum Hören
 
 - **Kampfgeräusche hörbar:** Bogensehnen mit Sirren, Treffer, Würfe, Einschläge und das Vergehen der Wesen klingen jetzt nach Aufnahmen und deutlich lauter.

@@ -728,5 +728,6 @@ export const ES: Record<string, string> = {
  "Anführer": "líder",
  "Gamepad": "Mando",
  "Linker Stick schiebt, rechter Stick dreht und zoomt, A klickt am Fadenkreuz (halten zieht Mauern), B bricht ab, Steuerkreuz wählt Baugruppen und Gebäude, X Erfindungsbaum, Y Karte": "Stick izquierdo desplaza, stick derecho gira y acerca, A hace clic en la mira (mantén para trazar muros), B cancela, la cruceta elige grupos y edificios, X árbol de inventos, Y mapa",
- "Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.": "Efectos de Kenney (CC0). Instrumentos de la SoundFont FluidR3 GM de Frank Wen (CC BY 3.0). La música se compone de nuevo para cada pueblo."
+ "Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.": "Efectos de Kenney (CC0). Instrumentos de la SoundFont FluidR3 GM de Frank Wen (CC BY 3.0). La música se compone de nuevo para cada pueblo.",
+ "Bildrate von außen begrenzt (Energiesparmodus?)": "Fotogramas limitados externamente (¿ahorro de energía?)"
 };

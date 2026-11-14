@@ -12,7 +12,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.8.2';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.8.3';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -44,7 +44,8 @@ addEventListener('resize', groesse); groesse();
 
 const klang = new Klang(); klang.setzeLautstaerke(einst.musik, einst.effekte);
 /** automatische Auflösung: sinkt die Bildrate, wird mit weniger Bildpunkten gezeichnet (bis 60 %), mit Luft wieder mehr */
-const aufl = { faktor: 1, zeit: 0, bilder: 0, sperre: 0 };
+/** voll: Bildrate bei voller Auflösung; begrenzt: Bildrate, an der weniger Auflösung nichts ändert (Energiesparmodus, Bildschirmtakt) */
+const aufl = { faktor: 1, zeit: 0, bilder: 0, sperre: 0, voll: 0, begrenzt: 0 };
 const basisPixel = () => (einst.grafik === 'hoch' ? Math.min(devicePixelRatio || 1, 1.6) : 1);
 function auflSetzen(f: number): void { aufl.faktor = f; renderer.setPixelRatio(basisPixel() * f); groesse(); }
 function auflSchritt(roh: number): void {
@@ -52,6 +53,10 @@ function auflSchritt(roh: number): void {
   if (roh > 0.25 || enth.aktiv) { aufl.zeit = 0; aufl.bilder = 0; return; } // Hintergrund oder Laden: nicht werten
   aufl.zeit += roh; aufl.bilder++; if (aufl.zeit < 1.5) return;
   const fps = aufl.bilder / aufl.zeit; aufl.sperre -= aufl.zeit; aufl.zeit = 0; aufl.bilder = 0;
+  if (aufl.faktor === 1) aufl.voll = fps;
+  // Bringt weniger Auflösung nichts, ist die Bildrate von außen begrenzt: dann scharf bleiben
+  if (aufl.begrenzt) { if (fps < aufl.begrenzt * 0.82 && aufl.sperre <= 0) aufl.begrenzt = 0; else return; }
+  if (fps < 50 && aufl.faktor <= 0.8 && aufl.voll && fps < aufl.voll * 1.12) { aufl.begrenzt = aufl.voll; auflSetzen(1); aufl.sperre = 20; return; }
   if (fps < 50 && aufl.faktor > 0.6) { auflSetzen(Math.max(0.6, aufl.faktor - 0.1)); aufl.sperre = 8; }
   else if (fps > 58 && aufl.faktor < 1 && aufl.sperre <= 0) { auflSetzen(Math.min(1, aufl.faktor + 0.05)); aufl.sperre = 4; }
 }
@@ -1008,7 +1013,7 @@ function messAnzeige(roh: number): void {
   Object.assign(l, { fps: n / mess.zeit, ms: (mess.zeit * 1000) / n, spiel: mess.spiel / n, bild: mess.bild / n, aufrufe: mess.aufrufe / n, dreiecke: mess.dreiecke / n });
   Object.assign(mess, { zeit: 0, bilder: 0, spiel: 0, bild: 0, aufrufe: 0, dreiecke: 0 });
   if (!einst.fps) return;
-  $('fps').innerHTML = `<b>${Math.round(l.fps)} ${t('Bilder/s')}</b> · ${zahl(l.ms)} ms · ${gpuWeg()}<br>${t('Spiel')} ${zahl(l.spiel)} ms · ${t('Grafik')} ${zahl(l.bild)} ms<br>${Math.round(l.aufrufe)} ${t('Zeichenaufrufe')} · ${zahl(l.dreiecke / 1e6, 2)} ${t('Mio. Dreiecke')} · ${t('Auflösung')} ${Math.round(aufl.faktor * 100)} %`;
+  $('fps').innerHTML = `<b>${Math.round(l.fps)} ${t('Bilder/s')}</b> · ${zahl(l.ms)} ms · ${gpuWeg()}<br>${t('Spiel')} ${zahl(l.spiel)} ms · ${t('Grafik')} ${zahl(l.bild)} ms<br>${Math.round(l.aufrufe)} ${t('Zeichenaufrufe')} · ${zahl(l.dreiecke / 1e6, 2)} ${t('Mio. Dreiecke')} · ${t('Auflösung')} ${Math.round(aufl.faktor * 100)} %${aufl.begrenzt ? `<br>${t('Bildrate von außen begrenzt (Energiesparmodus?)')}` : ''}`;
 }
 let schattenBild = 0; const schattenZiel = new THREE.Vector3(), schattenKamera = new THREE.Vector3();
 /** Schatten nur jedes zweite Bild neu, außer die Kamera bewegt sich (sonst wandern sie sichtbar) */
