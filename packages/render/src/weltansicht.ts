@@ -12,7 +12,7 @@ export class WeltAnsicht {
   readonly gruppe = new THREE.Group();
   uebersicht: UebersichtDaten | null = null;
   private NCH = (2 * WR) / CH;
-  /** geladene Kacheln; stufe 1 = Boden ohne Pflanzen (fern), 2 = alles (nah) */
+  /** geladene Kacheln; stufe 1 = Boden ohne Pflanzen (fern), 2 = Bäume in ganzen Voxeln (mittel), 3 = alles (nah) */
   private geladen = new Map<number, { grp: THREE.Group; extra: THREE.Object3D[]; cx: number; cz: number; stufe: number }>();
   private inArbeit = new Set<number>();
   private rechner: Worker[] = [];
@@ -53,26 +53,26 @@ export class WeltAnsicht {
   private auftrag(msg: { art: string; cx?: number; cz?: number; stufe?: number }): boolean {
     const m: any = { ...msg, gen: this.gen }; if (m.art === 'chunk') { m.aend = this.aenderungen(m.cx, m.cz); m.hoehen = this.hoehen(m.cx, m.cz); }
     const w = this.frei.pop(); if (w) { w.postMessage(m); return true; }
-    if (!this.rechner.length) { setTimeout(() => { if (m.art === 'chunk') this.chunkFertig(m.cx!, m.cz!, bauChunk(m.cx!, m.cz!, m.aend, m.stufe ?? 2), m.stufe ?? 2); else this.uebersichtFertig(uebersicht()); }, 0); return true; }
+    if (!this.rechner.length) { setTimeout(() => { if (m.art === 'chunk') this.chunkFertig(m.cx!, m.cz!, bauChunk(m.cx!, m.cz!, m.aend, m.stufe ?? 3), m.stufe ?? 3); else this.uebersichtFertig(uebersicht()); }, 0); return true; }
     return false;
   }
   private antwort(w: Worker, m: any): void {
     this.frei.push(w);
     if (m.gen !== this.gen) return;
-    if (m.art === 'chunk') this.chunkFertig(m.cx, m.cz, m.r, m.stufe ?? 2);
+    if (m.art === 'chunk') this.chunkFertig(m.cx, m.cz, m.r, m.stufe ?? 3);
     if (m.art === 'uebersicht') this.uebersichtFertig(m.u);
   }
-  private chunkFertig(cx: number, cz: number, r: ChunkDaten, stufe = 2): void {
+  private chunkFertig(cx: number, cz: number, r: ChunkDaten, stufe = 3): void {
     const k = cx * 1000 + cz; this.inArbeit.delete(k);
     const alt = this.geladen.get(k); if (alt) { weg(alt.grp); alt.extra.forEach(weg); }
     if (this.neuBauen.has(k)) { this.neuBauen.delete(k); setTimeout(() => this.kachelNeu(cx, cz), 0); }
     const grp = new THREE.Group(); grp.position.set(cx * CH, 0, cz * CH);
-    const netz = zuGruppe(r.grob, 1); if (stufe < 2) netz.traverse((o) => { o.castShadow = false; }); grp.add(netz);
+    const netz = zuGruppe(r.grob, 1); if (stufe < 3) netz.traverse((o) => { o.castShadow = false; }); grp.add(netz);
     const extra: THREE.Object3D[] = [];
     if (r.wasser.length) extra.push(becken(r.wasser, WASSER)); if (r.lava.length) extra.push(becken(r.lava, LAVA));
     for (const e of extra) this.gruppe.add(e);
     this.gruppe.add(grp); this.geladen.set(k, { grp, extra, cx, cz, stufe });
-    this.maske[(cz + this.NCH / 2) * this.NCH + (cx + this.NCH / 2)] = stufe >= 2 ? 255 : 128; this.maskeTex.needsUpdate = true;
+    this.maske[(cz + this.NCH / 2) * this.NCH + (cx + this.NCH / 2)] = stufe >= 3 ? 255 : stufe === 2 ? 210 : 128; this.maskeTex.needsUpdate = true;
   }
   private uebersichtFertig(u: UebersichtDaten): void {
     this.uebersicht = u;
@@ -144,8 +144,9 @@ export class WeltAnsicht {
       if (cx < -NCH / 2 || cz < -NCH / 2 || cx >= NCH / 2 || cz >= NCH / 2) continue;
       const d = Math.hypot((cx + 0.5) * CH - ziel.x, (cz + 0.5) * CH - ziel.z); if (d > R) continue;
       const k = cx * 1000 + cz; if (this.inArbeit.has(k)) continue;
-      const da = this.geladen.get(k), soll = d <= NAH ? 2 : 1;
-      if (da && (da.stufe === soll || (da.stufe === 2 && d <= NAH + 24))) continue;
+      const MITTEL = this.mittelRadius(dist), soll = d <= NAH ? 3 : d <= MITTEL ? 2 : 1, da = this.geladen.get(k);
+      // mit Spielraum, damit Kacheln am Rand nicht hin- und herwechseln
+      if (da && (da.stufe === soll || (da.stufe > soll && d <= (da.stufe === 3 ? NAH : MITTEL) + 24))) continue;
       kugel.center.set((cx + 0.5) * CH, 8, (cz + 0.5) * CH);
       // fehlende Kacheln zuerst, Detailwechsel danach
       wunsch.push({ cx, cz, d: (kamera && !this.frustum.intersectsSphere(kugel) ? d * 2.5 + 60 : d) + (da ? 400 : 0), k, stufe: soll });
@@ -169,7 +170,9 @@ export class WeltAnsicht {
     for (const g of this.geladen.values()) { g.grp.visible = kacheln; for (const e of g.extra) e.visible = kacheln; }
   }
   /** bis zu dieser Entfernung vom Blickpunkt Kacheln mit Bäumen und Pflanzen */
-  nahRadius(dist: number): number { return THREE.MathUtils.clamp(dist * 0.75, 64, 120) * this.detail; }
+  nahRadius(dist: number): number { return THREE.MathUtils.clamp(dist * 0.8, 64, 140) * this.detail; }
+  /** bis hierhin Bäume in ganzen Voxeln, danach der grobe Wald */
+  mittelRadius(dist: number): number { return this.nahRadius(dist) + 60 * this.detail; }
   /** Detailfaktor (hoch 1, mittel 0,8, niedrig 0,6) */
   detail = 1;
   /** Ist alles Sichtbare fertig gebaut? (Übersicht da, keine fehlende Kachel im Blickfeld) */
@@ -185,7 +188,7 @@ export class WeltAnsicht {
       kugel.center.set((cx + 0.5) * CH, 8, (cz + 0.5) * CH);
       if (!this.frustum.intersectsSphere(kugel)) continue;
       const da = this.geladen.get(cx * 1000 + cz); if (!da) return false;
-      if (da.stufe < 2 && Math.hypot((cx + 0.5) * CH - ziel.x, (cz + 0.5) * CH - ziel.z) <= this.nahRadius(dist)) return false;
+      { const dd = Math.hypot((cx + 0.5) * CH - ziel.x, (cz + 0.5) * CH - ziel.z); if ((da.stufe < 3 && dd <= this.nahRadius(dist)) || (da.stufe < 2 && dd <= this.mittelRadius(dist))) return false; }
     }
     return true;
   }

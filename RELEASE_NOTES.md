@@ -1,3 +1,10 @@
+## runeBOOM 0.8.4 · Weichere Übergänge
+
+- **Drei Detailstufen statt zwei:** nah (bis 140 m statt 120 m) alles in halben Voxeln, dahinter weitere 60 m Bäume, Felsen und Kristalle
+  in ganzen Voxeln, erst danach der grobe Wald. Beim Herauszoomen springt die Landschaft nicht mehr hart um.
+
+---
+
 ## runeBOOM 0.8.3 · Scharf bei fester Bildrate
 
 - **Automatische Auflösung klüger:** Ist die Bildrate von außen begrenzt (etwa durch den Energiesparmodus von Chrome oder macOS, der auf 30 Bilder festlegt),

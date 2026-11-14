@@ -5,8 +5,11 @@ import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array }
 
 /** Eine Kachel (32 × 32 Blöcke) bauen: Boden, Becken, Pflanzen, Kristallfelder, Risse. Läuft im Hintergrund-Rechner. */
-/** stufe 2 = alles; stufe 1 = nur Boden, Kristallfelder und Risse (weiter weg stehen dort die groben Bäume) */
-export function bauChunk(cx: number, cz: number, aenderungen: [number, number, string][] = [], stufe = 2): ChunkDaten {
+/**
+ * Detailstufen: 3 = alles in halben Voxeln (nah); 2 = Bäume, Felsen, Kristalle in ganzen Voxeln, ohne Gras und Blumen (mittel);
+ * 1 = nur Boden, Kristallfelder und Risse, dort stehen die groben Bäume (fern)
+ */
+export function bauChunk(cx: number, cz: number, aenderungen: [number, number, string][] = [], stufe = 3): ChunkDaten {
   const aend = new Map<number, string>(); for (const [x, z, a] of aenderungen) aend.set(x * 4096 + z, a);
   const ox = cx * CH, oz = cz * CH;
   const g = new Grid(), F = new Grid(); g.o = [-ox, 0, -oz, 0]; F.o = [-2 * ox, 0, -2 * oz, 0];
@@ -39,8 +42,9 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     else if (dk.art === 'fels') fels(F, X, Y, Z, 1.6 + r() * 1.6, r, s.a === 'asche' ? '#3a383c' : '#8c867f');
     else {
       const fx = X + Math.floor(r() * 2) - 1, fz = Z + Math.floor(r() * 2) - 1;
-      if (r() < 0.75) { F.set(fx, Y, fz, '#7fb04e'); if (r() > 0.5) F.set(fx, Y + 1, fz, '#8fbd58'); }
-      else F.set(fx, Y, fz, ['#e8d06a', '#d86aa8', '#8fd0ff', '#f2f0ea'][Math.floor(r() * 4)]);
+      // Zufallszahlen immer gleich ziehen, damit die Bäume in jeder Stufe gleich aussehen; Gras nur nah
+      if (r() < 0.75) { if (stufe >= 3) F.set(fx, Y, fz, '#7fb04e'); if (r() > 0.5 && stufe >= 3) F.set(fx, Y + 1, fz, '#8fbd58'); }
+      else { const farbe = ['#e8d06a', '#d86aa8', '#8fd0ff', '#f2f0ea'][Math.floor(r() * 4)]; if (stufe >= 3) F.set(fx, Y, fz, farbe); }
     }
   }
   for (const o of orte()) {
@@ -52,7 +56,17 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   const innen: Voxel[] = [];
   for (const v of g.m.values()) if (v.x >= 0 && v.x < CH && v.z >= 0 && v.z < CH) innen.push(v);
   // Boden und Pflanzen je Material in ein Netz: halb so viele Zeichenaufrufe
-  const grob = meshVoxels(g, innen), feinM = meshVoxels(F, F.m.values());
+  const grob = meshVoxels(g, innen);
+  if (stufe === 2) { // mittel: je 2 × 2 × 2 halbe Voxel zu einem ganzen (etwa ein Viertel der Dreiecke)
+    const G = new Grid();
+    for (const v of F.m.values()) {
+      const x = Math.floor(v.x / 2), y = Math.floor(v.y / 2), z = Math.floor(v.z / 2), k = G.key(x, y, z), alt = G.m.get(k);
+      if (!alt || (v.e !== 0 && alt.e === 0) || (v.y > alt.y * 2 + 1 && v.e === alt.e)) G.m.set(k, { ...v, x, y, z });
+    }
+    const mittel = meshVoxels(G, G.m.values());
+    return { grob: grob.map((a, k) => vereine(a, mittel[k], 1)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
+  }
+  const feinM = meshVoxels(F, F.m.values());
   return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
 }
 
