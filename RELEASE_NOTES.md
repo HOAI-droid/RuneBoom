@@ -1,3 +1,11 @@
+## runeBOOM 0.8.2 · Kampf zum Hören
+
+- **Kampfgeräusche hörbar:** Bogensehnen mit Sirren, Treffer, Würfe, Einschläge und das Vergehen der Wesen klingen jetzt nach Aufnahmen und deutlich lauter.
+  Neu sind dumpfe Schläge, wenn Wesen auf Gebäude einhämmern. Auch ferne Kämpfe bleiben leise hörbar.
+- **Musik tritt nachts zurück,** je mehr Wesen nahe der Burg sind, damit der Kampf zu hören ist.
+
+---
+
 ## runeBOOM 0.8.1 · Feinschliff
 
 - **Kein Fenster schneidet mehr ab:** Erfindungsbaum, Rezeptbuch, Bausteine, Gebäudefenster, Hilfe, Nachtbericht und Leitsätze scrollen, wenn der Inhalt länger ist.
