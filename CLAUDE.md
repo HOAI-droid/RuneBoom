@@ -121,7 +121,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Gelenk `p`, je Glied eigene InstancedMeshes; `setze(…, Regung)` mit `phase`, `gang`, `hieb`, `flug`). Gangphase der Wesen wächst mit dem
   Weg (`gangVon`, `SCHRITT`). **Neue Wesen brauchen einen Bauplan.** Menschen meiden Wasser/Lava: `wege.ts` (`trocken`, `trockenerWeg`:
   gerade Linie, sonst A* im Ausschnitt, geglättet), Arbeiter in `spiel.ts` (`wege`, nicht gespeichert), Bürger in `objekte.ts`.
-  Kacheln in Stufen: 2 = alles bis `nahRadius()`, 1 = Boden + Kristalle/Risse (Maske 128, grober Wald sichtbar, keine Schatten).
+  Kacheln in Stufen (seit 0.8.4 drei): 3 = alles bis `nahRadius()` (≤ 140 m), 2 = Pflanzen in ganzen Voxeln bis `mittelRadius()` (+60 m, Maske 210),
+  1 = Boden + Kristalle/Risse (Maske 128, grober Wald sichtbar); nur Stufe 3 wirft Schatten.
   Messschalter (`messAus`), Leuchtbeeren auf der Krone.
 - [x] 0.8 Lebendige Welt (umgesetzt): Bauzeit für alle neuen Gebäude (`Spiel.bauDauer`, `imBau`, `umbau.kurz`, läuft auch nachts;
   Darstellung Schicht für Schicht über `gebModell(…, schicht)` + Gerüst), Einsturz der Burg (`einsturz()`, Kamera kreist),

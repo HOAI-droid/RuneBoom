@@ -9,10 +9,10 @@ ich.onmessage = (e: MessageEvent) => {
   if (m.art === 'seed') { setzeSeed(m.seed); return; }
   if (m.art === 'chunk') {
     hoehenLeeren(); for (const [x, z, h] of m.hoehen || []) setzeHoehe(x, z, h);
-    const r = bauChunk(m.cx, m.cz, m.aend || [], m.stufe ?? 2); const tr: ArrayBuffer[] = [];
+    const r = bauChunk(m.cx, m.cz, m.aend || [], m.stufe ?? 3); const tr: ArrayBuffer[] = [];
     for (const set of [r.grob, r.fein]) for (const b of set) if (b) tr.push(b.p.buffer as ArrayBuffer, b.n.buffer as ArrayBuffer, b.c.buffer as ArrayBuffer, b.i.buffer as ArrayBuffer);
     tr.push(r.wasser.buffer as ArrayBuffer, r.lava.buffer as ArrayBuffer);
-    ich.postMessage({ art: 'chunk', cx: m.cx, cz: m.cz, gen: m.gen, stufe: m.stufe ?? 2, r }, tr);
+    ich.postMessage({ art: 'chunk', cx: m.cx, cz: m.cz, gen: m.gen, stufe: m.stufe ?? 3, r }, tr);
   }
   if (m.art === 'uebersicht') {
     const u = uebersicht();
