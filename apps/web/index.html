@@ -130,6 +130,14 @@
   .karte-gross .unter { font-family: var(--display); color: var(--rune); letter-spacing: .08em; font-size: 18px; margin-top: -6px; }
   .karte-gross p { margin: 0; color: #d9d1c0; font-size: 16px; line-height: 1.5; }
   .feld { display: flex; gap: 8px; flex-wrap: wrap; }
+  .koop { padding: 7px 10px; font-size: 12px; display: grid; gap: 3px; min-width: 150px; }
+  .koop .raum { color: var(--ember); letter-spacing: 0.08em; font-weight: 600; }
+  .koop .wer { display: flex; gap: 6px; align-items: center; }
+  .koop .wer i { width: 7px; height: 7px; border-radius: 50%; background: #6a8a4a; flex: none; }
+  .koop .wer.weg { opacity: 0.55; } .koop .wer.weg i { background: #7a6a5a; }
+  .koop .wer small { opacity: 0.7; margin-left: auto; }
+  .koop .hinweis { opacity: 0.75; font-size: 11px; }
+  .koop-warte { display: grid; gap: 10px; }
   .feld label { width: 100%; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .feld input { flex: 1; min-width: 180px; background: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; color: var(--frost); font-family: var(--mono); font-size: 18px; letter-spacing: .08em; text-transform: uppercase; -webkit-user-select: text; user-select: text; }
   .feld button, .knopf { background: var(--stone-2); border: 1px solid var(--line); border-radius: 5px; padding: 10px 14px; font-size: 16px; }
@@ -520,6 +528,7 @@
       <button type="button" id="karte-knopf" title="Karte (M)" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M1 3.5 5.5 1.5l5 2 4.5-2v11l-4.5 2-5-2L1 14.5z M5.5 1.5v11 M10.5 3.5v11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
       <button type="button" id="menue" title="Einstellungen und Menü">☰</button>
     </div>
+    <div class="koop tafel" id="koop" hidden data-dynamisch></div>
     <div class="karte tafel" id="karte" role="button" tabindex="0" aria-label="Übersichtskarte, Klick springt dorthin" hidden><canvas id="minikarte" width="256" height="256"></canvas><span id="weltcode" data-dynamisch></span></div>
   </div>
   <div id="meldungen" data-dynamisch aria-live="polite"></div>
@@ -539,6 +548,7 @@
     <nav class="menue-liste" aria-label="Hauptmenü">
       <button type="button" class="menue-knopf haupt" id="weiter" hidden><span>Fortsetzen</span><small id="weiter-info" data-dynamisch></small></button>
       <button type="button" class="menue-knopf" data-seite="neu"><span>Neues Spiel</span><small>Weltcode und Schwierigkeit wählen</small></button>
+      <button type="button" class="menue-knopf" data-seite="koop"><span>Gemeinsam spielen</span><small>Mit 2–4 Spielern eine Feste halten</small></button>
       <button type="button" class="menue-knopf" data-seite="plaetze"><span>Spielstände</span><small>Laden und verwalten</small></button>
       <button type="button" class="menue-knopf" data-seite="einst"><span>Einstellungen</span><small>Musik, Klänge, Grafik</small></button>
       <button type="button" class="menue-knopf" data-seite="steuerung"><span>Steuerung</span><small>Maus, Tasten, Berührung</small></button>

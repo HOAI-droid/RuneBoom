@@ -1,3 +1,20 @@
+## runeBOOM 0.9 · Gemeinsam
+
+- **Mehrspieler (klassischer Koop) für 2–4 Spieler:** eine Welt, eine Burg. Jeder hält eine Himmelsrichtung mit eigenem Riss,
+  eigenen Rohstoffen (Holz, Stein, Erz, Stahl, Balken, Linsen) und eigenen Arbeitern. Erfindungen, Kristall, Nahrung und Bausteine gehören allen.
+  Fällt die Burg, verlieren alle.
+- **So geht's:** Hauptmenü → „Gemeinsam spielen“. Wer eröffnet, ist Gastgeber und nennt den anderen den Raumcode (z. B. `K7Q-M2X`).
+  Die Geräte finden sich über öffentliche Nostr-Relais und spielen dann direkt miteinander (WebRTC), ohne eigenen Server.
+  In sehr strengen Netzen (Firmen, manche Mobilfunknetze) kann die Verbindung scheitern.
+- **Regeln:** alle Risse der Mitspieler sind ab Nacht 1 offen, die Wellen je Riss etwas schwächer als allein. Wer neu dazukommt, findet auf
+  seiner Seite einen Wachturm und einen kleinen Vorrat. Jeder darf pausieren, schneller geht es nur, wenn alle zustimmen. Der Nachtbericht
+  hält für alle an, bis alle weiterklicken. Wer ausfällt, dessen Türme kämpfen weiter; Rückkehr ist möglich. Beitreten geht auch in einer
+  laufenden Partie, aber nur am Tag. Der Gastgeber speichert; fortgesetzt wird mit allen, die da sind.
+- Alle Geräte rechnen dieselbe Partie; Prüfsummen erkennen Abweichungen, dann wird am nächsten Tag neu abgeglichen.
+- Alle Spieler brauchen dieselbe Version. In den Apps für Mac, Windows, Android und iPhone sowie in Chrome, Edge, Firefox und Safari möglich.
+
+---
+
 ## runeBOOM 0.8.4 · Weichere Übergänge
 
 - **Drei Detailstufen statt zwei:** nah (bis 140 m statt 120 m) alles in halben Voxeln, dahinter weitere 60 m Bäume, Felsen und Kristalle

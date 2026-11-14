@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import * as D from '../packages/core/src/daten.ts';
 import { RISSE } from '../packages/core/src/welt.ts';
+import { SEITEN_NAME } from '../packages/core/src/spiel.ts';
 export function alleTexte(): string[] {
   const k = new Set<string>();
   const add = (s?: string) => { if (s && /[A-Za-zÄÖÜäöüß]{2}/.test(s)) k.add(s); };
@@ -21,8 +22,9 @@ export function alleTexte(): string[] {
   for (const v of Object.values(D.SCHWIERIGKEIT)) add(v.name);
   for (const g of D.BAUGRUPPEN) add(g.name);
   for (const r of RISSE) add(r.name);
+  for (const v of Object.values(SEITEN_NAME)) add(v);
   const re = /\b(?:t|tr)\('((?:\\'|[^'])*)'/g;
-  for (const f of ['apps/web/src/main.ts', 'packages/core/src/spiel.ts']) for (const m of readFileSync(f, 'utf8').matchAll(re)) add(m[1].replace(/\\'/g, "'"));
+  for (const f of ['apps/web/src/main.ts', 'apps/web/src/mehrspieler.ts', 'packages/core/src/spiel.ts']) for (const m of readFileSync(f, 'utf8').matchAll(re)) add(m[1].replace(/\\'/g, "'"));
   // statische Texte aus index.html (nur der Körper, ohne Stil)
   const html = readFileSync('apps/web/index.html', 'utf8').split('<body>')[1].split('<script')[0];
   for (const m of html.matchAll(/>([^<>]+)</g)) { const s = m[1].replace(/\s+/g, ' ').trim(); if (s && /[A-Za-zÄÖÜäöüß]{3}/.test(s)) add(s); }

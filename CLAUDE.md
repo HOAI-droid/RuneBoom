@@ -157,5 +157,14 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   mit Zustimmung aller; der Nachtbericht hält für alle an, bis alle bestätigt haben; wer ausfällt, dessen Seite läuft weiter (Türme
   kämpfen selbst), Rückkehr möglich; Gastgeber speichert, fortsetzen mit allen, die da sind; Beitreten auch in laufender Partie, nur am Tag.
   Bewusst noch nicht: Wetter, Bestiarium, Erfolge, Weltcode des Tages, Barrierefreiheit.
-- [ ] 0.9 Mehrspieler (klassischer Koop, siehe oben) · später: Steam · Weltreise · 1.0 Veröffentlichung
+- [x] 0.9 Mehrspieler (klassischer Koop): `Spiel.spieler` (`Mitspieler` mit `Seite` sued/ost/west/nord = Reihenfolge von `RISSE`),
+  eigene Kassen für `EIGENE_RES` (`kasse(id)` als Proxy über Spielerkasse + gemeinsamen Vorrat; `befehl()` tauscht `res` gegen die Kasse von
+  `b.spieler`, Gebäude bekommen `spieler`, Erträge über `kasseVon(g)`), Prüfungen der Oberfläche über `ansicht`/`anzeigeRes()`,
+  Befehl `beitritt` (Nachzügler: 150 Holz, 80 Stein, Wachturm zur eigenen Seite), `offeneRisse()` öffnet Spielerrisse ab Nacht 1,
+  Wellenfaktor `1 + 0,5·(n−1)`. Netz: `apps/web/src/mehrspieler.ts` (`Koop`): trystero 0.26 (`trystero/nostr`, öffentliche Relais, WebRTC),
+  Test im selben Browser mit `?netz=lokal` (BroadcastChannel) und `?spieler=<id>`. Gastgeber = Uhr: schickt `lauf` (bis Takt, Befehle,
+  Tempo, Prüfsummen je 100 Takte), Gäste rechnen nach (`nachrechnen`). Beitritt/Abweichung nur am Tag: Gastgeber speichert, alle starten neu
+  aus demselben Stand (`basis`, Epoche `ep`). Tempo = 0, wenn einer pausiert oder den Bericht liest, sonst Minimum der Wünsche.
+  Oberfläche ruft Aktionen über `befehl()` in main.ts auf. Gäste speichern nicht. Test: `packages/core/test/koop.test.ts`.
+- [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

@@ -37,7 +37,7 @@ runeBOOM ist das Schwesterspiel von [overBOOM](https://github.com/HOAI-droid/ove
 Browser, unter Windows, Mac und Linux (auch auf Steam), auf Android, iPhone und Xbox laufen, alles aus
 einem gemeinsamen Code.
 
-> **Stand: Version 0.8.** Zeichnet über WebGPU, wo es geht, sonst über WebGL. In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
+> **Stand: Version 0.9** – jetzt auch gemeinsam mit 2–4 Spielern (Koop). Zeichnet über WebGPU, wo es geht, sonst über WebGL. In vier Sprachen (Deutsch, Englisch, Französisch, Spanisch), im Browser und als App für Mac, Windows und Linux. Spielbar im Browser mit drei Völkern, fünf Zeitaltern, vier Akten und Sieg,
 > Omen, Wundern, Leitsätzen, Verarbeitung, Fallen, Bevölkerung, Ausbaustufen und Spielständen.
 
 <a id="english"></a>
@@ -54,6 +54,7 @@ seal the rifts or fall.
 - **Endure the night:** light matters – beacons reveal hidden creatures, towers hit better in the light.
 - **Three peoples:** Glutborn (basalt and embers), Hainmar (living wood), Sturmweber (marble and wind).
 - **World codes:** every 1024 × 1024 world grows from a code and can be shared offline.
+- **Play together:** classic co-op for 2–4 players, one castle, each player holds one direction (main menu → “Play together”).
 
 Play it in your browser: <https://hoai-droid.github.io/RuneBoom/> · Project page: <https://hoai-droid.github.io/RuneBoom/docs/>.
 The game speaks German, English, French and Spanish. Apps for Windows, macOS and Linux: see the download links at the top.
@@ -82,6 +83,14 @@ The game speaks German, English, French and Spanish. Apps for Windows, macOS and
 | Esc · Rechtsklick | abbrechen |
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
+
+### Neu in 0.9: Gemeinsam spielen
+
+Klassischer Koop für 2–4 Spieler: eine Welt, eine Burg, je Spieler eine Himmelsrichtung mit eigenem Riss, eigenen Rohstoffen und Arbeitern;
+Erfindungen, Kristall, Nahrung und Bausteine gehören allen. Hauptmenü → „Gemeinsam spielen“: einer eröffnet einen Raum, die anderen treten
+mit dem Raumcode bei (auch in einer laufenden Partie, aber nur am Tag). Pause darf jeder, schneller nur mit allen. Verbindung direkt von Gerät
+zu Gerät (WebRTC über [trystero](https://github.com/dmotz/trystero), Treffpunkt über öffentliche Nostr-Relais), kein eigener Server.
+Technik: Der Gastgeber gibt den Takt vor und verteilt alle Befehle, jedes Gerät rechnet dieselbe Partie (`apps/web/src/mehrspieler.ts`).
 
 ### Neu in 0.8
 
