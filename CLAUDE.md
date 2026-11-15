@@ -186,5 +186,11 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Weltcode und Tag, Mütze über `Objekte.benannt`/`kappen`, Namensschild über `bewohnerAn()`, Meldungen `ERZAEHLT`/`NACHT_ERZAEHLT`, Texte mit `tx()`
   markiert, damit `texte_sammeln.ts` sie findet), Spielstand als Datei (`standAlsDatei()`, `dateiLaden()`, Endung `.runeboom`), Todeslaute je Art
   (`tod_schwer`, `tod_flieger`, `tod_geist`, `tod_boss`), Skizzen-Ersatz `EIGEN` in `erfGebaeude()`.
+- [x] 0.10 Großbauten der Völker (`grossbau: true` in GEBAEUDE, je Volk drei: Werfer/Wirkkreis/Sonderbau; Modelle `grossbau()` in modelle.ts,
+  Skizze `grossbauSkizze()`): Freischaltung über Sprengpulver/Uhrwerk/Kristallspule, Stufen I–III, **keine Zweige**, je Art höchstens zweimal
+  (`grossbauZahl()` je Spieler, zweiter ab `GROSSBAU_ZWEITER` = Burgstufe 4, `kostenFuer()` ×1,5), nicht in der Turmgrenze, aber Runenkraft.
+  Kampf-Erweiterungen: `nurLuft`, `staerkste`, `bremst`, `stoss`, `feld` (glut/wurzel/sturm über `wirkkreis()`), `betaeubt`; Wesen `starr`/`nass`.
+  Fähigkeiten `GROSSBAU_FAEHIGKEIT` ab Stufe III, **zweimal je Nacht und Bau** (Befehl `faehigkeit` mit Name `gb:<id>`, `grossFaehigkeiten()`,
+  `grossFaehigkeit()`), Knöpfe an der Uhr. Test `packages/core/test/grossbau.test.ts`.
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

@@ -1,3 +1,20 @@
+## runeBOOM 0.10 · Großbauten der Völker
+
+Neben den Türmen hat jetzt jedes Volk drei eigene Angriffsbauten. Sie kämpfen selbst; ab Stufe III bekommt jeder eine Fähigkeit,
+die du in der Nacht zweimal auslösen kannst (Knöpfe oben an der Uhr).
+
+- **Glutborn:** **Lavaschleuder** (wirft Glutbrocken weit, der Boden brennt · *Glutregen*), **Schlackengrund** (glühender Kreis,
+  Panzer schmilzt · *Ausbruch*), **Feuerschlund** (Flammen gegen Flieger · *Feuersäule*).
+- **Hainmar:** **Samenschleuder** (Samen, Dornenranken halten fest · *Dornensaat*), **Wurzelkreis** (Wurzeln halten Wesen,
+  Gebäude heilen · *Griff der Tiefe*), **Sonnenblüte** (Lichtstrahl auf das stärkste Wesen · *Morgenröte*).
+- **Sturmweber:** **Böenkanone** (Druckwellen werfen Wesen zurück · *Orkanstoß*), **Sturmauge** (Regen und Wind, nasse Wesen
+  nehmen mehr Blitzschaden · *Wolkenbruch*), **Donnerglocke** (Donnerschlag betäubt · *Großer Schlag*).
+- Freigeschaltet mit den Zeitaltern (Sprengpulver, Uhrwerk, Kristallspule), Stufen I–III, sichtbar am Modell.
+- Jeden Großbau gibt es höchstens **zweimal**: der zweite erst ab Burgstufe 4 und zum 1,5-fachen Preis. Sie zählen nicht zur Turmgrenze,
+  brauchen nachts aber Runenkraft. Im Mehrspieler gilt die Grenze je Spieler.
+
+---
+
 ## runeBOOM 0.9.12 · Bewohner mit Namen
 
 - **Lara, Marie, Tom, Ben, Luana und Leo** leben jetzt in der Feste. Man erkennt sie an ihrer farbigen Mütze; antippen oder anklicken

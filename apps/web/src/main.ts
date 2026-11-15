@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
-  type GebTyp, type GegTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME
+  type GebTyp, type GegTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME, GROSSBAU_FAEHIGKEIT
 } from '@runeboom/core';
 import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT, Grid, grossbau } from '@runeboom/render';
 import { Klang } from './klang.ts';
@@ -14,7 +14,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.12';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.10.0';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -429,7 +429,7 @@ function gruppeZeigen(id: string | null): void {
     const d = GEBAEUDE[typ]; if (d.volk && d.volk !== spiel.volk) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'bau'; b.dataset.typ = typ;
-    b.innerHTML = `${d.taste ? `<kbd>${d.taste}</kbd>` : ''}<b>${t(d.name)}</b><span class="preis">${kostenHtml(d.kosten)}</span>`;
+    b.innerHTML = `${d.taste ? `<kbd>${d.taste}</kbd>` : ''}<b>${t(d.name)}</b><span class="preis">${kostenHtml(spiel.kostenFuer(typ))}</span>`;
     b.onclick = () => { werkzeugSetzen(werkzeug?.art === 'bau' && werkzeug.typ === typ ? null : { art: 'bau', typ }); gruppeZeigen(null); };
     b.onmouseenter = () => { const g = sperrGrund(typ); zeigeTipp(`<b>${t(d.name)}</b> · ${t(d.kurz)}${g ? `<br><span class="grund">${g}</span>` : ''}`); };
     b.onmouseleave = () => { if (!werkzeug) zeigeTipp(null); };
@@ -443,7 +443,7 @@ function leisteAktualisieren(): void {
     const typ = b.dataset.typ as GebTyp;
     b.setAttribute('aria-pressed', String(werkzeug?.art === 'bau' && werkzeug.typ === typ));
     b.classList.toggle('gesperrt', !!sperrGrund(typ));
-    b.classList.toggle('teuer', !spiel.kannBezahlen(GEBAEUDE[typ].kosten));
+    b.classList.toggle('teuer', !spiel.kannBezahlen(spiel.kostenFuer(typ)));
   }
   for (const b of $('leiste').querySelectorAll<HTMLButtonElement>('.gruppe')) {
     const id = b.dataset.gruppe, t = b.dataset.typ;
@@ -494,6 +494,7 @@ function panelGeb(): void {
   if (g.typ === 'haupt') { z(t('Stufe'), `${t(HAUPT_STUFEN[g.stufe - 1].name)} (${g.stufe}/6)`); z(t('Türme'), `${s.turmZahl()} / ${s.turmGrenze()}`); }
   const zweig = d.zweige?.find((x) => x.id === g.zweig); if (zweig) z(t('Zweig'), t(zweig.name));
   const k = s.kampf(g); if (k) z(t('Reichweite · Schaden'), `${Math.round(k.reichweite)} · ${Math.round(k.schaden)}${k.flaeche ? t(' Fläche') : ''}${k.ziele && k.ziele > 1 ? ` · ${t('{a} Ziele', { a: k.ziele })}` : ''}`);
+  if (d.grossbau && GROSSBAU_FAEHIGKEIT[g.typ]) z(t('Fähigkeit'), g.stufe >= 3 ? t('{a} · zweimal je Nacht', { a: t(GROSSBAU_FAEHIGKEIT[g.typ]!) }) : t('{a} ab Stufe III', { a: t(GROSSBAU_FAEHIGKEIT[g.typ]!) }));
   if (d.licht > 4) z(t('Lichtkreis'), `${t('{a} Blöcke', { a: d.licht + (zweig?.licht || 0) })}`);
   const soll = s.arbeiterZahl(g), zug = s.zugeteilt(g);
   if (soll) z(t('Arbeiter'), `<span${zug < soll ? t(' style="color:var(--rot)"') : ''}>${zug} / ${soll}</span>`);
@@ -759,14 +760,14 @@ canvas.addEventListener('pointermove', (e) => {
   if (!spiel || !werkzeug || werkzeug.art !== 'bau') return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) { obj?.zeigeVorschau(null); return; }
   const typ = werkzeug.typ, [x0, z0] = GEBAEUDE[typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(typ, p);
-  const pr = spiel.pruefe(typ, x0, z0), bezahlbar = spiel.kannBezahlen(GEBAEUDE[typ].kosten);
+  const pr = spiel.pruefe(typ, x0, z0), bezahlbar = spiel.kannBezahlen(spiel.kostenFuer(typ));
   obj?.zeigeVorschau(typ, x0, z0, pr.ok && bezahlbar, pr.ok ? pr.y : hoehe(x0 + 0.5, z0 + 0.5));
   if (unten?.mauer) { mauerZiel = [x0, z0]; const zug = linie(unten.mauer, mauerZiel);
     // Verlauf der Mauer auf dem Boden zeigen
     obj?.zeigeLinie(zug.map(([x, z]) => { const q = spiel!.pruefe(typ, x, z); return [x, q.ok ? q.y : hoehe(x + 0.5, z + 0.5), z, q.ok] as [number, number, number, boolean]; }));
   } else obj?.zeigeLinie(null);
   if (unten?.mauer) { const n = linie(unten.mauer, mauerZiel!).length; zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: n, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * n]))) })}`); }
-  else zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(GEBAEUDE[typ].kosten)}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
+  else zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(spiel.kostenFuer(typ))}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
 });
 canvas.addEventListener('pointerup', (e) => {
   const u = unten; unten = null; controls.enabled = true;
@@ -990,7 +991,7 @@ function mitteSchritt(): void {
     ok.textContent = mitteStart ? `✓ ${t('Ebnen')}` : `✓ ${t('Ecke setzen')}`;
   } else {
     if (w.art !== 'bau') return;
-    const typ = w.typ, pr = spiel.pruefe(typ, z[0], z[1]), bezahlbar = spiel.kannBezahlen(GEBAEUDE[typ].kosten);
+    const typ = w.typ, pr = spiel.pruefe(typ, z[0], z[1]), bezahlbar = spiel.kannBezahlen(spiel.kostenFuer(typ));
     geht = pr.ok && bezahlbar;
     obj?.zeigeVorschau(typ, z[0], z[1], geht, pr.ok ? pr.y : hoehe(z[0] + 0.5, z[1] + 0.5));
     const linieAn = LINIE.has(typ);
@@ -1001,7 +1002,7 @@ function mitteSchritt(): void {
       zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: zug.length, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * zug.length]))) })}`);
     } else {
       obj?.zeigeLinie(null);
-      zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(GEBAEUDE[typ].kosten)}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
+      zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(spiel.kostenFuer(typ))}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
     }
     ok.textContent = linieAn && !mitteStart ? `✓ ${t('Anfang setzen')}` : `✓ ${t('Bauen')}`;
     if (linieAn && !mitteStart) geht = pr.ok;
@@ -1191,9 +1192,9 @@ function anzeige(): void {
     $('einlaeuten').onclick = () => befehl({ art: 'nacht' });
     const ar = document.getElementById('allerep'); if (ar) ar.onclick = () => { if (s.alleReparieren()) klang.spiele('bau', 0.8); };
   } else if (s.phase === 'nacht') {
-    const f = s.faehigkeiten();
+    const f = s.faehigkeiten(), gf = s.grossFaehigkeiten();
     const om = s.omenFuer(s.nacht);
-    const html = `<div class="akt-zeile">${t('Akt {a} · {b}', { a: s.akt().nr, b: t(s.akt().name) })}</div>${om ? `<div class="omen"><b>${t(OMEN[om].name)}</b></div>` : ''}<div class="titel">${t('Nacht {a}', { a: s.nacht })}</div><div class="unter">${t('Die Welle kommt · {a} Wesen unterwegs', { a: s.gegner.length })}</div>${f.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${t(FAEHIGKEIT_NAME[n])}</button>`).join(' ')}</div>` : ''}`;
+    const html = `<div class="akt-zeile">${t('Akt {a} · {b}', { a: s.akt().nr, b: t(s.akt().name) })}</div>${om ? `<div class="omen"><b>${t(OMEN[om].name)}</b></div>` : ''}<div class="titel">${t('Nacht {a}', { a: s.nacht })}</div><div class="unter">${t('Die Welle kommt · {a} Wesen unterwegs', { a: s.gegner.length })}</div>${f.length || gf.length ? `<div class="faehig">${f.map((n) => `<button type="button" data-faehig="${n}" ${s.faehigkeitFrei(n) ? '' : 'disabled'}>${t(FAEHIGKEIT_NAME[n])}</button>`).join(' ')}${gf.map((x) => `<button type="button" class="gross" data-faehig="gb:${x.geb.id}" title="${t(GEBAEUDE[x.geb.typ].name)}" ${x.frei > 0 ? '' : 'disabled'}>${t(x.name)} <small>${x.frei}×</small></button>`).join(' ')}</div>` : ''}`;
     if (u.dataset.html !== html) {
       u.dataset.html = html; u.innerHTML = html;
       u.querySelectorAll<HTMLButtonElement>('[data-faehig]').forEach((b) => { b.onclick = () => { const n = b.dataset.faehig!; if (n === 'feuerregen') werkzeugSetzen({ art: 'feuerregen' }); else if (befehl({ art: 'faehigkeit', name: n })) klang.spiele('glocke', 0.8); }; });
