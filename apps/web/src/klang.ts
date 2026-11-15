@@ -5,7 +5,7 @@
  * Tonleitern und Akkordfolgen zusammen. Schichten: Tag, Abend, Nacht, Kampf; eigenes Motiv für den Rissfürsten.
  * Alles läuft über einen gemeinsamen Hall. Fehlen die Dateien (Einzeldatei-Vorschau), spielen erzeugte Klänge.
  */
-type Ton = 'schlag' | 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf' | 'boss' | 'siegel' | 'omen' | 'wunder' | 'falle' | 'blitz' | 'feuer';
+type Ton = 'tod_schwer' | 'tod_flieger' | 'tod_geist' | 'tod_boss' | 'schlag' | 'sehne' | 'treffer' | 'explosion' | 'hieb_holz' | 'hieb_stein' | 'hieb_kristall' | 'bau' | 'einsturz' | 'horn' | 'glocke' | 'tod' | 'abgeliefert' | 'klick' | 'reparatur' | 'wurf' | 'boss' | 'siegel' | 'omen' | 'wunder' | 'falle' | 'blitz' | 'feuer';
 type Instrument = 'flute' | 'pan_flute' | 'orchestral_harp' | 'kalimba' | 'woodblock' | 'string_ensemble_1' | 'tubular_bells' | 'dulcimer' | 'celesta' | 'french_horn' | 'trombone' | 'taiko_drum' | 'timpani' | 'contrabass' | 'choir_aahs' | 'cello';
 export type MusikVolk = 'glutborn' | 'hainmar' | 'sturmweber';
 
@@ -149,6 +149,11 @@ export class Klang {
       case 'einsturz': this.rausch(t, 1.8, 0.45 * v, z, 'lowpass', 900, 60); this.osz('sine', 52, t, 1.4, 0.38 * v, z, 28); A('knarr1', 0.5, 0.55, 2500); A(this.eins(['tuer1', 'tuer4']), 0.5, 0.6, 1800, 0.25); A(this.eins(['tuer2', 'tuer3']), 0.4, 0.5, 1500, 0.6); break;
       case 'horn': if (!this.note('french_horn', 50, t, 2.6, 0.55 * v, z) || !this.note('trombone', 38, t, 2.6, 0.45 * v, z)) for (const [f, l] of [[110, 0.16], [165, 0.1], [220, 0.06]] as [number, number][]) this.osz('sawtooth', f, t, 2.4, l * v, this.filter(z, 900), f * 0.99, 0.5); break;
       case 'glocke': if (!this.note('tubular_bells', 72, t, 3, 0.4 * v, z)) for (const [f, l] of [[523, 0.12], [784, 0.07], [1046, 0.05], [1568, 0.03]] as [number, number][]) this.osz('sine', f, t, 2.6, l * v, z); break;
+      // eigene Laute je Art: schwere Wesen tief und dumpf, Flieger mit Kreischen, Geister als Hauch, Rissfürst mit Donner
+      case 'tod_schwer': this.rausch(t, 0.6, 0.3 * v, z, 'lowpass', 260, 70, 1.4); A('leder', 0.6, 0.45, 1200, 0.03); this.osz('sawtooth', 90 + Math.random() * 20, t, 0.55, 0.12 * v, this.filter(z, 400), 38); break;
+      case 'tod_flieger': this.osz('sawtooth', 1200 + Math.random() * 300, t, 0.45, 0.07 * v, this.filter(z, 2600), 420); this.rausch(t + 0.05, 0.4, 0.16 * v, z, 'bandpass', 1800, 500, 2); A('leder', 0.35, 1.3, 3000, 0.25); break;
+      case 'tod_geist': this.rausch(t, 0.9, 0.2 * v, z, 'bandpass', 900, 250, 3); this.osz('sine', 520 + Math.random() * 80, t, 0.8, 0.06 * v, z, 180); break;
+      case 'tod_boss': if (!this.note('timpani', 36, t, 2, 0.9 * v, z)) this.rausch(t, 1.6, 0.3 * v, z, 'lowpass', 220, 50); this.rausch(t + 0.1, 1.4, 0.25 * v, z, 'lowpass', 500, 60); this.osz('sawtooth', 70, t, 1.4, 0.14 * v, this.filter(z, 300), 30); break;
       case 'tod': this.rausch(t, 0.35, 0.22 * v, z, 'bandpass', 600, 180, 2); A('leder', 0.4, 0.7, 2500, 0.05); this.osz('sawtooth', 160 + Math.random() * 60, t, 0.32, 0.08 * v, this.filter(z, 700), 70); break;
       case 'wurf': this.rausch(t, 0.45, 0.22 * v, z, 'bandpass', 400, 1400, 1.2); A('klinge', 0.2, 0.8, 3000); break;
       case 'boss': if (!this.note('timpani', 36, t, 2, 0.8 * v, z)) this.rausch(t, 2.4, 0.18 * v, z, 'lowpass', 300, 80); this.note('trombone', 38, t + 0.2, 3, 0.5 * v, z); this.note('trombone', 39, t + 1.4, 2.4, 0.45 * v, z);
