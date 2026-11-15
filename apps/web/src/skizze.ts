@@ -1,4 +1,4 @@
-import { gebGrid, wesenGrid } from '@runeboom/render';
+import { gebGrid, wesenGrid, grossbau, Grid } from '@runeboom/render';
 import type { GebTyp, GegTyp } from '@runeboom/core';
 
 /**
@@ -10,6 +10,10 @@ const cache = new Map<string, string>();
 /** grob: so viele halbe Voxel werden zu einem zusammengefasst (kleine Skizzen 2–3, große 1) */
 export function skizze(typ: GebTyp, breite: number, hoehe: number, grob = 1, volk = ''): string {
   return skizzeAus(`g/${typ}/${volk}`, () => gebGrid(typ, false, undefined, 1, 0, volk), breite, hoehe, grob);
+}
+/** Skizze eines Großbaus der Völker (Stufe I–III) */
+export function grossbauSkizze(typ: string, breite: number, hoehe: number, stufe = 1): string {
+  return skizzeAus(`gb/${typ}/${stufe}`, () => { const g = new Grid(); grossbau(g, typ, stufe); return g; }, breite, hoehe, 1);
 }
 /** Skizze eines Wesens */
 export function wesenSkizze(typ: GegTyp, breite: number, hoehe: number, grob = 1): string {

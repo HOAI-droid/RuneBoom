@@ -26,7 +26,9 @@ export type GebTyp =
   // Dorf, Verarbeitung, Abwehr, Ende
   | 'aussenposten' | 'erzmine' | 'saegewerk' | 'schmelze' | 'schleiferei' | 'tor' | 'dornenfeld' | 'oelgraben' | 'sprengfalle' | 'siegel'
   // Wunder (je Zeitalter eines aus zwei)
-  | 'w_leuchtturm' | 'w_kornkammer' | 'w_sternwarte' | 'w_kolossus' | 'w_orgel' | 'w_runenschmiede' | 'w_sternenschild' | 'w_aetherquelle';
+  | 'w_leuchtturm' | 'w_kornkammer' | 'w_sternwarte' | 'w_kolossus' | 'w_orgel' | 'w_runenschmiede' | 'w_sternenschild' | 'w_aetherquelle'
+  // Großbauten der Völker (je Volk drei, je Art höchstens zweimal)
+  | 'lavaschleuder' | 'schlackengrund' | 'feuerschlund' | 'samenschleuder' | 'wurzelkreis' | 'sonnenbluete' | 'boeenkanone' | 'sturmauge' | 'donnerglocke';
 export type ErfId =
   // Zeitalter 1
   | 'sprengpulver' | 'steinmetz' | 'leuchtfeuer' | 'runenpfeile' | 'pflug' | 'axtschmiede' | 'dornenwall' | 'wachrune' | 'kraeuterkunde' | 'fischerei'
@@ -49,6 +51,13 @@ export interface Kampf {
   /** durchschlägt Kristallpanzer */ panzerbrechend?: boolean;
   /** setzt in Brand: Schaden je Sekunde für 3 s */ brand?: number;
   /** Granaten je Schuss (Streuung) */ salve?: number;
+  /** trifft nur Flieger */ nurLuft?: boolean;
+  /** zielt auf das stärkste Wesen in Reichweite */ staerkste?: boolean;
+  /** Einschlag bremst Bodenwesen so viele Sekunden (Ranken) */ bremst?: number;
+  /** Einschlag wirft Bodenwesen so viele Blöcke zurück (Druckwelle) */ stoss?: number;
+  /** Wirkkreis: ruhige Fläche statt Blitzen; hält fest (Sekunden Bremse je Takt), heilt Gebäude (HP/s), macht nass */
+  feld?: 'glut' | 'wurzel' | 'sturm';
+  /** periodischer Schlag: betäubt alle im Umkreis so viele Sekunden */ betaeubt?: number;
 }
 export interface Zweig { id: string; name: string; kurz: string; kampf?: Partial<Kampf>; licht?: number }
 export interface GebDef {
@@ -69,6 +78,7 @@ export interface GebDef {
   /** Verarbeitung: verbraucht von, erzeugt nach (je Takt dauer s und Arbeiter) */
   umwandeln?: { von: Kosten; nach: Res; menge: number; dauer: number; arbeiter: number };
   /** nur für dieses Volk */ volk?: Volk;
+  /** Großbau eines Volks: höchstens zweimal, der zweite ab Burgstufe GROSSBAU_ZWEITER und 1,5-fach teurer */ grossbau?: boolean;
   /** Wunder des Zeitalters (eines aus zwei) */ wunder?: Zeitalter;
   /** Falle: begehbar, wirkt auf Bodenwesen */ falle?: 'dornen' | 'oel' | 'spreng';
   /** erst ab dieser Nacht (Akt) */ abNacht?: number;
@@ -140,6 +150,25 @@ export const GEBAEUDE: Record<GebTyp, GebDef> = {
     kampf: { reichweite: 24, schaden: 130, abklingen: 2, geschoss: 'topf', flaeche: 5.5, brand: 30, panzerbrechend: true, salve: 2 } },
   sturmturm: { zeitalter: 5, volk: 'sturmweber', von: 'blitzspule', braucht: 'aetherkern', name: 'Sturmturm', kurz: 'Turm der Sturmweber. Eine Sturmkrone, die alles im weiten Umkreis laufend trifft.', w: 5, d: 5, hp: 1200, kosten: { stein: 120, kristall: 220, stahl: 12, linsen: 8 }, licht: 10, sicht: 28, baubar: false,
     kampf: { reichweite: 16, schaden: 60, abklingen: 0, geschoss: 'aura', panzerbrechend: true } },
+  // ---------- Großbauten der Völker ----------
+  lavaschleuder: { grossbau: true, stufen: true, volk: 'glutborn', braucht: 'sprengpulver', name: 'Lavaschleuder', kurz: 'Großbau der Glutborn. Ein Basalt-Trebuchet schleudert Glutbrocken weit über das Feld; wo sie landen, brennt der Boden.', w: 5, d: 5, hp: 900, kosten: { stein: 120, kristall: 80, balken: 6, stahl: 4 }, licht: 5, sicht: 30, baubar: true,
+    kampf: { reichweite: 30, schaden: 70, abklingen: 3.2, geschoss: 'topf', flaeche: 5, brand: 14, nurBoden: true } },
+  schlackengrund: { grossbau: true, stufen: true, volk: 'glutborn', braucht: 'uhrwerk', name: 'Schlackengrund', kurz: 'Großbau der Glutborn. Glühender Boden um einen Kupferkessel: Bodenwesen brennen, Kristallpanzer schmilzt.', w: 5, d: 5, hp: 1000, kosten: { stein: 100, kristall: 110, stahl: 6, linsen: 3 }, licht: 8, sicht: 20, baubar: true,
+    kampf: { reichweite: 9, schaden: 16, abklingen: 0, geschoss: 'aura', nurBoden: true, panzerbrechend: true, brand: 6, feld: 'glut' } },
+  feuerschlund: { grossbau: true, stufen: true, volk: 'glutborn', braucht: 'kristallspule', name: 'Feuerschlund', kurz: 'Großbau der Glutborn. Ein Schlot speit Flammen in den Himmel und trifft Drachlinge und Nebelrochen.', w: 5, d: 5, hp: 1000, kosten: { stein: 140, kristall: 150, stahl: 8, linsen: 6 }, licht: 9, sicht: 26, baubar: true,
+    kampf: { reichweite: 22, schaden: 70, abklingen: 0, geschoss: 'strahl', nurLuft: true, ziele: 2, brand: 10 } },
+  samenschleuder: { grossbau: true, stufen: true, volk: 'hainmar', braucht: 'sprengpulver', name: 'Samenschleuder', kurz: 'Großbau der Hainmar. Ein lebender Ast schleudert Samenkapseln; wo sie aufschlagen, keimen Dornenranken und halten Wesen fest.', w: 5, d: 5, hp: 950, kosten: { stein: 80, holz: 160, kristall: 80, balken: 8 }, licht: 3, sicht: 28, baubar: true,
+    kampf: { reichweite: 28, schaden: 45, abklingen: 2.6, geschoss: 'topf', flaeche: 5, bremst: 3, nurBoden: true } },
+  wurzelkreis: { grossbau: true, stufen: true, volk: 'hainmar', braucht: 'uhrwerk', name: 'Wurzelkreis', kurz: 'Großbau der Hainmar. Uralte Wurzeln halten Bodenwesen fest und schwächen sie; Gebäude im Kreis heilen langsam.', w: 5, d: 5, hp: 1100, kosten: { stein: 80, holz: 140, kristall: 110, linsen: 3 }, licht: 5, sicht: 20, baubar: true,
+    kampf: { reichweite: 9, schaden: 9, abklingen: 0, geschoss: 'aura', nurBoden: true, feld: 'wurzel' } },
+  sonnenbluete: { grossbau: true, stufen: true, volk: 'hainmar', braucht: 'kristallspule', name: 'Sonnenblüte', kurz: 'Großbau der Hainmar. Eine riesige Blüte bündelt Sonnenlicht und brennt nachts auf das stärkste Wesen in Reichweite.', w: 5, d: 5, hp: 950, kosten: { stein: 100, holz: 120, kristall: 150, linsen: 8 }, licht: 10, sicht: 28, baubar: true,
+    kampf: { reichweite: 24, schaden: 120, abklingen: 0, geschoss: 'strahl', staerkste: true, panzerbrechend: true } },
+  boeenkanone: { grossbau: true, stufen: true, volk: 'sturmweber', braucht: 'sprengpulver', name: 'Böenkanone', kurz: 'Großbau der Sturmweber. Ein Messingrohr feuert Druckwellen, die Bodenwesen zurückwerfen und Flieger aus der Bahn bringen.', w: 5, d: 5, hp: 900, kosten: { stein: 120, kristall: 80, balken: 4, stahl: 6 }, licht: 4, sicht: 26, baubar: true,
+    kampf: { reichweite: 24, schaden: 40, abklingen: 3, geschoss: 'topf', flaeche: 5, stoss: 5, nurBoden: true } },
+  sturmauge: { grossbau: true, stufen: true, volk: 'sturmweber', braucht: 'uhrwerk', name: 'Sturmauge', kurz: 'Großbau der Sturmweber. Eine Gewitterwolke über dem Kreis: Wesen werden langsamer und nass, Flieger sinken. Nasse Wesen nehmen mehr Blitzschaden.', w: 5, d: 5, hp: 1000, kosten: { stein: 110, kristall: 110, stahl: 6, linsen: 3 }, licht: 6, sicht: 22, baubar: true,
+    kampf: { reichweite: 10, schaden: 7, abklingen: 0, geschoss: 'aura', feld: 'sturm' } },
+  donnerglocke: { grossbau: true, stufen: true, volk: 'sturmweber', braucht: 'kristallspule', name: 'Donnerglocke', kurz: 'Großbau der Sturmweber. Eine Messingglocke schlägt Donner: Wesen im Umkreis nehmen Schaden und erstarren kurz.', w: 5, d: 5, hp: 1100, kosten: { stein: 140, kristall: 150, stahl: 8, linsen: 6 }, licht: 7, sicht: 24, baubar: true,
+    kampf: { reichweite: 14, schaden: 60, abklingen: 5, geschoss: 'aura', betaeubt: 1.5 } },
   lichtsaeule: { zeitalter: 5, von: 'kristallfeuer', braucht: 'aetherkern', name: 'Lichtsäule', kurz: 'Äther & Sterne. Eine Säule aus Licht bis in den Himmel: gewaltiger Lichtkreis, enthüllt alles.', w: 2, d: 2, hp: 700, kosten: { stein: 80, kristall: 160, linsen: 10 }, licht: 40, sicht: 50, enthuellt: true, baubar: false },
   // ---- Verschmelzungen (zwei benachbarte Türme werden einer) ----
   brandturm: { fusion: true, zeitalter: 2, name: 'Brandpfeilturm', kurz: 'Wachturm + Feuertopf. Pfeile setzen Wesen in Brand.', w: 5, d: 5, hp: 520, kosten: { kristall: 25 }, licht: 7, sicht: 20, baubar: false, kampf: { ...P(15, 12, 0.8), brand: 8, flaeche: 1.4 } },
@@ -152,7 +181,7 @@ export const BAULEISTE: GebTyp[] = ['wachturm', 'feuertopf', 'fackel', 'haus', '
 export const BAUGRUPPEN: { id: string; name: string; taste: string; typen: GebTyp[] }[] = [
   { id: 'dorf', name: 'Dorf', taste: 'Z', typen: ['haus', 'hof', 'fischer', 'aussenposten', 'siegel'] },
   { id: 'rohstoffe', name: 'Rohstoffe', taste: 'R', typen: ['holz', 'stein', 'kristall', 'erzmine', 'saegewerk', 'schmelze', 'schleiferei'] },
-  { id: 'abwehr', name: 'Abwehr', taste: 'V', typen: ['wachturm', 'feuertopf', 'fackel', 'mauer', 'tor', 'dornenfeld', 'oelgraben', 'sprengfalle'] },
+  { id: 'abwehr', name: 'Abwehr', taste: 'V', typen: ['wachturm', 'feuertopf', 'fackel', 'mauer', 'tor', 'dornenfeld', 'oelgraben', 'sprengfalle', 'lavaschleuder', 'schlackengrund', 'feuerschlund', 'samenschleuder', 'wurzelkreis', 'sonnenbluete', 'boeenkanone', 'sturmauge', 'donnerglocke'] },
   { id: 'wunder', name: 'Wunder', taste: 'B', typen: ['w_leuchtturm', 'w_kornkammer', 'w_sternwarte', 'w_kolossus', 'w_orgel', 'w_runenschmiede', 'w_sternenschild', 'w_aetherquelle'] }
 ];
 /** Akte der Stammfeste: 40 Nächte, am Ende Sieg */
@@ -203,6 +232,10 @@ export const HAUPT_STUFEN: HauptStufe[] = [
   { stufe: 6, name: 'Kristallzitadelle', braucht: 'kristallspule', kosten: { holz: 380, stein: 380, kristall: 220, stahl: 30, linsen: 20 }, hp: 5200, licht: 30, tuerme: 30, wohnraum: 20, faehigkeit: 'schild', kurz: 'Fähigkeit Kristallschild: 15 Sekunden unverwundbar.' }
 ];
 export const FAEHIGKEIT_NAME: Record<string, string> = { feuerregen: 'Feuerregen', notreparatur: 'Notreparatur', sturmglocke: 'Sturmglocke', dampfstoss: 'Dampfstoß', schild: 'Kristallschild' };
+/** Fähigkeiten der Großbauten (ab Stufe III, je Bau zweimal je Nacht) */
+export const GROSSBAU_FAEHIGKEIT: Partial<Record<GebTyp, string>> = { lavaschleuder: 'Glutregen', schlackengrund: 'Ausbruch', feuerschlund: 'Feuersäule', samenschleuder: 'Dornensaat', wurzelkreis: 'Griff der Tiefe', sonnenbluete: 'Morgenröte', boeenkanone: 'Orkanstoß', sturmauge: 'Wolkenbruch', donnerglocke: 'Großer Schlag' };
+/** Burgstufe, ab der sich ein zweiter Großbau derselben Art errichten lässt */
+export const GROSSBAU_ZWEITER = 4;
 
 /** Stufen I–III eines Gebäudes: Erfindung, Kosten, Wirkung */
 export const STUFE_BRAUCHT: Record<number, ErfId> = { 2: 'steinmetz', 3: 'meisterbau' };

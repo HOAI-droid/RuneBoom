@@ -8,7 +8,8 @@ import {
   moorwicht, wolf, troll, drachling, nebelrochen, figur8, turmUhrwerk, turmKristall,
   turmSchuetzen, turmKanone, turmBlitz, lichtFeuerKlein, lichtSpiegelKlein, lichtKristallKlein, turmFusion, ruine, trollPanzer, drachenFeuer,
   wohnhaus, bauernhof, fischerhuette, stufenSchmuck, mauerSchaden, burg, aschegeist, steinwerfer, schamane, schildwaechter, rissfuerst, pfeilHoch,
-  VOLK_FARBEN, geruest, aussenposten, erzmine, saegewerk, schmelze, schleiferei, tor, falle, siegelstein, wunder, turmZeitalter5
+  VOLK_FARBEN, geruest, aussenposten, erzmine, saegewerk, schmelze, schleiferei, tor, falle, siegelstein, wunder, turmZeitalter5,
+  grossbau,
 } from './modelle.ts';
 import { RISSE } from '@runeboom/core';
 import { rng, type Ruine } from '@runeboom/core';
@@ -24,11 +25,14 @@ export function wesenGrid(typ: GegTyp): Grid {
   F[typ]?.(); return g;
 }
 /** Voxel eines Gebäudes (halbe Voxel, Mitte bei 0), auch für die Erfinderskizzen */
+/** Farbe der Dauerstrahlen: Laser kühl, Feuerschlund Flamme, Sonnenblüte Sonnenlicht */
+const STRAHL_FARBE: Partial<Record<GebTyp, THREE.Color>> = { laser: new THREE.Color('#9ff4ff'), feuerschlund: new THREE.Color('#ff8a2a'), sonnenbluete: new THREE.Color('#ffe27a') };
 export function gebGrid(typ: GebTyp, stahl = false, zweigId?: string, stufe = 1, schaden = 0, volk = ''): Grid {
   const zw = GEBAEUDE[typ].zweige?.findIndex((z) => z.id === zweigId) ?? -1;
   const g = new Grid(), def = GEBAEUDE[typ];
     Grid.tausch = VOLK_FARBEN[volk] || null;
     if (def.wunder) wunder(g, typ);
+    if (def.grossbau) grossbau(g, typ, stufe);
     if (def.zeitalter === 5) turmZeitalter5(g, typ);
     if (typ === 'aussenposten') aussenposten(g);
     if (typ === 'erzmine') erzmine(g);
@@ -83,7 +87,7 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
 }
 export function gebMitte(g: { x: number; z: number; w: number; d: number }): [number, number] { return [g.x + g.w / 2, g.z + g.d / 2]; }
 const GEB_HOEHE: Partial<Record<GebTyp, number>> = { haupt: 23, werkstatt: 9, haus: 9, hof: 7, fischer: 7, aussenposten: 18, erzmine: 5, saegewerk: 6, schmelze: 9, schleiferei: 7, tor: 6, dornenfeld: 1, oelgraben: 1, sprengfalle: 1, siegel: 11,
-  w_leuchtturm: 22, w_kornkammer: 11, w_sternwarte: 14, w_kolossus: 16, w_orgel: 14, w_runenschmiede: 12, w_sternenschild: 9, w_aetherquelle: 13, aetherbogen: 16, sonnenstrahl: 15, sternkanone: 14, plasmawerfer: 14, sturmturm: 16, lichtsaeule: 18, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
+  lavaschleuder: 11, schlackengrund: 5, feuerschlund: 14, samenschleuder: 11, wurzelkreis: 4, sonnenbluete: 13, boeenkanone: 9, sturmauge: 11, donnerglocke: 13, w_leuchtturm: 22, w_kornkammer: 11, w_sternwarte: 14, w_kolossus: 16, w_orgel: 14, w_runenschmiede: 12, w_sternenschild: 9, w_aetherquelle: 13, aetherbogen: 16, sonnenstrahl: 15, sternkanone: 14, plasmawerfer: 14, sturmturm: 16, lichtsaeule: 18, wachturm: 18, feuertopf: 14, fackel: 10, leuchtfeuer: 10, scheinwerfer: 11, kristallfeuer: 14, mauer: 6.5, holz: 8, stein: 7, kristall: 6,
   schuetzenturm: 16, repetierer: 18, laser: 20, kanone: 12, blitzspule: 15, brandturm: 19, leuchtpfeil: 21, doppelturm: 18, glutmoerser: 13 };
 /** Höhe, aus der Strahlen und Blitze kommen */
 function spitze(g: Geb): number { return g.y + (GEB_HOEHE[g.typ] || 10) - 1; }
@@ -485,7 +489,8 @@ export class Objekte {
     this.feuer = new Schar(mk((g) => drachenFeuer(g)), 0.3, 60, scene, false);
     this.panzer = new Schar(mk((g) => trollPanzer(g)), 0.3, 60, scene, false);
     const strahlGeo = new THREE.BoxGeometry(0.16, 0.16, 1); strahlGeo.translate(0, 0, 0.5);
-    this.strahlen = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#9ff4ff').multiplyScalar(1.5), toneMapped: false }), 120);
+    this.strahlen = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(1.5), toneMapped: false }), 120);
+    this.strahlen.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(120 * 3), 3);
     this.blitzMesh = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#c9c0ff').multiplyScalar(1.7), toneMapped: false }), 400);
     for (const m of [this.strahlen, this.blitzMesh]) { m.count = 0; m.frustumCulled = false; scene.add(m); }
     this.schild = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#8fd8ff', transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
@@ -709,12 +714,12 @@ export class Objekte {
         const e = S.gegner.find((o) => o.id === id); if (!e || e.tot || ns >= 120) continue;
         const a = new THREE.Vector3(cx, spitze(g), cz), b = new THREE.Vector3(e.x, e.y + 1, e.z), l = a.distanceTo(b);
         q.setFromUnitVectors(fw0, b.clone().sub(a).normalize()); const dick = 0.8 + Math.sin(t * 40 + id) * 0.25;
-        mtx.compose(a, q, new THREE.Vector3(dick, dick, l)); this.strahlen.setMatrixAt(ns++, mtx);
+        mtx.compose(a, q, new THREE.Vector3(dick, dick, l)); this.strahlen.setColorAt(ns, STRAHL_FARBE[g.typ] || STRAHL_FARBE.laser!); this.strahlen.setMatrixAt(ns++, mtx);
         if (Math.random() < dt * 10) this.teilchen.wurf(b.x, b.y, b.z, 1, ['#c8fbff', '#ffffff'], 1.5, 1, 0.12);
       }
     }
     this.baumeister.ende(); this.schuetzen.ende();
-    this.strahlen.count = ns; this.strahlen.instanceMatrix.needsUpdate = true;
+    this.strahlen.count = ns; this.strahlen.instanceMatrix.needsUpdate = true; if (this.strahlen.instanceColor) this.strahlen.instanceColor.needsUpdate = true;
     // Blitze: kurz aufflackernde Zickzack-Linien
     this.blitze = this.blitze.filter((b) => (b.t += dt) < 0.16);
     let nb = 0;

@@ -7,7 +7,7 @@ import { trockenerWeg } from './wege.ts';
 import {
   GEBAEUDE, GEGNER, ERFINDUNGEN, HAUPT_STUFEN, VERSCHMELZUNGEN, PANZER_AB, UMBAU_DAUER, ZEITALTER_NAME, linie, welle, staerke, START, TAG_DAUER, ABEND, MORGEN_DAUER, MORGEN_REPARATUR, SETZLING_NACH, BAUM_NACH, BAUM_GAENGE, FELS_GAENGE, EBNEN_STEIN, EBNEN_MAX,
   STUFE_BRAUCHT, SCHLUESSEL_VORWISSEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, aktVon,
-  type Volk, type Omen, STUFE_WERT, STUFE_NAME, stufenKosten, runenkraft, SCHWIERIGKEIT, ESSEN, RES_NAMEN, BAUSTEIN_NAME, FAEHIGKEIT_NAME,
+  type Volk, type Omen, GROSSBAU_ZWEITER, GROSSBAU_FAEHIGKEIT, STUFE_WERT, STUFE_NAME, stufenKosten, runenkraft, SCHWIERIGKEIT, ESSEN, RES_NAMEN, BAUSTEIN_NAME, FAEHIGKEIT_NAME,
   type GebTyp, type GegTyp, type Res, type Baustein, type ErfId, type Kosten, type Kampf, type Zeitalter, type Schwierigkeit
 } from './daten.ts';
 
@@ -18,7 +18,7 @@ export const DT = 1 / 20;
 /** Nebel-Raster: Zellen zu 8 × 8 Blöcken */
 export const NZ = 8, NN = (2 * WR) / NZ;
 
-export interface Geb { /** Besitzer im Mehrspieler */ spieler?: string; id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
+export interface Geb { /** Besitzer im Mehrspieler */ spieler?: string; /** Fähigkeit eines Wirkkreises läuft noch (Sekunden) */ ausbruch?: number; id: number; typ: GebTyp; x: number; z: number; w: number; d: number; y: number; hp: number; max: number; cd: number; quellen: number; rep?: { t: number; dauer: number; von: number }; zielen: number;
   zweig?: string; stufe: number; umbau?: { t: number; dauer: number; nach: GebTyp; zweig?: string; stufe?: number; kurz?: boolean }; strahlen: number[]; schild: number;
   /** brennt noch so viele Sekunden · danach eine Weile geschützt */ brand: number; brandSchutz?: number; /** hat in dieser Nacht Runenkraft */ kraft: boolean; /** Schaden in dieser Nacht */ leistung: number;
   /** Siegel: wartet auf die Nacht des Ansturms */ ritual?: boolean }
@@ -30,8 +30,8 @@ export interface Arbeiter { id: number; geb: number; x: number; z: number; y: nu
 export type DekoZustand = 'stumpf' | 'setzling' | 'weg';
 export interface Gegner { id: number; typ: GegTyp; x: number; z: number; y: number; hp: number; max: number; tempo: number; schaden: number; flug: boolean; verborgen: boolean; versatz: number; ziel: [number, number] | null; angriff: number; richtung: number; tot: boolean; seit: number; fracht: number; bester: number; stillstand: number;
   brand: number; brandDps: number; langsam: number; panzer: boolean; feuer: number; nebenbei: number;
-  /** Steinwerfer: Abklingzeit · Ziel; Rissfürst: Ruf-Abklingzeit · Schild */ wurf: number; zielGeb: number; ruf: number; bossSchild: number; schildGenutzt: boolean }
-export interface Geschoss { brand: number; brechend: boolean; von: number; zielGeb?: number; art: 'pfeil' | 'topf' | 'stein'; x: number; y: number; z: number; sx: number; sy: number; sz: number; tx: number; ty: number; tz: number; t: number; dauer: number; ziel: number; schaden: number; flaeche: number; trifft: boolean; bogen: number }
+  /** Steinwerfer: Abklingzeit · Ziel; Rissfürst: Ruf-Abklingzeit · Schild */ wurf: number; zielGeb: number; ruf: number; bossSchild: number; schildGenutzt: boolean ; /** erstarrt (Sekunden) */ starr?: number; /** nass (Sekunden, mehr Blitzschaden) */ nass?: number }
+export interface Geschoss { /** Ranken bremsen */ bremst?: number; /** Druckwelle wirft zurück */ stoss?: number; brand: number; brechend: boolean; von: number; zielGeb?: number; art: 'pfeil' | 'topf' | 'stein'; x: number; y: number; z: number; sx: number; sy: number; sz: number; tx: number; ty: number; tz: number; t: number; dauer: number; ziel: number; schaden: number; flaeche: number; trifft: boolean; bogen: number }
 export type Ereignis =
   | { art: 'tod'; typ: GegTyp; x: number; y: number; z: number }
   | { art: 'treffer'; x: number; y: number; z: number }
@@ -408,11 +408,11 @@ export class Spiel {
   /** Türme, die nach der Burgstufe erlaubt sind */
   turmGrenze(): number { const h = this.haupt; return (h ? HAUPT_STUFEN[h.stufe - 1].tuerme : 6) + (this.erfindungen.has('festungsbau') ? 2 : 0) + (this.erfindungen.has('bollwerk') ? 4 : 0); }
   /** zählt für die Turmgrenze (keine Burg, Wunder, Außenposten) */
-  static zaehltAlsTurm(typ: GebTyp): boolean { const d = GEBAEUDE[typ]; return !!d.kampf && typ !== 'haupt' && !d.wunder && typ !== 'aussenposten'; }
+  static zaehltAlsTurm(typ: GebTyp): boolean { const d = GEBAEUDE[typ]; return !!d.kampf && typ !== 'haupt' && !d.wunder && !d.grossbau && typ !== 'aussenposten'; }
   turmZahl(): number { return this.gebaeude.filter((g) => Spiel.zaehltAlsTurm(g.typ)).length; }
   /** Kristall, den alle Türme in der kommenden Nacht als Runenkraft brauchen */
   runenkraftBedarf(): number {
-    let n = 0; for (const g of this.gebaeude) if (Spiel.zaehltAlsTurm(g.typ)) n += runenkraft(g.typ, g.stufe);
+    let n = 0; for (const g of this.gebaeude) if (Spiel.zaehltAlsTurm(g.typ) || GEBAEUDE[g.typ].grossbau) n += runenkraft(g.typ, g.stufe);
     return Math.ceil(n * this.kraftFaktor());
   }
   kraftFaktor(): number {
@@ -428,8 +428,20 @@ export class Spiel {
   welleVorschau() { return welle(this.nacht); }
 
   /** Kann typ mit linker oberer Ecke (x0, z0) gebaut werden? */
+  /** Großbauten dieser Art, die dem Spieler gehören (allein: alle) */
+  grossbauZahl(typ: GebTyp): number { const wer = this.inSim ? this.wer : this.ansicht; return this.gebaeude.filter((g) => g.typ === typ && (!wer || !this.spieler.length || g.spieler === wer)).length; }
+  /** Baukosten: der zweite Großbau derselben Art kostet das 1,5-Fache */
+  kostenFuer(typ: GebTyp): Kosten {
+    const k = GEBAEUDE[typ].kosten; if (!GEBAEUDE[typ].grossbau || this.grossbauZahl(typ) < 1) return k;
+    const o: Kosten = {}; for (const [r, n] of Object.entries(k)) o[r as Res] = Math.ceil((n as number) * 1.5); return o;
+  }
   pruefe(typ: GebTyp, x0: number, z0: number): { ok: boolean; grund?: string; y: number } {
     const def = GEBAEUDE[typ];
+    if (def.grossbau) {
+      const n = this.grossbauZahl(typ), h = this.haupt;
+      if (n >= 2) return { ok: false, grund: tr('{a} lässt sich höchstens zweimal bauen.', { a: tr(def.name) }), y: 0 };
+      if (n === 1 && (!h || h.stufe < GROSSBAU_ZWEITER)) return { ok: false, grund: tr('Ein zweiter Bau dieser Art braucht die Burgstufe {a} ({b}).', { a: GROSSBAU_ZWEITER, b: tr(HAUPT_STUFEN[GROSSBAU_ZWEITER - 1].name) }), y: 0 };
+    }
     if (!this.freigeschaltet(typ)) return { ok: false, grund: tr('Braucht die Erfindung {a}.', { a: tr(ERFINDUNGEN[def.braucht!].name) }), y: 0 };
     if (def.volk && def.volk !== this.volk) return { ok: false, grund: tr('Nur für das Volk der {a}.', { a: tr(VOELKER[def.volk].name) }), y: 0 };
     if (def.abNacht && this.nacht < def.abNacht) return { ok: false, grund: tr('Erst ab Nacht {a} (Akt {b}: {c}).', { a: def.abNacht, b: aktVon(def.abNacht).nr, c: tr(aktVon(def.abNacht).name) }), y: 0 };
@@ -472,8 +484,9 @@ export class Spiel {
     if (this.phase === 'verloren') return false;
     const p = this.pruefe(typ, x0, z0);
     if (!p.ok) { if (!still) this.melde(p.grund!, 'schlecht'); return false; }
-    if (!this.kannBezahlen(def.kosten)) { if (!still) this.melde(tr('{a} kostet {b}. {c}', { a: tr(def.name), b: kostenText(def.kosten), c: this.fehlt(def.kosten) }), 'schlecht'); return false; }
-    for (const [r, n] of Object.entries(def.kosten)) this.res[r as Res] -= n as number;
+    const kosten = this.kostenFuer(typ);
+    if (!this.kannBezahlen(kosten)) { if (!still) this.melde(tr('{a} kostet {b}. {c}', { a: tr(def.name), b: kostenText(kosten), c: this.fehlt(kosten) }), 'schlecht'); return false; }
+    for (const [r, n] of Object.entries(kosten)) this.res[r as Res] -= n as number;
     const g = this.setze(typ, x0, z0);
     if (!def.bauzeit) this.bauBeginnen(g);
     return true;
@@ -874,6 +887,7 @@ export class Spiel {
       e.seit += DT;
       if (e.brand > 0) { e.brand -= DT; this.verletze(e, e.brandDps * DT, true); if (e.tot) continue; }
       if (e.langsam > 0) e.langsam -= DT;
+      if (e.starr) e.starr = Math.max(0, e.starr - DT); if (e.nass) e.nass = Math.max(0, e.nass - DT);
       if (e.feuer > 0) e.feuer -= DT;
       e.nebenbei -= DT;
       const def = GEGNER[e.typ];
@@ -885,7 +899,7 @@ export class Spiel {
         if (!e.schildGenutzt && e.hp < e.max * 0.5) { e.schildGenutzt = true; e.bossSchild = 6; this.melde(tr('Der Rissfürst hüllt sich in einen Schild!'), 'schlecht'); }
       }
       const orgel = this.hatWunder('w_orgel');
-      let tempo = e.tempo * (e.langsam > 0 ? 0.55 : 1) * (orgel && mhypot(e.x - hx, e.z - hz) < 45 ? 0.67 : 1);
+      let tempo = e.tempo * (e.starr ? 0 : 1) * (e.langsam > 0 ? 0.55 : 1) * (orgel && mhypot(e.x - hx, e.z - hz) < 45 ? 0.67 : 1);
       if (!e.flug) { // Fallen im Boden
         const f = this.gebAn(e.x, e.z), fa = f && GEBAEUDE[f.typ].falle;
         if (fa) {
@@ -1017,12 +1031,12 @@ export class Spiel {
     const nacht = this.phase === 'nacht', runen = this.erfindungen.has('runenpfeile') && k.geschoss === 'pfeil';
     const tx = g.x + g.w / 2, tz = g.z + g.d / 2, liste: { e: Gegner; hell: boolean; prio: number }[] = [];
     for (const e of this.gegner) {
-      if (e.tot || (k.nurBoden && e.flug)) continue;
+      if (e.tot || (k.nurBoden && e.flug) || (k.nurLuft && !e.flug)) continue;
       const d = mhypot(e.x - tx, e.z - tz); if (d > k.reichweite) continue;
       const l = this.licht(e.x, e.z), hell = !nacht || l.wert > 0.15;
       if (e.verborgen && nacht && !l.enthuellt && !runen && d > 4 && l.wert < 0.3) continue;
       if (!hell && d > k.reichweite * 0.6) continue;
-      liste.push({ e, hell, prio: this.feld.wert(e.x, e.z) + d * 0.2 });
+      liste.push({ e, hell, prio: k.staerkste ? -e.hp : this.feld.wert(e.x, e.z) + d * 0.2 });
     }
     liste.sort((a, b) => a.prio - b.prio);
     return liste.slice(0, anzahl);
@@ -1044,9 +1058,10 @@ export class Spiel {
       if (k.geschoss === 'strahl') {
         const z = this.ziele(g, k, k.ziele || 1); g.strahlen = z.map((t) => t.e.id);
         if (z.length) g.zielen = matan2(z[0].e.x - tx, z[0].e.z - tz);
-        for (const t of z) this.verletze(t.e, k.schaden * DT * (t.hell ? 1 : 0.6), true, g, 'strahl');
+        for (const t of z) { this.verletze(t.e, k.schaden * DT * (t.hell ? 1 : 0.6), true, g, 'strahl'); if (k.brand) { t.e.brand = Math.max(t.e.brand, 1); t.e.brandDps = k.brand; } }
         continue;
       }
+      if (k.geschoss === 'aura' && (k.feld || k.betaeubt)) { this.wirkkreis(g, k, tx, sy, tz); continue; }
       if (k.geschoss === 'aura') {
         g.cd -= DT;
         let n = 0; for (const e of this.gegner) if (!e.tot && mhypot(e.x - tx, e.z - tz) < k.reichweite) { this.verletze(e, k.schaden * DT, true, g, 'blitz'); n++; }
@@ -1079,7 +1094,7 @@ export class Spiel {
             const px = best.x + (vx / vl) * best.tempo * dauer, pz = best.z + (vz / vl) * best.tempo * dauer;
             const streu = (hell ? 0.6 : 2.2) + (k.salve ? 3 : 0);
             const zx = px + (this.r() - 0.5) * streu, zz = pz + (this.r() - 0.5) * streu;
-            this.geschosse.push({ art: 'topf', x: tx, y: sy, z: tz, sx: tx, sy, sz: tz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -s * 0.12, dauer, ziel: 0, schaden: k.schaden, flaeche: k.flaeche!, trifft: true, bogen: 6 + mhypot(zx - tx, zz - tz) * 0.25, brand: k.brand || 0, brechend: !!k.panzerbrechend, von: g.id });
+            this.geschosse.push({ art: 'topf', x: tx, y: sy, z: tz, sx: tx, sy, sz: tz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -s * 0.12, dauer, ziel: 0, schaden: k.schaden, flaeche: k.flaeche!, trifft: true, bogen: 6 + mhypot(zx - tx, zz - tz) * 0.25, brand: k.brand || 0, brechend: !!k.panzerbrechend, von: g.id, bremst: k.bremst, stoss: k.stoss });
           }
         }
       }
@@ -1106,6 +1121,11 @@ export class Spiel {
           if (p.flaeche) for (const e of this.gegner) if (e !== z && !e.flug && mhypot(e.x - z.x, e.z - z.z) < p.flaeche) { e.brand = brandZeit; e.brandDps = p.brand || 4; }
         } else this.ereignisse.push({ art: 'fehl', x: p.tx, y: p.ty, z: p.tz });
       } else {
+        if (p.bremst || p.stoss) for (const e of this.gegner) {
+          if (e.tot || mhypot(e.x - p.tx, e.z - p.tz) >= p.flaeche) continue;
+          if (p.bremst && !e.flug) e.langsam = Math.max(e.langsam, p.bremst);
+          if (p.stoss) { if (e.flug) e.langsam = Math.max(e.langsam, 1.5); else if (von) this.stosse(e, von.x + von.w / 2, von.z + von.d / 2, p.stoss); }
+        }
         this.ereignisse.push({ art: 'explosion', x: p.tx, y: p.ty, z: p.tz, r: p.flaeche });
         for (const e of this.gegner) { if ((e.flug && !GEGNER[e.typ].wirtschaft) || e.tot) continue; const d = mhypot(e.x - p.tx, e.z - p.tz); if (d < p.flaeche) { this.verletze(e, p.schaden * (1 - d / p.flaeche * 0.6), p.brechend, von, 'topf'); if (p.brand) { e.brand = brandZeit; e.brandDps = p.brand; } } }
       }
@@ -1120,6 +1140,7 @@ export class Spiel {
     if (e.panzer && !brechend && !E.has('himmelsschmiede')) n *= 0.4;
     if (e.brand > 0 && E.has('brandoel')) n *= 1.5;
     if (e.flug) { if (E.has('sternensegel')) n *= 1.4; if (this.volk === 'sturmweber') n *= 1.25; }
+    if (e.nass && art === 'blitz') n *= 1.5;
     const echt = Math.min(n, Math.max(0, e.hp));
     e.hp -= n; if (von) von.leistung += echt;
     if (e.hp > 0) return;
@@ -1191,10 +1212,72 @@ export class Spiel {
     this.ereignisse.push({ art: 'reparatur', geb: h, fertig: false });
     return true;
   }
+  /** Bodenwesen von einem Punkt wegstoßen (nur auf begehbaren, freien Boden) */
+  private stosse(e: Gegner, vx: number, vz: number, weit: number): void {
+    const dx = e.x - vx, dz = e.z - vz, d = mhypot(dx, dz) || 1;
+    for (let w = weit; w >= 1; w -= 1) { const nx = e.x + (dx / d) * w, nz = e.z + (dz / d) * w; if (begehbar(spalte(Math.floor(nx), Math.floor(nz))) && !this.gebAn(nx, nz)) { e.x = nx; e.z = nz; e.y = hoehe(nx, nz); e.ziel = null; return; } }
+  }
+  /** Wirkkreise (Schlackengrund, Wurzelkreis, Sturmauge) und die Donnerglocke */
+  private wirkkreis(g: Geb, k: Kampf, tx: number, sy: number, tz: number): void {
+    if (g.ausbruch) g.ausbruch = Math.max(0, g.ausbruch - DT);
+    const aus = (g.ausbruch || 0) > 0;
+    if (k.betaeubt) { // Donnerglocke: Schlag in Abständen
+      g.cd -= DT; if (g.cd > 0) return;
+      const im = this.gegner.filter((e) => !e.tot && mhypot(e.x - tx, e.z - tz) < k.reichweite); if (!im.length) return;
+      g.cd = k.abklingen;
+      for (const e of im) { this.verletze(e, k.schaden, true, g, 'blitz'); e.starr = Math.max(e.starr || 0, k.betaeubt); }
+      this.ereignisse.push({ art: 'blitz', punkte: [[tx, sy + 6, tz], ...im.slice(0, 3).map((e) => [e.x, e.y + 1, e.z] as [number, number, number])] });
+      return;
+    }
+    const r = k.reichweite * (aus && k.feld === 'sturm' ? 2 : 1), dps = k.schaden * (aus && k.feld !== 'sturm' ? 4 : 1);
+    for (const e of this.gegner) {
+      if (e.tot || (k.nurBoden && e.flug) || mhypot(e.x - tx, e.z - tz) >= r) continue;
+      this.verletze(e, dps * DT, !!k.panzerbrechend, g, k.feld === 'sturm' ? 'blitz' : 'strahl');
+      if (k.feld === 'glut') { e.brand = Math.max(e.brand, aus ? 3 : 1); e.brandDps = Math.max(e.brandDps, (k.brand || 4) * (aus ? 3 : 1)); if (e.panzer) e.panzer = false; }
+      if (k.feld === 'wurzel') { e.langsam = Math.max(e.langsam, 0.4); if (aus) e.starr = Math.max(e.starr || 0, 0.3); }
+      if (k.feld === 'sturm') { e.langsam = Math.max(e.langsam, 0.4); e.nass = 4; }
+    }
+    if (k.feld === 'wurzel') for (const o of this.gebaeude) if (o.hp < o.max && mhypot(o.x + o.w / 2 - tx, o.z + o.d / 2 - tz) < r + 2) o.hp = Math.min(o.max, o.hp + 4 * g.stufe * DT);
+  }
+  /** Großbauten mit Fähigkeit (ab Stufe III): je Bau zweimal je Nacht */
+  grossFaehigkeiten(): { geb: Geb; name: string; frei: number }[] {
+    const wer = this.inSim ? this.wer : this.ansicht;
+    return this.gebaeude.filter((g) => GROSSBAU_FAEHIGKEIT[g.typ] && g.stufe >= 3 && !g.umbau && (!wer || !this.spieler.length || g.spieler === wer))
+      .map((g) => ({ geb: g, name: GROSSBAU_FAEHIGKEIT[g.typ]!, frei: 2 - (this.genutzt.get(`gb:${g.id}`) || 0) }));
+  }
+  private grossFaehigkeit(g: Geb): boolean {
+    const k = this.kampf(g), tx = g.x + g.w / 2, tz = g.z + g.d / 2; if (!k) return false;
+    const nah = (r: number, boden = false) => this.gegner.filter((e) => !e.tot && (!boden || !e.flug) && mhypot(e.x - tx, e.z - tz) < r);
+    switch (g.typ) {
+      case 'lavaschleuder': { // drei Salven auf die dichteste Gruppe
+        const im = nah(k.reichweite + 6, true); if (!im.length) return false;
+        let best = im[0], bn = 0; for (const e of im) { const n = im.filter((o) => mhypot(o.x - e.x, o.z - e.z) < 7).length; if (n > bn) { bn = n; best = e; } }
+        for (let i = 0; i < 12; i++) { const a = this.r() * 6.283, d = Math.sqrt(this.r()) * 6, zx = best.x + mcos(a) * d, zz = best.z + msin(a) * d;
+          this.geschosse.push({ art: 'topf', x: tx, y: g.y + 12, z: tz, sx: tx, sy: g.y + 12, sz: tz, tx: zx, ty: hoehe(zx, zz), tz: zz, t: -Math.floor(i / 4) * 0.6 - (i % 4) * 0.08, dauer: 1.3, ziel: 0, schaden: k.schaden * 1.5, flaeche: 5, trifft: true, bogen: 10, brand: (k.brand || 10) * 1.5, brechend: true, von: g.id }); }
+        return true;
+      }
+      case 'schlackengrund': case 'wurzelkreis': case 'sturmauge': g.ausbruch = g.typ === 'sturmauge' ? 10 : 6; return true;
+      case 'feuerschlund': for (const e of nah(34)) if (e.flug) { this.verletze(e, k.schaden * 3, true, g, 'strahl'); e.brand = 4; e.brandDps = 20; } this.ereignisse.push({ art: 'feuer', x: tx, y: g.y + 16, z: tz, tx, ty: g.y + 40, tz }); return true;
+      case 'samenschleuder': for (const e of nah(k.reichweite, true)) { e.langsam = Math.max(e.langsam, 7); e.starr = Math.max(e.starr || 0, 1.5); this.verletze(e, k.schaden, false, g, 'topf'); } return true;
+      case 'sonnenbluete': for (const e of nah(24)) { e.starr = Math.max(e.starr || 0, 2.5); e.verborgen = false; this.verletze(e, k.schaden * 0.6, true, g, 'strahl'); } return true;
+      case 'boeenkanone': for (const e of nah(22)) { if (e.flug) e.langsam = Math.max(e.langsam, 4); else this.stosse(e, tx, tz, 10); this.verletze(e, k.schaden, false, g, 'topf'); } return true;
+      case 'donnerglocke': for (const e of nah(28)) { this.verletze(e, k.schaden * 2, true, g, 'blitz'); e.starr = Math.max(e.starr || 0, 4); } this.ereignisse.push({ art: 'blitz', punkte: [[tx, g.y + 18, tz], ...nah(28).slice(0, 5).map((e) => [e.x, e.y + 1, e.z] as [number, number, number])] }); return true;
+    }
+    return false;
+  }
   faehigkeiten(): string[] { const h = this.haupt; return h ? HAUPT_STUFEN.slice(1, h.stufe).map((s) => s.faehigkeit) : []; }
   /** Fähigkeit in dieser Nacht noch nutzbar? (Runenglocke: zweimal) */
   faehigkeitFrei(name: string): boolean { return (this.genutzt.get(name) || 0) < (this.erfindungen.has('runenglocke') ? 2 : 1); }
   faehigkeit(name: string, x = 0, z = 0): boolean {
+    if (name.startsWith('gb:')) { // Fähigkeit eines Großbaus
+      const g = this.gebaeude.find((o) => `gb:${o.id}` === name);
+      if (!g || this.phase !== 'nacht' || g.stufe < 3 || !GROSSBAU_FAEHIGKEIT[g.typ]) return false;
+      if ((this.genutzt.get(name) || 0) >= 2) { this.melde(tr('Diese Fähigkeit ist in dieser Nacht schon verbraucht.'), 'schlecht'); return false; }
+      if (!this.grossFaehigkeit(g)) { this.melde(tr('Gerade sind keine Wesen in Reichweite.'), 'info'); return false; }
+      this.genutzt.set(name, (this.genutzt.get(name) || 0) + 1);
+      this.ereignisse.push({ art: 'faehigkeit', name, x: g.x + g.w / 2, z: g.z + g.d / 2 });
+      return true;
+    }
     const h = this.haupt; if (!h || this.phase !== 'nacht' || !this.faehigkeiten().includes(name)) return false;
     if (!this.faehigkeitFrei(name)) { this.melde(tr('Diese Fähigkeit ist in dieser Nacht schon verbraucht.'), 'schlecht'); return false; }
     this.genutzt.set(name, (this.genutzt.get(name) || 0) + 1);

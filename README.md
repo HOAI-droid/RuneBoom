@@ -91,6 +91,12 @@ The game speaks German, English, French and Spanish. Apps for Windows, macOS and
 
 Gespeichert wird automatisch zu Beginn jedes Tages im Browser. Über ☰ lässt sich zusätzlich in drei Plätze speichern, geladen wird im Hauptmenü unter „Spielstände“.
 
+### Neu in 0.10: Großbauten der Völker
+
+Jedes Volk hat drei eigene Angriffsbauten neben den Türmen: einen Werfer, einen Wirkkreis und einen Sonderbau (Glutborn: Lavaschleuder,
+Schlackengrund, Feuerschlund · Hainmar: Samenschleuder, Wurzelkreis, Sonnenblüte · Sturmweber: Böenkanone, Sturmauge, Donnerglocke).
+Stufen I–III, ab Stufe III eine Fähigkeit, die man nachts zweimal auslösen kann. Höchstens zwei je Art, der zweite ab Burgstufe 4.
+
 ### Neu in 0.9: Gemeinsam spielen
 
 Klassischer Koop für 2–4 Spieler: eine Welt, eine Burg, je Spieler eine Himmelsrichtung mit eigenem Riss, eigenen Rohstoffen und Arbeitern;

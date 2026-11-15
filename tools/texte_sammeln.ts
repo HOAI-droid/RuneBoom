@@ -19,6 +19,7 @@ export function alleTexte(): string[] {
   for (const a of D.AKTE) { add(a.name); add(a.text); }
   for (const h of D.HAUPT_STUFEN) { add(h.name); add(h.kurz); }
   for (const v of Object.values(D.FAEHIGKEIT_NAME)) add(v);
+  for (const v of Object.values(D.GROSSBAU_FAEHIGKEIT)) add(v);
   for (const v of Object.values(D.SCHWIERIGKEIT)) add(v.name);
   for (const g of D.BAUGRUPPEN) add(g.name);
   for (const r of RISSE) add(r.name);
