@@ -1,3 +1,14 @@
+## runeBOOM 0.9.1 · Handlich
+
+- **Kompakte Oberfläche für Handys im Querformat:** Rohstoffe in einer Zeile (Tippen klappt Bausteine, Einwohner, Arbeiter und Türme auf,
+  ein roter Punkt warnt bei Mangel), Uhr in einer Zeile mit Mond-Knopf zum Einläuten, kleinere Tempo-Knöpfe, Bauleiste in einer Reihe unten,
+  Gebäude darüber zum seitlichen Wischen, Einführung als kleine Tafel links oben, Fenster als Seitenleiste rechts. Die Welt bleibt sichtbar.
+- **Einstellung „Oberfläche“:** Automatisch (kompakt bei wenig Bildschirmhöhe), Kompakt oder Normal.
+
+Alles aus 0.9 („Gemeinsam“) steht unten.
+
+---
+
 ## runeBOOM 0.9 · Gemeinsam
 
 - **Mehrspieler (klassischer Koop) für 2–4 Spieler:** eine Welt, eine Burg. Jeder hält eine Himmelsrichtung mit eigenem Riss,

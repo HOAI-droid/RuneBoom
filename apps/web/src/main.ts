@@ -13,14 +13,14 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.0';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.1';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
 
 // ================= Einstellungen =================
 const EINST = 'runeboom-einstellungen-1';
-const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl' };
+const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl', oberflaeche: 'auto' as 'auto' | 'kompakt' | 'normal' };
 try { Object.assign(einst, JSON.parse(localStorage.getItem(EINST) || '{}')); } catch { /* */ }
 registriereSprache('en', EN); registriereSprache('fr', FR); registriereSprache('es', ES);
 setzeSprache(einst.sprache === 'auto' ? systemSprache() : einst.sprache);
@@ -279,6 +279,8 @@ function einstellungenHtml(): string {
   return `<label class="regler">${t('Musik')} <input type="range" id="e-musik" min="0" max="1" step="0.05" value="${einst.musik}"></label>
     <label class="regler">${t('Klänge')} <input type="range" id="e-effekte" min="0" max="1" step="0.05" value="${einst.effekte}"></label>
     ${grafikHtml()}
+    <div class="zeile"><span>${t('Oberfläche')}</span><span class="wahl">${(['auto', 'kompakt', 'normal'] as const).map((o) => `<button type="button" data-oberflaeche="${o}" aria-pressed="${einst.oberflaeche === o}">${o === 'auto' ? t('Automatisch') : o === 'kompakt' ? t('Kompakt') : t('Normal')}</button>`).join('')}</span></div>
+    <p>${t('Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.')}</p>
     <div class="zeile"><span>${t('Sprache')}</span><span class="wahl">${(['auto', 'de', 'en', 'fr', 'es'] as const).map((l) => `<button type="button" data-sprache="${l}" aria-pressed="${einst.sprache === l}">${l === 'auto' ? t('Automatisch') : SPRACHEN[l]}</button>`).join('')}</span></div>
 `;
 }
@@ -307,6 +309,7 @@ function einstellungenVerbinden(p: HTMLElement, neu: () => void): void {
   const m = p.querySelector<HTMLInputElement>('#e-musik')!, f = p.querySelector<HTMLInputElement>('#e-effekte')!;
   m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
   grafikVerbinden(p, neu);
+  p.querySelectorAll<HTMLButtonElement>('[data-oberflaeche]').forEach((b) => { b.onclick = () => { einst.oberflaeche = b.dataset.oberflaeche as typeof einst.oberflaeche; einstSpeichern(); kompaktSetzen(); neu(); }; });
   p.querySelectorAll<HTMLButtonElement>('[data-sprache]').forEach((b) => { b.onclick = () => { einst.sprache = b.dataset.sprache as typeof einst.sprache; einstSpeichern(); sprachWechsel(); neu(); }; });
 }
 /** Sprache wechseln: statische Texte, Leiste, offene Fenster neu */
@@ -883,6 +886,7 @@ function anzeige(): void {
   $('res').innerHTML = (['holz', 'stein', 'kristall', 'nahrung', 'erz', 'balken', 'stahl', 'linsen'] as Res[]).filter((r) => ['holz', 'stein', 'kristall', 'nahrung'].includes(r) || R[r] > 0).map((r) => `<span title="${t(RES_NAME[r])}"><i class="${r}"></i>${Math.floor(R[r])}</span>`).join('');
   const bed = s.arbeiterBedarf(), arb = s.arbeiter.length, essen = s.essen(), rk = s.runenkraftBedarf();
   $('bewohner').innerHTML = `<span>${t('Einwohner')} <b>${s.einwohner}</b> / ${s.wohnraum()}</span><span${arb < bed ? t(' class="warn"') : ''}>${t('Arbeiter')} <b>${arb}</b> / ${bed}</span><span${s.res.nahrung < essen ? t(' class="warn"') : ''}>${t('Essen je Tag')} <b>${essen}</b></span><span>${t('Türme')} <b>${s.turmZahl()}</b> / ${s.turmGrenze()}</span><span${s.res.kristall < rk ? t(' class="warn"') : ''}>${t('Runenkraft')} <b>${rk}</b></span>`;
+  if (/class="warn"/.test($('bewohner').innerHTML)) $('res').insertAdjacentHTML('beforeend', '<em class="warnpunkt"></em>');
   $('bausteine').innerHTML = (Object.keys(BAUSTEIN_NAME) as Baustein[]).map((b) => `<span class="${s.bausteine[b] ? '' : 'null'}" title="${t(BAUSTEIN_NAME[b])}"><i class="${b}"></i>${t(BAUSTEIN_NAME[b])} ${s.bausteine[b]}</span>`).join('');
   const u = $('uhr');
   u.classList.toggle('nacht', s.phase === 'nacht');
@@ -1211,6 +1215,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !W.__TAURI
 
 // ================= Start (am Ende, wenn alles definiert ist) =================
 karteSetzen(einst.karte); lagePruefen();
+// kompakte Oberfläche bei wenig Höhe (Handy quer); Tipp auf die Rohstofftafel klappt Einzelheiten auf
+const kompaktMq = matchMedia('(max-height: 520px)');
+const kompaktSetzen = () => document.body.classList.toggle('kompakt', einst.oberflaeche === 'kompakt' || (einst.oberflaeche === 'auto' && kompaktMq.matches));
+kompaktMq.addEventListener('change', kompaktSetzen); kompaktSetzen();
+document.querySelector('.oben-links')!.addEventListener('click', () => { if (document.body.classList.contains('kompakt')) document.querySelector('.oben-links')!.classList.toggle('offen'); });
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();
 zeigeStart();

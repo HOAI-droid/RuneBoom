@@ -166,5 +166,7 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Tempo, Prüfsummen je 100 Takte), Gäste rechnen nach (`nachrechnen`). Beitritt/Abweichung nur am Tag: Gastgeber speichert, alle starten neu
   aus demselben Stand (`basis`, Epoche `ep`). Tempo = 0, wenn einer pausiert oder den Bericht liest, sonst Minimum der Wünsche.
   Oberfläche ruft Aktionen über `befehl()` in main.ts auf. Gäste speichern nicht. Test: `packages/core/test/koop.test.ts`.
+- [x] 0.9.1 Kompakte Oberfläche: `body.kompakt` (Regeln am Ende des Stils in index.html), gesetzt über `kompaktSetzen()` aus
+  `einst.oberflaeche` (auto = `max-height: 520px`, kompakt, normal); Tipp auf `.oben-links` schaltet `.offen`, `.warnpunkt` bei Mangel.
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
