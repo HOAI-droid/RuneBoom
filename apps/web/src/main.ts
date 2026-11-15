@@ -4,11 +4,11 @@ import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
   type GebTyp, type GegTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME
 } from '@runeboom/core';
-import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
+import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT, Grid, grossbau } from '@runeboom/render';
 import { Klang } from './klang.ts';
 import { Koop, neuerRaumcode } from './mehrspieler.ts';
 import { PROLOG, type ProlSprache, type ProlZeiten } from './prolog.ts';
-import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
+import { skizze, wesenSkizze, spiegelNotiz, grossbauSkizze } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
 import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
@@ -383,7 +383,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, get bewohner() { return [...bewohner].map(([id, i]) => ({ id, name: BEWOHNER[i] })); }, bewohnerAn: (x: number, z: number) => bewohnerAn(x, z), get prolog() { return prolog ? { t: prolog.t, vonTon: prolog.vonTon, art: prolog.art } : null; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, grossbauSkizze: (typ: string, stufe = 1) => grossbauSkizze(typ, 360, 300, stufe), grossbauVoxel: (typ: string, stufe = 1) => { const g = new Grid(); grossbau(g, typ, stufe); return [...g.m.values()].map((v) => [v.x, v.y, v.z, v.r, v.g, v.b, v.e]); }, get bewohner() { return [...bewohner].map(([id, i]) => ({ id, name: BEWOHNER[i] })); }, bewohnerAn: (x: number, z: number) => bewohnerAn(x, z), get prolog() { return prolog ? { t: prolog.t, vonTon: prolog.vonTon, art: prolog.art } : null; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;

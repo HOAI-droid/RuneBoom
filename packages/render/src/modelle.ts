@@ -779,3 +779,86 @@ export function turmZeitalter5(g: Grid, typ: string) {
   if (typ === 'plasmawerfer') { g.cyl(0, 0, 21, 23, 3.6, '#2f2a2a'); g.ell(0, 26, 0, 2.6, 2.6, 2.6, '#ff6a1a', 2.4); for (let z = 0; z <= 6; z++) g.cyl(0, z, 24, 24, 1.4, '#b87333'); }
   if (typ === 'sturmturm') { g.cyl(0, 0, 21, 21, 5, gold, 0, 0.05, true); for (let i = 0; i < 6; i++) g.line(0, 22, 0, Math.round(Math.cos(i) * 5), 28, Math.round(Math.sin(i) * 5), '#8fb4d9'); g.ell(0, 29, 0, 2.4, 2.4, 2.4, '#9a8cff', 2.2); }
 }
+
+// ================= Großbauten der Völker (je Volk drei, nur einmal baubar) =================
+/** Lavaschleuder, Schlackengrund, Feuerschlund (Glutborn) · Samenschleuder, Wurzelkreis, Sonnenblüte (Hainmar) ·
+ *  Böenkanone, Sturmauge, Donnerglocke (Sturmweber). Halbe Voxel, Grundfläche 5 × 5 Blöcke. */
+export function grossbau(g: Grid, typ: string, stufe = 1) {
+  const BAS = mauerwerk('#4f4a55', '#46414c'), KUP = '#b87333', GLUT = '#ff6a1a';
+  const HOLZ = '#5e4128', RINDE = '#6b4a2f', LAUB = '#5e9a44', LAUB2 = '#4f8a3a', HARZ = '#e0a030';
+  const MAR = mauerwerk('#ece8df', '#e0dbd0'), MES = '#d4a640', WIND = '#8fb4d9';
+  const st = Math.max(1, Math.min(3, stufe));
+  // ---------- Glutborn ----------
+  if (typ === 'lavaschleuder') {
+    g.box(-5, 0, -5, 5, 2, 5, BAS, 0, 0.08); g.box(-4, 3, -4, 4, 3, 4, '#3e3a44');
+    for (const z of [-3, 3]) { g.line(-3, 4, z, 0, 14, z, '#3e3a44', 0, 0, 1); g.line(3, 4, z, 0, 14, z, '#3e3a44', 0, 0, 1); } // zwei Böcke
+    g.box(0, 14, -3, 0, 14, 3, KUP);                                              // Achse
+    g.line(-6, 18 + st, 0, 5, 11, 0, HOLZ, 0, 0.05, 1);                           // Wurfarm (länger mit der Stufe)
+    g.box(4, 7, -2, 7, 11, 1, KUP, 0, 0.05);                                       // Gegengewicht aus Kupfer
+    g.line(-6, 18 + st, 0, -7, 15 + st, 0, '#2e2620'); g.ell(-7, 14 + st, 0, 1.4, 1.4, 1.4, GLUT, 2.2); // Schlinge mit Glutbrocken
+    if (st >= 2) for (const z of [-4, 4]) g.box(-4, 4, z, 4, 4, z, KUP);
+    if (st >= 3) { g.cyl(5, -4, 4, 6, 1, '#2f2a2a'); g.set(5, 7, -4, GLUT, 2); g.cyl(5, 4, 4, 6, 1, '#2f2a2a'); g.set(5, 7, 4, GLUT, 2); }
+  }
+  if (typ === 'schlackengrund') {
+    for (let a = 0; a < 24; a++) { const r = 6 + (a % 3 === 0 ? 1 : 0), x = Math.round(Math.cos(a / 24 * Math.PI * 2) * r), z = Math.round(Math.sin(a / 24 * Math.PI * 2) * r); g.set(x, 0, z, a % 2 ? GLUT : '#c2451a', a % 2 ? 1.8 : 1.2); }
+    g.cyl(0, 0, 0, 2, 5, BAS, 0, 0.08); g.cyl(0, 0, 3, 4 + st, 4.4, KUP, 0, 0.06, true); g.cyl(0, 0, 3, 3 + st, 3.4, GLUT, 2.4); g.ell(0, 4 + st, 0, 2, 1, 2, '#ffb347', 2.6);
+    for (const [x, z] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) g.box(x, 3, z, x, 4, z, '#3e3a44');
+    for (let i = 0; i < st + 1; i++) g.line(Math.round(Math.cos(i * 2.1) * 3), 6 + st, Math.round(Math.sin(i * 2.1) * 3), Math.round(Math.cos(i * 2.1) * 6), 1, Math.round(Math.sin(i * 2.1) * 6), '#c2451a', 1.4);
+  }
+  if (typ === 'feuerschlund') {
+    g.box(-5, 0, -5, 5, 2, 5, BAS, 0, 0.08);
+    const h = 16 + st * 3;
+    for (let y = 3; y <= h; y++) g.cyl(0, 0, y, y, 3.4 - (y / h) * 1.2, BAS, 0, 0.05, true);
+    for (const y of [7, 12, h - 2]) g.cyl(0, 0, y, y, 3.6 - (y / h) * 1.2, KUP, 0, 0.05, true);
+    g.cyl(0, 0, h - 1, h, 1.4, GLUT, 2.4); g.ell(0, h + 2, 0, 1.6, 2.4, 1.6, '#ffb347', 2.6);
+    g.box(3, 3, -2, 6, 6, 1, '#5a3d24'); g.box(4, 7, -1, 5, 7, 0, KUP);              // Blasebalg
+  }
+  // ---------- Hainmar ----------
+  if (typ === 'samenschleuder') {
+    g.ell(0, 1, 0, 5, 2, 5, LAUB2); g.cyl(0, 0, 1, 4, 2.2, RINDE, 0, 0.06);
+    let x = 0, y = 4; for (let i = 0; i < 9 + st; i++) { const nx = x + (i < 5 ? 0 : -1), ny = y + (i < 5 ? 2 : 1); g.line(x, y, 0, nx, ny, 0, RINDE, 0, 0.05, i < 6 ? 1 : 0); x = nx; y = ny; } // gebogener Ast
+    g.ell(x - 1, y + 1, 0, 1.6, 1.6, 1.6, '#7a5a2a'); g.ell(x - 1, y + 2, 0, 1, 1, 1, '#a07a3a');                         // Samenkapsel
+    for (let i = 0; i < 4 + st * 2; i++) g.ell(Math.round(Math.cos(i * 1.7) * 3), 8 + (i % 4) * 2, Math.round(Math.sin(i * 1.7) * 3), 1.6, 1, 1.6, i % 2 ? LAUB : LAUB2);
+    g.line(0, 4, 0, 4, 2, 3, RINDE); g.line(0, 4, 0, -3, 2, -4, RINDE);              // Wurzeln
+    if (st >= 3) g.set(x - 1, y + 3, 0, HARZ, 1.4);
+  }
+  if (typ === 'wurzelkreis') {
+    g.cyl(0, 0, 0, 0, 6.5, '#4f7a34'); g.cyl(0, 0, 1, 2, 2, '#6b6f62', 0, 0.08); g.set(0, 3, 0, '#7dff9a', 2); g.set(0, 3, 1, '#7dff9a', 1.6);
+    const n = 4 + st * 2;
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, r = 5.5, x = Math.round(Math.cos(a) * r), z = Math.round(Math.sin(a) * r), xi = Math.round(Math.cos(a) * 3), zi = Math.round(Math.sin(a) * 3);
+      g.line(x, 0, z, Math.round((x + xi) / 2), 4 + (i % 2), Math.round((z + zi) / 2), RINDE, 0, 0.06, 0); g.line(Math.round((x + xi) / 2), 4 + (i % 2), Math.round((z + zi) / 2), xi, 1, zi, RINDE, 0, 0.06); // Wurzelbögen
+      if (i % 2 === 0) g.set(Math.round((x + xi) / 2), 5 + (i % 2), Math.round((z + zi) / 2), LAUB); }
+  }
+  if (typ === 'sonnenbluete') {
+    g.ell(0, 1, 0, 4, 2, 4, LAUB2);
+    const h = 14 + st * 3;
+    g.cyl(0, 0, 1, h, 1, '#4f8a3a', 0, 0.04);
+    for (const [y, s] of [[6, 1], [10, -1], [14, 1]] as [number, number][]) if (y < h) g.ell(s * 3, y, 0, 2.6, 0.8, 1.6, LAUB);
+    for (let i = 0; i < 10 + st * 2; i++) { const a = i / (10 + st * 2) * Math.PI * 2; g.ell(Math.round(Math.cos(a) * 4), h + 1, Math.round(Math.sin(a) * 4), 1.6, 0.8, 1.6, i % 2 ? '#ffc93a' : '#ffb020'); }
+    g.ell(0, h + 1, 0, 2.6, 1, 2.6, '#7a4a1a'); g.ell(0, h + 2, 0, 1.8, 0.8, 1.8, '#ffd84a', 2.2);
+  }
+  // ---------- Sturmweber ----------
+  if (typ === 'boeenkanone') {
+    g.box(-5, 0, -5, 5, 2, 5, MAR, 0, 0.06); g.cyl(0, 0, 3, 6, 3, MAR, 0, 0.05); g.cyl(0, 0, 7, 7, 3.4, MES);
+    const lang = 7 + st;
+    for (let i = 0; i <= lang; i++) { const x = -2 + i, y = 9 + Math.round(i * 0.45), r = i > lang - 3 ? 2.4 + (i - lang + 3) * 0.5 : 1.6; g.ell(x, y, 0, 0.6, r, r, i % 3 ? '#c99a3e' : MES); } // Rohr mit Trichter
+    g.ell(-3, 9, 0, 2, 2, 2, '#b8894a'); for (const z of [-3, 3]) g.line(-4, 8, z, -1, 12, z, WIND);
+    g.ell(lang - 1, 9 + Math.round(lang * 0.45), 0, 0.4, 1.6, 1.6, '#bfe3ff', 1.2);
+  }
+  if (typ === 'sturmauge') {
+    g.cyl(0, 0, 0, 1, 6, MAR, 0, 0.05);
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, x = Math.round(Math.cos(a) * 5), z = Math.round(Math.sin(a) * 5); g.box(x, 2, z, x, 7, z, MAR); g.set(x, 8, z, MES); }
+    g.cyl(0, 0, 2, 9, 1, MAR); g.set(0, 10, 0, '#9fd8ff', 2);
+    const wy = 15 + st; g.ell(0, wy, 0, 4 + st, 2, 4 + st, '#6a7380'); g.ell(1, wy + 1, -1, 3, 1.6, 3, '#7c8592'); g.ell(0, wy - 1, 0, 1.5, 0.8, 1.5, '#9fd8ff', 1.8); // Gewitterwolke
+    for (let i = 0; i < 6 + st * 2; i++) { const x = Math.round(Math.cos(i * 2.3) * (2 + i % 3)), z = Math.round(Math.sin(i * 2.3) * (2 + i % 3)); g.line(x, wy - 2, z, x, wy - 5 - (i % 3), z, '#9fc4e8', 0.4); } // Regen
+  }
+  if (typ === 'donnerglocke') {
+    g.box(-5, 0, -5, 5, 2, 5, MAR, 0, 0.06);
+    const h = 12 + st * 2;
+    g.box(-3, 3, -3, 3, h - 6, 3, MAR, 0, 0.05);
+    for (const [x, z] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) g.box(x, h - 5, z, x, h, z, MAR);
+    g.box(-4, h + 1, -4, 4, h + 1, 4, MES); g.cone(0, 0, h + 2, 4, 4, '#b8b2a6'); g.line(0, h + 6, 0, 0, h + 9, 0, MES); g.set(0, h + 10, 0, '#cfe8ff', 2.2); // Dach und Blitzableiter
+    g.ell(0, h - 2, 0, 2.6, 3, 2.6, MES, 0, 0.04, (x, y) => y <= h - 2 + 1); g.set(0, h - 5, 0, '#8a6a2a');                                                       // Glocke mit Klöppel
+    if (st >= 2) for (const y of [6, 9]) g.box(-3, y, -3, 3, y, 3, '#d9d2c4');
+  }
+}
