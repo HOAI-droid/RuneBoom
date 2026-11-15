@@ -780,5 +780,10 @@ export const ES: Record<string, string> = {
  "Anfang setzen": "Fijar inicio",
  "Bauen": "Construir",
  "✓ Bauen": "✓ Construir",
- "Abbrechen": "Cancelar"
+ "Abbrechen": "Cancelar",
+ "Prolog vor neuen Partien": "Prólogo antes de partidas nuevas",
+ "Überspringen": "Saltar",
+ "Stimme des Prologs: Brian von ElevenLabs.": "Voz del prólogo: Brian de ElevenLabs.",
+ "Prolog": "Prólogo",
+ "Die Geschichte der Feste": "La historia de la fortaleza"
 };

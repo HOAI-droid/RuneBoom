@@ -780,5 +780,10 @@ export const EN: Record<string, string> = {
  "Anfang setzen": "Set start",
  "Bauen": "Build",
  "✓ Bauen": "✓ Build",
- "Abbrechen": "Cancel"
+ "Abbrechen": "Cancel",
+ "Prolog vor neuen Partien": "Prologue before new games",
+ "Überspringen": "Skip",
+ "Stimme des Prologs: Brian von ElevenLabs.": "Prologue voice: Brian by ElevenLabs.",
+ "Prolog": "Prologue",
+ "Die Geschichte der Feste": "The story of the fortress"
 };
