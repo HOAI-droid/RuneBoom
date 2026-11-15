@@ -589,7 +589,24 @@
   body.kompakt .stufen-wahl button { min-height: 0; padding: 5px 8px; gap: 1px; }
   body.kompakt .stufen-wahl button b { font-size: 13px; } body.kompakt .stufen-wahl button small { font-size: 10.5px; line-height: 1.25; }
   body.kompakt .menue-seite .platz { padding: 6px 9px; } body.kompakt .menue-seite .platz button { min-height: 0; }
-  body.kompakt .menue-seite .hilfe { font-size: 12px; } body.kompakt .menue-seite .wahl button { padding: 4px 9px; min-height: 0; }
+  body.kompakt .menue-seite .hilfe { font-size: 12px; }
+  /* auch auf schmalen Handys (≤ 860 px) Spalte links, Seite rechts – nicht untereinander */
+  body.kompakt .menue { flex-direction: row !important; justify-content: flex-start; background: linear-gradient(90deg, rgba(8,10,16,.86) 0%, rgba(8,10,16,.62) 40%, rgba(8,10,16,.3) 100%); }
+  body.kompakt .menue-spalte { width: 210px !important; } body.kompakt .menue-spalte .titel { font-size: 31px; } body.kompakt .untertitel::before, body.kompakt .untertitel::after { flex-basis: 14px; }
+  body.kompakt .stufen-wahl { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  body.kompakt .menue-seite { max-height: calc(100vh - 20px) !important; }
+  /* „Neues Spiel“ auf dem Handy ohne Scrollen: Erklärsatz weg, Felder einzeilig, Einführung und „Welt betreten“ in einer Zeile */
+  body.kompakt #seite[data-seite="neu"] { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; align-content: start; }
+  body.kompakt #seite[data-seite="neu"] > * { grid-column: 1 / -1; }
+  body.kompakt #seite[data-seite="neu"] > p { display: none; }
+  body.kompakt #seite[data-seite="neu"] > .regler { grid-column: 1; align-self: center; font-size: 13px; }
+  body.kompakt #seite[data-seite="neu"] > .reihe { grid-column: 2; }
+  body.kompakt #seite .feld { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  body.kompakt #seite .feld label { width: auto; flex: none; font-size: 10px; }
+  body.kompakt #seite .feld input { min-width: 0; padding: 4px 8px; }
+  body.kompakt #seite[data-seite="neu"] .stufen-wahl:not(.volk-wahl) button small { display: none; }
+  body.kompakt #seite[data-seite="neu"] .volk-wahl .staerken { font-size: 10px; line-height: 1.2; }
+  body.kompakt #seite[data-seite="neu"] .stufen-wahl button { padding: 4px 8px; } body.kompakt .menue-seite .wahl button { padding: 4px 9px; min-height: 0; }
   /* 0.9.3: auf dem Handy alles eine Stufe kleiner */
   body.kompakt .panel { width: min(250px, 32vw); font-size: 11.5px; padding: 6px 9px; gap: 3px; line-height: 1.25; }
   body.kompakt .panel h2 { font-size: 13.5px; } body.kompakt .panel h3 { font-size: 12px; }

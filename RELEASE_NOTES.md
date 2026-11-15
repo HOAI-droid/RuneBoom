@@ -1,3 +1,11 @@
+## runeBOOM 0.9.9 · Neues Spiel ohne Scrollen
+
+- Auf dem Handy passt „Neues Spiel“ jetzt ohne Scrollen auf den Bildschirm, auch wenn Safari seine Leisten zeigt:
+  Weltcode in einer Zeile, Schwierigkeit nur mit Namen, „Einführung zeigen“ und „Welt betreten“ nebeneinander.
+- Auf schmalen Handys (z. B. iPhone 14) stehen Menü und Seite wieder nebeneinander statt untereinander.
+
+---
+
 ## runeBOOM 0.9.8 · Bauen mit dem Finger
 
 - **Platzieren über die Bildmitte:** Wer mit dem Finger spielt, sieht das gewählte Gebäude als Vorschau in der Bildmitte

@@ -13,7 +13,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.8';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.9';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -215,6 +215,7 @@ function seite(name: string | null): void {
   const el = $('seite');
   document.querySelectorAll<HTMLButtonElement>('[data-seite]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.seite === name)));
   if (!name) { el.hidden = true; return; }
+  el.dataset.seite = name;
   klang.start();
   if (name === 'neu') {
     el.innerHTML = `<h2>${t('Neues Spiel')}</h2><p>${t('Jeder Weltcode ergibt genau eine Welt. Teile ihn, damit andere dieselbe Welt versuchen können.')}</p>
