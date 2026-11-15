@@ -13,7 +13,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.5';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.6';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -583,7 +583,8 @@ function baumZeichnen(neu = false): void {
   let html = '';
   if (baumReiter === 'baum') {
     const z = s.zeitalter(); if (!baumZa) baumZa = z;
-    const aus = (a: number) => (a !== baumZa ? t(' z-aus') : '');
+    const kompakt = document.body.classList.contains('kompakt'); // auf dem Handy alle Zeitalter auf einer Seite
+    const aus = (a: number) => (!kompakt && a !== baumZa ? ' z-aus' : '');
     $('baum-za-reiter').innerHTML = [1, 2, 3, 4, 5].map((a) => `<button type="button" data-za="${a}" aria-pressed="${a === baumZa}">${a}</button>`).join('');
     $('baum-za-reiter').querySelectorAll<HTMLButtonElement>('[data-za]').forEach((b) => { b.onclick = () => { baumZa = Number(b.dataset.za); baumZeichnen(true); }; });
     const alle = Object.keys(ERFINDUNGEN) as ErfId[];
@@ -592,7 +593,7 @@ function baumZeichnen(neu = false): void {
       return `<div class="zkopf za${a}${aus(a)} ${a === z ? 'jetzt' : a > z ? 'zu' : ''}"><span class="za-nr">${['', 'I', 'II', 'III', 'IV', 'V'][a]}</span>${t(ZA_NAMEN[a])}<small>${a < z ? t('erreicht') : a === z ? t('jetziges Zeitalter') : t('noch verschlossen')} · ${fertig}/${im.length}</small><i class="za-balken"><i style="width:${Math.round((fertig / Math.max(1, im.length)) * 100)}%"></i></i></div>`;
     }).join('')}`;
     for (const w of Object.keys(WISSEN_NAME) as Wissen[]) {
-      html += `<div class="wkopf">${WISSEN_ZEICHEN[w]}<span>${t(WISSEN_NAME[w])}</span></div>`;
+      html += `<div class="wkopf" title="${t(WISSEN_NAME[w])}">${WISSEN_ZEICHEN[w]}<span>${t(WISSEN_NAME[w])}</span></div>`;
       for (const a of [1, 2, 3, 4, 5]) {
         const ids = (Object.keys(ERFINDUNGEN) as ErfId[]).filter((i) => ERFINDUNGEN[i].wissen === w && ERFINDUNGEN[i].ab === a);
         html += `<div class="zelle za${a}${aus(a)}">${ids.map((id) => {

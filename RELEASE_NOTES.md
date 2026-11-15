@@ -1,3 +1,10 @@
+## runeBOOM 0.9.6 · Erfindungsbaum auf einer Seite
+
+- Auf dem Handy zeigt der Erfindungsbaum alle fünf Zeitalter nebeneinander auf einer Seite (wie am Rechner) statt in fünf Reitern.
+  Die Wissensgebiete stehen als Zeichen links, die Kosten unter dem Namen jeder Erfindung.
+
+---
+
 ## runeBOOM 0.9.5 · Handy: Erfindungsbaum und Menü
 
 - **iPhone:** Safari vergrößerte im Querformat die Schrift eigenmächtig. Das ist abgeschaltet, dadurch passen Menü und Fenster wie vorgesehen.
