@@ -770,5 +770,8 @@ export const EN: Record<string, string> = {
  "Süden": "south",
  "Osten": "east",
  "Westen": "west",
- "Norden": "north"
+ "Norden": "north",
+ "Oberfläche": "Interface",
+ "Kompakt": "Compact",
+ "Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.": "Compact: slim bars for phones in landscape. Automatic picks it when the screen is short."
 };

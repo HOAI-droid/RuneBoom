@@ -505,6 +505,44 @@
     .ekarte { padding: 3px 8px; } .ekarte, .ekarte b { font-size: 13px; } .ekarte .zut { font-size: 11px; }
     .baum-gitter .zkopf { padding: 4px 8px; } .baum-gitter .zkopf small { display: none; } .baum-gitter .wkopf { padding: 2px; }
   }
+  /* ---------- Kompakte Oberfläche (Handy quer: wenig Höhe) ---------- */
+  body.kompakt .oben-links { padding: 5px 9px; gap: 3px; cursor: pointer; max-width: 46vw; }
+  body.kompakt .oben-links .marke, body.kompakt .oben-links .zeitalter-anz, body.kompakt .oben-links .bst, body.kompakt .oben-links .bewohner { display: none; }
+  body.kompakt .oben-links.offen .bst, body.kompakt .oben-links.offen .bewohner { display: flex; }
+  body.kompakt .res { gap: 9px; font-size: 13px; flex-wrap: wrap; }
+  body.kompakt .oben-links:not(.offen) .res span:nth-child(n+5) { display: none; }
+  body.kompakt .oben-links.offen { z-index: 6; max-width: 62vw; background: #1b2130; } body.kompakt .oben-links.offen .bst, body.kompakt .oben-links.offen .bewohner { flex-wrap: wrap; gap: 4px 12px; }
+  body.kompakt .oben-links .warnpunkt { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--rot); margin-left: 2px; align-self: center; }
+  body.kompakt .uhr { min-width: 0; width: max-content; max-width: 36vw; top: max(6px, env(safe-area-inset-top)); bottom: auto; padding: 4px 10px 5px; gap: 3px; grid-template-columns: auto auto auto; align-items: center; column-gap: 8px; }
+  body.kompakt .uhr .akt-zeile, body.kompakt .uhr .omen { display: none; }
+  body.kompakt .uhr .titel { font-size: 15px; white-space: nowrap; }
+  body.kompakt .uhr .unter { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+  body.kompakt .uhr .balken { grid-column: 1 / -1; grid-row: 2; height: 3px; }
+  body.kompakt .uhr > div:has(> #einlaeuten) { display: flex; gap: 4px; }
+  body.kompakt .uhr button { min-height: 0; margin: 0; padding: 2px 9px; font-size: 12px; }
+  body.kompakt #einlaeuten { font-size: 0; padding: 0; width: 28px; height: 24px; }
+  body.kompakt #einlaeuten::before { content: '☾'; font-size: 15px; line-height: 24px; }
+  body.kompakt .uhr .faehig { grid-column: 1 / -1; }
+  body.kompakt .oben-rechts { top: max(6px, env(safe-area-inset-top)); gap: 4px; }
+  body.kompakt .knoepfe { padding: 3px; gap: 3px; }
+  body.kompakt .knoepfe button { min-height: 0; height: 32px; min-width: 34px; padding: 0 6px; font-size: 13px; }
+  body.kompakt .karte canvas { width: 110px; height: 110px; }
+  body.kompakt .koop { font-size: 11px; padding: 4px 8px; min-width: 0; }
+  body.kompakt .unten { bottom: max(6px, env(safe-area-inset-bottom)); gap: 5px; }
+  body.kompakt .gruppen { grid-template-columns: repeat(7, max-content); width: auto; max-width: calc(100vw - 16px); gap: 4px; padding: 4px; }
+  body.kompakt .gruppe, body.kompakt .gruppe.sonder { grid-column: auto; min-height: 0; padding: 6px 11px; display: block; text-align: center; }
+  body.kompakt .gruppe b, body.kompakt .gruppe.sonder b { font-size: 13px; white-space: nowrap; }
+  body.kompakt .gruppe span, body.kompakt .gruppe kbd { display: none; }
+  body.kompakt .gruppe.sonder { background: #2b2440; }
+  body.kompakt .aufklapp { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: calc(100vw - 16px); padding: 4px; gap: 4px; scrollbar-width: none; }
+  body.kompakt .aufklapp .bau { width: 124px; min-height: 0; flex: none; padding: 4px 6px; gap: 1px; }
+  body.kompakt .aufklapp .bau b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  body.kompakt .aufklapp .bau kbd { display: none; }
+  body.kompakt .aufklapp .bau .preis { font-size: 9.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  body.kompakt .einfuehrung { top: calc(max(6px, env(safe-area-inset-top)) + 40px); bottom: auto; right: auto; width: min(240px, 32vw); padding: 6px 9px; gap: 3px; font-size: 12px; line-height: 1.35; max-height: calc(100vh - 150px); overflow-y: auto; }
+  body.kompakt .einfuehrung * { font-size: inherit; }
+  body.kompakt .panel { top: calc(max(6px, env(safe-area-inset-top)) + 44px); bottom: 58px; left: auto; right: max(8px, env(safe-area-inset-right)); width: min(330px, 42vw); max-height: none; overflow-y: auto; }
+  body.kompakt #meldungen { top: 44px; }
 </style>
 </head>
 <body>
