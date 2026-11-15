@@ -1,3 +1,11 @@
+## runeBOOM 0.9.7 · Neues Logo
+
+- **Neues App-Symbol:** eine kleine Voxel-Feste mit Ecktürmen im Abendrot, darüber eine leuchtende Schutzrune.
+  Gilt für die Browser-Version (auch auf dem Startbildschirm gespeichert), die Apps für Mac, Windows, Linux, Android und iPhone/iPad.
+- Wer runeBOOM schon auf dem Startbildschirm hat, bekommt das neue Symbol, wenn er es dort entfernt und neu hinzufügt.
+
+---
+
 ## runeBOOM 0.9.6 · Erfindungsbaum auf einer Seite
 
 - Auf dem Handy zeigt der Erfindungsbaum alle fünf Zeitalter nebeneinander auf einer Seite (wie am Rechner) statt in fünf Reitern.

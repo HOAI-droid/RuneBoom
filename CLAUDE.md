@@ -168,5 +168,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Oberfläche ruft Aktionen über `befehl()` in main.ts auf. Gäste speichern nicht. Test: `packages/core/test/koop.test.ts`.
 - [x] 0.9.1 Kompakte Oberfläche: `body.kompakt` (Regeln am Ende des Stils in index.html), gesetzt über `kompaktSetzen()` aus
   `einst.oberflaeche` (auto = `max-height: 520px`, kompakt, normal); Tipp auf `.oben-links` schaltet `.offen`, `.warnpunkt` bei Mangel.
+- [x] 0.9.7 Logo „Feste im Abendrot“: Quelle `resources/logo.svg` bzw. `resources/icon.png` (1024²), erzeugt mit `tools/logo/logos.py`
+  (Voxel → SVG, `voxel.py`), Web-Symbole in `apps/web/public/symbole/`, Desktop über `tauri icon resources/icon.png -o src-tauri/icons`,
+  Android/iOS über `@capacitor/assets` in `tools/handy_vorbereiten.sh` (icon-foreground/-background). Service-Worker-Speicher `runeboom-v2`.
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
