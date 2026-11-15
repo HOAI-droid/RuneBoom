@@ -1,3 +1,14 @@
+## runeBOOM 0.9.10 · Der Prolog
+
+- **Prolog mit Erzähler:** Vor der ersten Partie erzählt eine tiefe Erzählerstimme die Geschichte der Feste: wie die Erde aufriss,
+  die Wildnis kam und drei Völker blieben, die statt Armeen nur Einfälle hatten. Dazu fährt die Kamera durch die Welt, vom stillen Wald
+  über den Riss bis zur Feste im Abendrot, und der Text erscheint Zeile für Zeile.
+- In allen vier Sprachen gesprochen (Deutsch, Englisch, Französisch, Spanisch). Bei späteren Partien eine kurze Fassung.
+- Jederzeit im Hauptmenü unter **„Prolog“**, überspringen mit „Überspringen“, Esc oder Enter, abschaltbar in den Einstellungen.
+- Stimme: „Brian“ von ElevenLabs.
+
+---
+
 ## runeBOOM 0.9.9 · Neues Spiel ohne Scrollen
 
 - Auf dem Handy passt „Neues Spiel“ jetzt ohne Scrollen auf den Bildschirm, auch wenn Safari seine Leisten zeigt:

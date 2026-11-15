@@ -7,3 +7,5 @@ dist-single/
 # von Capacitor erzeugt (tools/handy_vorbereiten.sh)
 android/
 ios/
+# Local secrets written by `elevenlabs onboard`
+/.env.local

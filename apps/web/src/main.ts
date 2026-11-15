@@ -7,20 +7,21 @@ import {
 import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
 import { Koop, neuerRaumcode } from './mehrspieler.ts';
+import { PROLOG, type ProlSprache, type ProlZeiten } from './prolog.ts';
 import { skizze, wesenSkizze, spiegelNotiz } from './skizze.ts';
 import { EN } from './sprachen/en.ts';
 import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.9';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.10';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
 
 // ================= Einstellungen =================
 const EINST = 'runeboom-einstellungen-1';
-const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl', oberflaeche: 'auto' as 'auto' | 'kompakt' | 'normal' };
+const einst = { musik: 0.55, effekte: 0.7, grafik: 'hoch' as 'hoch' | 'mittel' | 'niedrig', einfuehrung: true, sprache: 'auto' as Sprache | 'auto', fps: false, karte: false, autoAufl: true, darstellung: 'auto' as 'auto' | 'webgpu' | 'webgl', prolog: true, prologGesehen: false, oberflaeche: 'auto' as 'auto' | 'kompakt' | 'normal' };
 try { Object.assign(einst, JSON.parse(localStorage.getItem(EINST) || '{}')); } catch { /* */ }
 registriereSprache('en', EN); registriereSprache('fr', FR); registriereSprache('es', ES);
 setzeSprache(einst.sprache === 'auto' ? systemSprache() : einst.sprache);
@@ -138,9 +139,10 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   baueLeiste(); setzeTempo(1); waehle(null); werkzeugSetzen(null);
   spiel.ereignisse.length = 0;
   if (opt.koop) { einfuehrungSchritt = -1; koopAnzeige(); return; }
+  if (!stand && einst.prolog && !koop) { const art = einst.prologGesehen ? 'kurz' : 'lang'; einst.prologGesehen = true; einstSpeichern(); prologStarten(art); }
   melde(stand ? `${t('Willkommen zurück. Tag {a}.', { a: spiel.nacht })}` : t('Tag 1. Baue Türme vor dem Tor, bevor die Nacht kommt. Der Pfad zeigt, woher die Wesen kommen.'), 'info');
 }
-function aufraeumen(): void { berichtPause = false; $('bericht').hidden = true; $('hilfe').hidden = true; obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; imAbspann = false; }
+function aufraeumen(): void { prologBeenden(false); berichtPause = false; $('bericht').hidden = true; $('hilfe').hidden = true; obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; imAbspann = false; }
 function speichern(): void { if (koop?.gast || !spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
 interface Platz { name: string; datum: number; stand: Spielstand }
 function plaetze(): (Platz | null)[] { try { const p = JSON.parse(localStorage.getItem(PLAETZE) || '[]'); return [0, 1, 2].map((i) => p[i] || null); } catch { return [null, null, null]; } }
@@ -283,6 +285,7 @@ function einstellungenHtml(): string {
     ${grafikHtml()}
     <div class="zeile"><span>${t('Oberfläche')}</span><span class="wahl">${(['auto', 'kompakt', 'normal'] as const).map((o) => `<button type="button" data-oberflaeche="${o}" aria-pressed="${einst.oberflaeche === o}">${o === 'auto' ? t('Automatisch') : o === 'kompakt' ? t('Kompakt') : t('Normal')}</button>`).join('')}</span></div>
     <p>${t('Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.')}</p>
+    <label class="regler"><span><input type="checkbox" id="e-prolog" ${einst.prolog ? 'checked' : ''}> ${t('Prolog vor neuen Partien')}</span></label>
     <div class="zeile"><span>${t('Sprache')}</span><span class="wahl">${(['auto', 'de', 'en', 'fr', 'es'] as const).map((l) => `<button type="button" data-sprache="${l}" aria-pressed="${einst.sprache === l}">${l === 'auto' ? t('Automatisch') : SPRACHEN[l]}</button>`).join('')}</span></div>
 `;
 }
@@ -311,6 +314,7 @@ function einstellungenVerbinden(p: HTMLElement, neu: () => void): void {
   const m = p.querySelector<HTMLInputElement>('#e-musik')!, f = p.querySelector<HTMLInputElement>('#e-effekte')!;
   m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
   grafikVerbinden(p, neu);
+  const pr = p.querySelector<HTMLInputElement>('#e-prolog'); if (pr) pr.onchange = () => { einst.prolog = pr.checked; einstSpeichern(); };
   p.querySelectorAll<HTMLButtonElement>('[data-oberflaeche]').forEach((b) => { b.onclick = () => { einst.oberflaeche = b.dataset.oberflaeche as typeof einst.oberflaeche; einstSpeichern(); kompaktSetzen(); neu(); }; });
   p.querySelectorAll<HTMLButtonElement>('[data-sprache]').forEach((b) => { b.onclick = () => { einst.sprache = b.dataset.sprache as typeof einst.sprache; einstSpeichern(); sprachWechsel(); neu(); }; });
 }
@@ -333,6 +337,7 @@ function sprachWechsel(): void {
   uebersetzeStatisch();
   if (spiel && !imMenue) { baueLeiste(); $('panel').dataset.html = ''; if (panelArt === 'geb') panelGeb(); baumZeichnen(true); }
 }
+$('prolog-knopf').onclick = () => { seite(null); klang.start(); prologStarten('lang'); };
 document.querySelectorAll<HTMLButtonElement>('[data-seite]').forEach((b) => { b.onclick = () => seite(b.getAttribute('aria-pressed') === 'true' ? null : b.dataset.seite!); });
 function zeigeStart(): void {
   koop?.ende(); koop = null; koopZustand = '';
@@ -347,7 +352,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, get prolog() { return prolog ? { t: prolog.t, vonTon: prolog.vonTon, art: prolog.art } : null; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -757,6 +762,85 @@ canvas.addEventListener('pointerup', (e) => {
   waehle(g || null);
 });
 
+// ================= Prolog: Erzähler, Text und Kamerafahrt =================
+// Langfassung beim ersten neuen Spiel und über „Prolog“ im Menü, danach vor neuen Partien die Kurzfassung.
+// Zeitgeber ist die Aufnahme; fehlt sie (blockiert, offline ohne Zwischenspeicher), läuft die Uhr allein weiter.
+interface Prolog { art: 'lang' | 'kurz'; text: string[][]; zeiten: ProlZeiten | null; ton: HTMLAudioElement; t: number; laeuft: boolean; vonTon: boolean; ende: () => void; zuende: boolean;
+  zielPos: THREE.Vector3; zielBlick: THREE.Vector3; absatz: number }
+let prolog: Prolog | null = null;
+function prologSprache(): ProlSprache { const s = sprache(); return (['de', 'en', 'fr', 'es'] as const).includes(s as ProlSprache) ? s as ProlSprache : 'en'; }
+function prologStarten(art: 'lang' | 'kurz', danach: () => void = () => {}): void {
+  prologBeenden(false);
+  const sp = prologSprache();
+  const ton = new Audio(`prolog/${sp}-${art}.mp3`); ton.preload = 'auto'; ton.volume = Math.min(1, 0.4 + einst.effekte * 0.8);
+  const p: Prolog = { art, text: PROLOG[sp][art], zeiten: null, ton, t: 0, laeuft: true, vonTon: false, ende: danach, zuende: false,
+    zielPos: camera.position.clone(), zielBlick: controls.target.clone(), absatz: -1 };
+  prolog = p;
+  fetch(`prolog/${sp}-${art}.json`).then((r) => r.json()).then((z: ProlZeiten) => { if (prolog === p) p.zeiten = z; }).catch(() => { /* Zeiten geschätzt */ });
+  ton.play().then(() => { p.vonTon = true; }).catch(() => { p.vonTon = false; }); // im Klick gestartet, damit iOS es erlaubt
+  ton.onended = () => { if (prolog === p) prologBeenden(true); };
+  klang.setzeLautstaerke(einst.musik * 0.35, einst.effekte);
+  const el = $('prolog'); el.innerHTML = `<div class="prolog-text" id="prolog-text"></div><button type="button" class="prolog-weiter" id="prolog-weiter">${t('Überspringen')} ›</button>`;
+  el.hidden = false; el.classList.remove('aus'); document.body.classList.add('im-prolog');
+  $('prolog-weiter').onclick = () => prologBeenden(true);
+}
+/** Zeiten je Zeile; ohne Datei grob geschätzt (Zeichen / 14 je Sekunde) */
+function prologZeiten(p: Prolog): ProlZeiten {
+  if (p.zeiten) return p.zeiten;
+  let t = 0.8; const zeilen: [number, number][][] = [];
+  for (const absatz of p.text) { zeilen.push(absatz.map((z) => { const von = t; t += z.length / 14; const bis = t; t += 0.35; return [von, bis] as [number, number]; })); t += 0.8; }
+  return { dauer: t + 1, zeilen };
+}
+function prologBeenden(weiter: boolean): void {
+  const p = prolog; if (!p) return;
+  prolog = null; p.ton.pause(); p.ton.src = '';
+  klang.setzeLautstaerke(einst.musik, einst.effekte);
+  const el = $('prolog'); el.classList.add('aus'); setTimeout(() => { if (!prolog) { el.hidden = true; el.innerHTML = ''; } }, 900);
+  document.body.classList.remove('im-prolog');
+  if (!imMenue) { controls.target.copy(p.zielBlick); camera.position.copy(p.zielPos); controls.update(); }
+  if (weiter) p.ende();
+}
+const sanft = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
+/** je Bild: Zeit, Text, Kamera und Licht des Prologs. Gibt das gewünschte Dunkel (0 Tag … 1 Nacht) zurück */
+function prologSchritt(dt: number): number {
+  const p = prolog!; const z = prologZeiten(p);
+  if (p.vonTon && !p.ton.paused) p.t = p.ton.currentTime; else if (!(enth.aktiv && enth.phase === 0)) p.t += dt;
+  if (!p.vonTon && p.t > z.dauer) { prologBeenden(true); return 0; }
+  // Text: aktueller Absatz, Zeilen erscheinen nacheinander
+  let a = 0; for (let i = 0; i < z.zeilen.length; i++) if (z.zeilen[i][0][0] - 0.3 <= p.t) a = i;
+  const el = document.getElementById('prolog-text');
+  if (el) {
+    if (a !== p.absatz) { p.absatz = a; el.innerHTML = p.text[a].map((zl, i) => `<div class="zeile${a === p.text.length - 1 && i === p.text[a].length - 1 ? ' schluss' : ''}">${zl}</div>`).join(''); }
+    const kinder = el.children; for (let i = 0; i < kinder.length; i++) kinder[i].classList.toggle('an', z.zeilen[a][i][0] - 0.15 <= p.t);
+    const absEnde = z.zeilen[a][z.zeilen[a].length - 1][1], naechster = z.zeilen[a + 1]?.[0][0];
+    el.classList.toggle('weg', naechster !== undefined && p.t > absEnde + 0.25 && p.t < naechster - 0.3);
+  }
+  // Kamera: Absätze als Stationen zwischen Riss und Feste
+  const R = new THREE.Vector3(RISSE[0].x, 4, RISSE[0].z), F = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
+  const n = z.zeilen.length, stationen: { blick: THREE.Vector3; weg: THREE.Vector3 }[] = p.art === 'kurz'
+    ? [{ blick: R.clone().lerp(F, 0.25), weg: new THREE.Vector3(-70, 85, 60) }, { blick: F.clone(), weg: p.zielPos.clone().sub(p.zielBlick) }]
+    : [
+      { blick: F.clone().add(new THREE.Vector3(0, 0, 30)), weg: new THREE.Vector3(160, 190, -120) }, // stille Welt, hoch und weit
+      { blick: R.clone(), weg: new THREE.Vector3(-60, 95, -70) },                                     // die Erde reißt auf
+      { blick: R.clone().lerp(F, 0.25), weg: new THREE.Vector3(55, 45, 50) },                          // die Wildnis kriecht heraus
+      { blick: R.clone().lerp(F, 0.65), weg: new THREE.Vector3(-95, 80, 60) },                         // die Völker bleiben
+      { blick: F.clone(), weg: new THREE.Vector3(48, 34, -52) },                                       // sie bauen und erfinden
+      { blick: F.clone().lerp(R, 0.35), weg: new THREE.Vector3(30, 150, 110) },                        // vierzig Nächte
+      { blick: p.zielBlick.clone(), weg: p.zielPos.clone().sub(p.zielBlick) }                          // die Sonne sinkt: Ausgangsblick
+    ];
+  const start = (i: number) => (i < n ? z.zeilen[i][0][0] : z.dauer);
+  let i = 0; while (i < stationen.length - 1 && p.t >= start(i + 1)) i++;
+  const j = Math.min(i + 1, stationen.length - 1), f = j === i ? 1 : sanft((p.t - start(i)) / Math.max(0.1, start(j) - start(i)));
+  const blick = stationen[i].blick.clone().lerp(stationen[j].blick, f), weg = stationen[i].weg.clone().lerp(stationen[j].weg, f);
+  const dreh = p.art === 'lang' && i < stationen.length - 1 ? p.t * 0.012 : 0; // langsames Kreisen
+  weg.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * (1 - (i === stationen.length - 2 ? f : 0)));
+  controls.target.copy(blick); camera.position.copy(blick).add(weg); camera.lookAt(blick);
+  // Licht: goldene Stille, dann Nacht, zuletzt Abendrot
+  const dunkel = p.art === 'kurz' ? 0.85 - 0.6 * sanft(p.t / z.dauer) : a === 0 ? 0.15 + 0.85 * sanft((p.t - (z.zeilen[1]?.[0][0] ?? 9) + 2) / 2.5) : a >= n - 1 ? 0.55 : 1;
+  return dunkel;
+}
+addEventListener('keydown', (e) => { if (prolog && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); e.stopPropagation(); prologBeenden(true); } }, true);
+
 // ================= Platzieren über die Bildmitte (Finger) =================
 // Mit dem Finger gibt es keinen Mauszeiger: Das Gebäude steht als Vorschau in der Bildmitte, Wischen verschiebt die Karte darunter,
 // gebaut wird mit ✓. Mauern, Dornenfelder, Ölgräben und Ebnen: erstes ✓ setzt den Anfang, zweites ✓ baut.
@@ -1104,7 +1188,7 @@ function zeigeHilfe(): void {
       ${karte(t('Ausbauen'), t('Klicke ein Gebäude an: Stufe II und III, Umrüsten mit zwei Zweigen, Verschmelzen mit dem Nachbarturm, Reparieren. Goldene Pfeile zeigen, was gerade geht. Je Zeitalter gibt es ein Wunder aus zweien.'))}
       ${karte(t('Die Partie'), t('40 Nächte in vier Akten. Alle fünf Nächte kommt ein Rissfürst, Omen kündigen besondere Nächte an. In Akt IV versiegeln Siegelsteine die Risse: Sind alle versiegelt oder ist die 40. Nacht überstanden, ist die Partie gewonnen.'))}
       ${karte(t('Tasten'), t('Ziehen: verschieben · Rad: zoomen · rechte Maustaste: drehen · Z R V B: Bauleiste · T: Erfindungsbaum · X: Späher · 9: Ebnen · N: Nacht · Leertaste: Pause · Umschalt + Klick: Auswahl behalten · F1: Hilfe'))}
-      ${karte(t('Klänge'), t('Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.'))}
+      ${karte(t('Klänge'), t('Geräusche von Kenney (CC0). Instrumente aus dem FluidR3 GM SoundFont von Frank Wen (CC BY 3.0). Die Musik setzt sich je Volk immer neu zusammen.') + ' ' + t('Stimme des Prologs: Brian von ElevenLabs.'))}
     </div>`;
   el.hidden = false;
   $('hilfe-zu').onclick = () => { el.hidden = true; };
@@ -1188,11 +1272,12 @@ renderer.setAnimationLoop(() => {
       if (spiel.phase !== 'tag' || spiel.zeit > TAGD - 12) { spiel.phase = 'tag'; spiel.zeit = 5; }
       try { spiel.schritt(); } catch (err) { console.error(err); }
       obj.ereignisse(spiel.ereignisse.splice(0).filter((e) => e.art !== 'meldung'));
-      const d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
+      let d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
+      if (prolog) { anzeigeDunkel += (prologSchritt(dt) - anzeigeDunkel) * Math.min(1, dt * 0.9); d = anzeigeDunkel; }
       jahreszeit(menueZeit / 60);
       licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
-      menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
+      if (!prolog) menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
       const dist = camera.position.distanceTo(controls.target);
       licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45; licht.folge(controls.target, camera);
       planZeit -= dt; if (planZeit <= 0) { welt.planen(controls.target, dist, camera); planZeit = 0.25; }
@@ -1201,7 +1286,7 @@ renderer.setAnimationLoop(() => {
     }
     jahreszeit(Math.min(3.999, (spiel.nacht - 1 + (spiel.phase === 'tag' ? spiel.zeit / TAGD : 1)) / 10));
     koop?.wunsch(hochkant ? 0 : tempo, berichtPause);
-    const tp = koop ? koop.tempo : berichtPause ? 0 : tempo;
+    const tp = prolog ? 0 : koop ? koop.tempo : berichtPause ? 0 : tempo;
     akku += (enth.aktiv && enth.phase === 0) || hochkant ? 0 : dt * tp; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     const fehler = (err: unknown) => { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } };
@@ -1263,7 +1348,8 @@ renderer.setAnimationLoop(() => {
     let kegelNeu = false;
     if (!lichtNeu && kegelZeit <= 0) { kegelZeit = 0.2; kegelNeu = anzeigeDunkel > 0.3 || kegelWarAn; kegelWarAn = anzeigeDunkel > 0.3; }
     if (lichtNeu || kegelNeu) lichtkarteSetzen(spiel.lichtquellen(), lichtNeu, anzeigeDunkel > 0.3);
-    anzeigeDunkel += (spiel.dunkel() - anzeigeDunkel) * Math.min(1, dt * 1.5);
+    const dunkelZiel = prolog ? prologSchritt(dt) : spiel.dunkel();
+    anzeigeDunkel += (dunkelZiel - anzeigeDunkel) * Math.min(1, dt * (prolog ? 0.9 : 1.5));
     licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
     const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
     obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);

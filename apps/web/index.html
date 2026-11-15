@@ -692,6 +692,22 @@
   body.kompakt .baum-gitter .wkopf { font-size: 12px; padding: 4px 2px; }
   body.kompakt .baum-gitter .zkopf { font-size: 13px; padding: 4px 8px; } body.kompakt .baum-gitter .zkopf small { font-size: 10.5px; }
   body.kompakt .ekarte { font-size: 12px; padding: 3px 8px; min-height: 0; } body.kompakt .ekarte b { font-size: 12px; } body.kompakt .ekarte .zut { font-size: 11px; }
+  /* ---------- Prolog ---------- */
+  .prolog { position: fixed; inset: 0; z-index: 40; display: grid; align-items: end; justify-items: center; padding: 0 6vw 13vh;
+    background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 35%, rgba(4,5,10,.55) 75%, rgba(4,5,10,.85) 100%), linear-gradient(0deg, rgba(4,5,10,.75) 0%, rgba(4,5,10,0) 45%);
+    transition: opacity .9s; }
+  .prolog.aus { opacity: 0; pointer-events: none; }
+  .prolog-text { display: grid; gap: .35em; text-align: center; max-width: min(1000px, 88vw); transition: opacity .6s; }
+  .prolog-text.weg { opacity: 0; }
+  .prolog-text .zeile { font-family: var(--display); font-size: clamp(18px, 2.6vw, 34px); line-height: 1.25; color: #f3ead6; letter-spacing: .02em;
+    text-shadow: 0 2px 12px rgba(0,0,0,.9), 0 0 30px rgba(0,0,0,.6); display: none; }
+  .prolog-text .zeile.an { display: block; animation: prolog-ein 1.2s ease-out both; }
+  @keyframes prolog-ein { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+  .prolog-text .zeile.schluss { font-size: clamp(28px, 4.4vw, 60px); color: var(--ember); margin-top: .3em; text-shadow: 0 0 24px rgba(227,165,78,.55), 0 2px 12px rgba(0,0,0,.9); }
+  .prolog-weiter { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); background: rgba(20,25,35,.6); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; color: var(--muted); font-size: 13px; }
+  .prolog-weiter:hover { color: var(--parch); border-color: var(--ember); }
+  body.im-prolog #hud, body.im-prolog #start, body.im-prolog .einfuehrung, body.im-prolog .tipp, body.im-prolog #koop { visibility: hidden; }
+  body.kompakt .prolog { padding-bottom: 9vh; } body.kompakt .prolog-text .zeile { font-size: 17px; } body.kompakt .prolog-text .zeile.schluss { font-size: 28px; }
 </style>
 </head>
 <body>
@@ -740,6 +756,7 @@
       <button type="button" class="menue-knopf" data-seite="plaetze"><span>Spielstände</span><small>Laden und verwalten</small></button>
       <button type="button" class="menue-knopf" data-seite="einst"><span>Einstellungen</span><small>Musik, Klänge, Grafik</small></button>
       <button type="button" class="menue-knopf" data-seite="steuerung"><span>Steuerung</span><small>Maus, Tasten, Berührung</small></button>
+      <button type="button" class="menue-knopf" id="prolog-knopf"><span>Prolog</span><small>Die Geschichte der Feste</small></button>
     </nav>
     <div class="menue-fuss">Version <span id="version"></span> · Am Tag bauen, in der Nacht bestehen. · <a href="docs/" target="_blank" rel="noopener" style="color:var(--ember)">Projektseite</a></div>
   </div>
@@ -794,6 +811,7 @@
     </div>
   </div>
 </div>
+<div class="prolog" id="prolog" hidden data-dynamisch></div>
 <div class="schleier" id="schleier" hidden><div class="schleier-logo"><div class="titel">rune<b>BOOM</b></div><div class="untertitel" data-t="untertitel">Die Feste der Erfinder</div></div></div>
 
 <script type="module" src="./src/main.ts"></script>

@@ -174,5 +174,11 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
 - [x] 0.9.8 Bauen mit dem Finger: `mitteModus()` (Werkzeug bau/ebnen, letzter Zeiger war Touch, kein Gamepad), Vorschau an der Bildmitte
   (`mitteSchritt()` je Bild, `mitteZiel()`), Knöpfe `#platz-ok`/`#platz-ab`, Linienbau für `LINIE` (Mauer, Dornenfeld, Ölgraben) und Ebnen
   über `mitteStart`; Tipp auf die Karte holt die Stelle in die Mitte, Wischen verschiebt die Karte.
+- [x] 0.9.10 Prolog: Texte in `apps/web/src/prolog.ts` (`PROLOG[sprache].lang/kurz`, Absätze aus Zeilen), Aufnahmen und Zeitmarken je Zeile
+  in `apps/web/public/prolog/<sprache>-<art>.mp3/.json`, erzeugt mit `tools/prolog_sprechen.ts` (ElevenLabs, Stimme Brian `nPczCjzI2devNBz1zQrb`,
+  `eleven_multilingual_v2`, Schlüssel über den Netz-Proxy der Umgebung; Antworten zwischengespeichert). In main.ts `prologStarten()`/`prologSchritt()`
+  (Zeit aus der Aufnahme, sonst geschätzt; Kamera über Stationen Riss ↔ Feste, Licht Tag → Nacht → Abendrot), Spiel ruht währenddessen.
+  Lang beim ersten neuen Spiel (`einst.prologGesehen`), danach kurz; Menüknopf „Prolog“, Einstellung `einst.prolog`. Service Worker lässt die mp3 durch.
+  **Neue oder geänderte Prolog-Texte: Aufnahmen neu erzeugen** (`node --experimental-strip-types tools/prolog_sprechen.ts [sprache] [lang|kurz]`).
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

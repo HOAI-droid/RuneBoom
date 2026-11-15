@@ -115,6 +115,7 @@ Technik: Der Gastgeber gibt den Takt vor und verteilt alle Befehle, jedes Gerät
 
 - Geräusche: Kenney, „50 RPG sound effects“, CC0 – <https://opengameart.org/content/50-rpg-sound-effects>
 - Instrumente: FluidR3 GM SoundFont von Frank Wen, vorgerendert von gleitz/midi-js-soundfonts, CC BY 3.0 – <https://github.com/gleitz/midi-js-soundfonts>
+- Stimme des Prologs: „Brian“ von ElevenLabs (erzeugt mit `tools/prolog_sprechen.ts`)
 
 ### Handy, Tablet und Xbox
 
