@@ -581,6 +581,36 @@
   body.kompakt .stufen-wahl button b { font-size: 13px; } body.kompakt .stufen-wahl button small { font-size: 10.5px; line-height: 1.25; }
   body.kompakt .menue-seite .platz { padding: 6px 9px; } body.kompakt .menue-seite .platz button { min-height: 0; }
   body.kompakt .menue-seite .hilfe { font-size: 12px; } body.kompakt .menue-seite .wahl button { padding: 4px 9px; min-height: 0; }
+  /* 0.9.3: auf dem Handy alles eine Stufe kleiner */
+  body.kompakt .panel { width: min(250px, 32vw); font-size: 11.5px; padding: 6px 9px; gap: 3px; line-height: 1.25; }
+  body.kompakt .panel h2 { font-size: 13.5px; } body.kompakt .panel h3 { font-size: 12px; }
+  body.kompakt .panel .zeile, body.kompakt .panel p { font-size: 11.5px; }
+  body.kompakt .panel .hp { height: 4px; }
+  body.kompakt .panel .akt { padding: 3px 6px; } body.kompakt .panel .akt b { font-size: 11.5px; } body.kompakt .panel .akt small { font-size: 10px; }
+  body.kompakt .panel .aktion { padding: 3px 7px; font-size: 11.5px; }
+  body.kompakt .panel .schliessen { font-size: 18px; padding: 0 4px; }
+  body.kompakt .panel .wahl button { padding: 3px 7px; font-size: 11px; min-height: 0; }
+  body.kompakt .panel .regler { font-size: 11.5px; }
+  body.kompakt .bericht { width: min(290px, 38vw); padding: 6px 10px; }
+  body.kompakt .bericht h2 { font-size: 13.5px; } body.kompakt .bericht .zeile, body.kompakt .bericht ol { font-size: 11.5px; }
+  body.kompakt .bericht button { padding: 3px 10px; font-size: 12px; }
+  body.kompakt .einfuehrung { width: min(210px, 28vw); font-size: 11px; padding: 5px 8px; }
+  body.kompakt .res { font-size: 12px; gap: 7px; } body.kompakt .oben-links { padding: 4px 8px; }
+  body.kompakt .uhr .titel { font-size: 13.5px; } body.kompakt .uhr .unter { font-size: 11px; } body.kompakt .uhr { padding: 3px 9px 4px; }
+  body.kompakt #einlaeuten { width: 24px; height: 20px; } body.kompakt #einlaeuten::before { font-size: 13px; line-height: 20px; }
+  body.kompakt .knoepfe button { height: 26px; min-width: 28px; font-size: 11.5px; padding: 0 5px; }
+  body.kompakt .knoepfe button svg { width: 13px; height: 13px; }
+  body.kompakt .gruppe, body.kompakt .gruppe.sonder { padding: 4px 9px; }
+  body.kompakt .gruppe b, body.kompakt .gruppe.sonder b { font-size: 11.5px; }
+  body.kompakt .gruppen { gap: 3px; padding: 3px; }
+  body.kompakt .aufklapp .bau { width: 108px; padding: 3px 5px; } body.kompakt .aufklapp .bau b { font-size: 11.5px; } body.kompakt .aufklapp .bau .preis { font-size: 9px; }
+  body.kompakt .tipp { font-size: 11px; padding: 4px 8px; }
+  body.kompakt .koop { font-size: 10.5px; }
+  /* Fenster rechts genau unter der Tempo-Leiste, gleich breit, bündig – wie ein Stück */
+  body.kompakt .panel { top: calc(var(--rechts-unten, 44px) + 4px); bottom: auto !important; height: auto !important; right: max(12px, env(safe-area-inset-right)); width: var(--rechts-breite, 230px); max-height: calc(100vh - var(--rechts-unten, 44px) - 64px); box-sizing: border-box; border-radius: 6px; }
+  body.kompakt .knoepfe button { min-width: 32px; }
+  body.kompakt .einfuehrung { top: calc(max(6px, env(safe-area-inset-top)) + 32px); }
+  body.kompakt .bericht { top: calc(max(6px, env(safe-area-inset-top)) + 36px); }
 </style>
 </head>
 <body>

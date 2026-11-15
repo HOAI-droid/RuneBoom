@@ -13,7 +13,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.2';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.3';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -1234,6 +1234,12 @@ karteSetzen(einst.karte); lagePruefen();
 const kompaktMq = matchMedia('(max-height: 520px)');
 const kompaktSetzen = () => document.body.classList.toggle('kompakt', einst.oberflaeche === 'kompakt' || (einst.oberflaeche === 'auto' && kompaktMq.matches));
 kompaktMq.addEventListener('change', kompaktSetzen); kompaktSetzen();
+// das Fenster rechts übernimmt Breite und Unterkante der Tempo-Leiste (kompakte Oberfläche)
+{
+  const rechts = document.querySelector<HTMLElement>('.oben-rechts')!, kn = rechts.querySelector<HTMLElement>('.knoepfe')!;
+  const mass = () => { const r = rechts.getBoundingClientRect(), k = kn.getBoundingClientRect(); const st = document.documentElement.style; st.setProperty('--rechts-breite', `${Math.round(k.width)}px`); st.setProperty('--rechts-unten', `${Math.round(r.bottom)}px`); };
+  new ResizeObserver(mass).observe(rechts); addEventListener('resize', mass); mass();
+}
 document.querySelector('.oben-links')!.addEventListener('click', () => { if (document.body.classList.contains('kompakt')) document.querySelector('.oben-links')!.classList.toggle('offen'); });
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();
