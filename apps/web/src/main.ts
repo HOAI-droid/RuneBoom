@@ -14,7 +14,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.11';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.12';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -144,7 +144,7 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
 }
 function neueObjekte(s: Spiel): Objekte {
   const o = new Objekte(scene, s); o.tierZiel = controls.target; o.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0;
-  o.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25; if (imMenue) o.zeigePfeile = false; return o;
+  o.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25; if (imMenue) o.zeigePfeile = false; bewohnerTag = -1; return o;
 }
 function aufraeumen(): void { prologBeenden(false); berichtPause = false; $('bericht').hidden = true; $('hilfe').hidden = true; obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; imAbspann = false; }
 function speichern(): void { if (prolog || koop?.gast || !spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
@@ -156,6 +156,25 @@ function platzSpeichern(i: number): boolean {
   if (spiel.phase === 'nacht') { melde(t('In der Nacht lässt sich nicht speichern.'), 'schlecht'); return false; }
   const p = plaetze(); p[i] = { name: `${t('{a} · Tag {b}', { a: spiel.code, b: spiel.nacht })}`, datum: Date.now(), stand: spiel.speichern() };
   try { localStorage.setItem(PLAETZE, JSON.stringify(p)); melde(`${t('Gespeichert in Platz {a}.', { a: i + 1 })}`, 'gut'); return true; } catch { melde(t('Speichern nicht möglich.'), 'schlecht'); return false; }
+}
+// ---- Spielstand als Datei: sichern (herunterladen) und laden ----
+function standAlsDatei(st: Spielstand): void {
+  const name = `runeBOOM-${st.code}-Tag${st.nacht}.runeboom`, blob = new Blob([JSON.stringify({ runeboom: 1, version: VERSION, stand: st })], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  melde(t('Spielstand als Datei gesichert: {a}', { a: name }), 'gut');
+}
+function dateiLaden(): void {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.runeboom,.json,application/json';
+  inp.onchange = () => {
+    const f = inp.files?.[0]; if (!f) return;
+    f.text().then((txt) => {
+      const d = JSON.parse(txt); const st: Spielstand = d && d.stand ? d.stand : d;
+      if (!st || typeof st.code !== 'string' || !Array.isArray(st.gebaeude)) throw new Error('kein Spielstand');
+      starte(st.code, st, st.schwierigkeit);
+    }).catch(() => alert(t('Diese Datei ist kein runeBOOM-Spielstand.')));
+  };
+  inp.click();
 }
 function platzLoeschen(i: number): void { const p = plaetze(); p[i] = null; try { localStorage.setItem(PLAETZE, JSON.stringify(p)); } catch { /* */ } }
 const standInfo = (st: Spielstand) => `${t('Tag {a} · {b} · {c} · {d}', { a: st.nacht, b: st.code, c: t(VOELKER[st.volk || 'glutborn'].name), d: t(SCHWIERIGKEIT[st.schwierigkeit || 'normal'].name) })}`;
@@ -266,6 +285,9 @@ function seite(name: string | null): void {
     el.innerHTML = `<h2>${t('Spielstände')}</h2><p>${t('Zu Beginn jedes Tages wird automatisch gespeichert. Im Spiel lässt sich über ☰ zusätzlich in einen der drei Plätze speichern.')}</p>
       <div class="platz"><b>${t('Automatisch')}</b><small>${auto && auto.phase !== 'verloren' ? standInfo(auto) : t('leer')}</small><div class="knoepfe2"><button type="button" class="haupt" data-laden="auto" ${auto && auto.phase !== 'verloren' ? '' : 'disabled'}>${t('Laden')}</button></div></div>
       ${plaetze().map((p, i) => `<div class="platz"><b>${t('Platz {a}', { a: i + 1 })}</b><small>${p ? `${standInfo(p.stand)} · ${new Date(p.datum).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}` : t('leer')}</small><div class="knoepfe2"><button type="button" class="haupt" data-laden="${i}" ${p ? '' : 'disabled'}>${t('Laden')}</button><button type="button" data-loeschen="${i}" ${p ? '' : 'disabled'}>${t('Löschen')}</button></div></div>`).join('')}`;
+    el.insertAdjacentHTML('beforeend', `<div class="platz"><b>${t('Datei')}</b><small>${t('Spielstand als Datei sichern, etwa für ein anderes Gerät, und wieder laden.')}</small><div class="knoepfe2"><button type="button" class="haupt" id="datei-laden">${t('Datei laden')}</button><button type="button" id="datei-sichern" ${auto && auto.phase !== 'verloren' ? '' : 'disabled'}>${t('Automatischen sichern')}</button></div></div>`);
+    $('datei-laden').onclick = dateiLaden;
+    $('datei-sichern').onclick = () => { const st = geladen(); if (st) standAlsDatei(st); };
     el.querySelectorAll<HTMLButtonElement>('[data-laden]').forEach((b) => { b.onclick = () => { const k = b.dataset.laden!; const st = k === 'auto' ? geladen() : plaetze()[Number(k)]?.stand; if (st) starte(st.code, st, st.schwierigkeit); }; });
     el.querySelectorAll<HTMLButtonElement>('[data-loeschen]').forEach((b) => { b.onclick = () => { if (confirm(t('Diesen Spielstand wirklich löschen?'))) { platzLoeschen(Number(b.dataset.loeschen)); seite('plaetze'); } }; });
   }
@@ -361,7 +383,7 @@ $('zummenue').onclick = zeigeStart;
 $('nochmal').onclick = () => { const c = $('weltcode').textContent || neuerWeltcode(); starte(c, undefined, spiel?.schwierigkeit); };
 $('menue').onclick = () => (panelArt === 'einst' ? schliessePanel() : zeigeEinstellungen());
 // für Tests und Neugierige in der Konsole
-(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, get prolog() { return prolog ? { t: prolog.t, vonTon: prolog.vonTon, art: prolog.art } : null; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
+(window as unknown as { runeboom: unknown }).runeboom = { klang, skizze: (id: ErfId) => zeigeSkizze(id), bauwerkzeug: (typ: GebTyp) => werkzeugSetzen({ art: 'bau', typ }), leistung: () => ({ ...mess.letzt, aufl: aufl.faktor, weg: gpuWeg() }), get spiel() { return spiel; }, get obj() { return obj; }, get koop() { return koop; }, get bewohner() { return [...bewohner].map(([id, i]) => ({ id, name: BEWOHNER[i] })); }, bewohnerAn: (x: number, z: number) => bewohnerAn(x, z), get prolog() { return prolog ? { t: prolog.t, vonTon: prolog.vonTon, art: prolog.art } : null; }, befehl: (b: Befehl) => befehl(b), camera, controls, get menueZeit() { return menueZeit; }, set menueZeit(v: number) { menueZeit = v; }, menueStopp: false };
 
 // ================= Bauleiste =================
 let gruppeOffen: string | null = null;
@@ -571,6 +593,9 @@ const WISSEN_ZEICHEN: Record<Wissen, string> = {
 };
 /** Gebäude, das zur Skizze einer Erfindung gezeichnet wird: das erste, das sie freischaltet, sonst eines aus ihrem Wissensgebiet */
 function erfGebaeude(id: ErfId): GebTyp {
+  // eigens gewählte Bilder für Erfindungen ohne eigenes Gebäude oder mit unscheinbarem (Sprengfalle wäre nur ein flacher Block)
+  const EIGEN: Partial<Record<ErfId, GebTyp>> = { sprengpulver: 'feuertopf', glutkern: 'kanone', sternenstaub: 'blitzspule' };
+  if (EIGEN[id]) return EIGEN[id]!;
   const frei = (Object.keys(GEBAEUDE) as GebTyp[]).find((g) => GEBAEUDE[g].braucht === id && !GEBAEUDE[g].volk);
   if (frei) return frei;
   const ERSATZ: Record<Wissen, GebTyp> = { krieg: 'wachturm', bau: 'tor', wirtschaft: 'hof', licht: 'leuchtfeuer', runen: 'werkstatt', alchemie: 'feuertopf' };
@@ -763,6 +788,8 @@ canvas.addEventListener('pointerup', (e) => {
   if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
   if (werkzeug?.art === 'feuerregen') { if (befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
   const g = spiel.gebAn(p.x, p.z);
+  const wer = !g && !werkzeug ? bewohnerAn(p.x, p.z) : null;
+  if (wer) { zeigeTipp(wer); if (!document.body.classList.contains('kompakt')) setTimeout(() => { if (!werkzeug) zeigeTipp(null); }, 2500); return; }
   if (!g) { const ru = spiel.ruineAn(p.x, p.z); if (ru) { waehle(null); ruineGew = ru; panelArt = 'ruine'; $('panel').dataset.html = ''; panelRuine(); return; } }
   if (!g && document.body.classList.contains('kompakt')) { // Tipp ins Leere: alles Offene weg, Blick frei
     gruppeZeigen(null); schliessePanel(); zeigeTipp(null); document.querySelector('.oben-links')!.classList.remove('offen');
@@ -770,6 +797,62 @@ canvas.addEventListener('pointerup', (e) => {
   }
   waehle(g || null);
 });
+
+// ================= Bewohner mit Namen =================
+// Sechs Bewohner tragen Namen und eine farbige Mütze. Wer welche Arbeit macht, wechselt mit jeder Partie und jedem Tag.
+const BEWOHNER = ['Lara', 'Marie', 'Tom', 'Ben', 'Luana', 'Leo'];
+const MUETZEN = ['#c94a3a', '#3f78c9', '#d9a92e', '#3f9a62', '#a35ac9', '#e07a2a'];
+/** markiert Texte für die Übersetzung (übersetzt wird beim Anzeigen) */
+const tx = (x: string) => x;
+const TAETIGKEIT: Record<string, string> = { holz: tx('fällt Bäume'), stein: tx('bricht Stein'), kristall: tx('schürft Kristall'), nahrung: tx('sorgt für Essen'), erz: tx('gräbt Erz'), stahl: tx('schmiedet Stahl'), balken: tx('sägt Balken'), linsen: tx('schleift Linsen') };
+const ERZAEHLT: Record<string, string[]> = {
+  holz: [tx('{a} hat einen besonders großen Baum gefällt.'), tx('{a} hat beim Holzfällen ein Vogelnest gerettet.'), tx('{a} schleppt einen Stamm, so dick wie ein Fass.')],
+  stein: [tx('{a} hat im Steinbruch eine glitzernde Ader gefunden.'), tx('{a} hat den schwersten Block des Tages gebrochen.')],
+  kristall: [tx('{a} hat einen funkelnden Kristall entdeckt.'), tx('{a} sagt, die Kristalle summen heute leise.')],
+  nahrung: [tx('{a} bringt frisches Essen in die Feste.'), tx('{a} hat die erste reife Ernte eingebracht.')],
+  erz: [tx('{a} singt beim Erzgraben so laut, dass man es bis zur Burg hört.'), tx('{a} hat ein großes Stück Eisenerz ausgegraben.')],
+  stahl: [tx('{a} hat neue Klingen geschmiedet.'), tx('{a} lässt den Amboss klingen.')],
+  balken: [tx('{a} hat Balken für die Mauern gesägt.')],
+  linsen: [tx('{a} poliert die Linsen, bis sie glänzen.')]
+};
+const NACHT_ERZAEHLT = [tx('{a} hat in der Nacht die Fackeln am Tor gehütet.'), tx('{a} hat in der Nacht einen Schattenwolf entdeckt und Alarm gegeben.'), tx('{a} hat nach der Nacht die Verwundeten versorgt.'), tx('{a} hat die ganze Nacht Pfeile zu den Türmen getragen.')];
+let bewohnerTag = -1, bewohnerUhr = 60 + Math.random() * 60;
+const bewohner = new Map<number, number>(); // Arbeiter-ID → Index in BEWOHNER
+function bewohnerVerteilen(s: Spiel): void {
+  // je Partie (Weltcode) und Tag eine andere Reihenfolge; gleich für alle Geräte einer Partie
+  let h = (s.seed ^ Math.imul(s.nacht + 1, 0x9e3779b1)) >>> 0; const zufall = () => { h = (Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0; return h / 4294967296; };
+  const liste = [...s.arbeiter].sort((a, b) => a.id - b.id), aus: typeof liste = [];
+  while (liste.length && aus.length < BEWOHNER.length) aus.push(liste.splice(Math.floor(zufall() * liste.length), 1)[0]);
+  const reihe = BEWOHNER.map((_, i) => i).sort(() => zufall() - 0.5);
+  bewohner.clear(); aus.forEach((a, i) => bewohner.set(a.id, reihe[i]));
+  if (obj) { obj.benannt.clear(); for (const [id, i] of bewohner) obj.benannt.set(id, MUETZEN[i]); }
+  bewohnerTag = s.nacht;
+}
+function bewohnerRes(s: Spiel, id: number): string | null {
+  const a = s.arbeiter.find((x) => x.id === id); const g = a && s.gebaeude.find((o) => o.id === a.geb); if (!g) return null;
+  return GEBAEUDE[g.typ].arbeit?.res ?? GEBAEUDE[g.typ].umwandeln?.nach ?? null;
+}
+function bewohnerSchritt(dt: number): void {
+  const s = spiel; if (!s || imMenue || prolog) return;
+  if (bewohnerTag !== s.nacht || [...bewohner.keys()].some((id) => !s.arbeiter.some((a) => a.id === id))) bewohnerVerteilen(s);
+  if (s.phase !== 'tag' || dt <= 0) return;
+  bewohnerUhr -= dt;
+  if (bewohnerUhr > 0 || !bewohner.size) return;
+  bewohnerUhr = 100 + Math.random() * 80; // gelegentlich, nicht ständig
+  const ids = [...bewohner.keys()], id = ids[Math.floor(Math.random() * ids.length)], res = bewohnerRes(s, id), saetze = res && ERZAEHLT[res];
+  if (saetze) melde(t(saetze[Math.floor(Math.random() * saetze.length)], { a: BEWOHNER[bewohner.get(id)!] }), 'info');
+}
+function bewohnerNacht(): void { // nach überstandener Nacht manchmal ein Satz über einen der sechs
+  if (!bewohner.size || Math.random() < 0.4) return;
+  const i = [...bewohner.values()][Math.floor(Math.random() * bewohner.size)];
+  setTimeout(() => melde(t(NACHT_ERZAEHLT[Math.floor(Math.random() * NACHT_ERZAEHLT.length)], { a: BEWOHNER[i] }), 'gut'), 6000);
+}
+/** Bewohner mit Namen an dieser Stelle? (für Antippen und Klicken) */
+function bewohnerAn(x: number, z: number): string | null {
+  const s = spiel; if (!s) return null; let best: string | null = null, bd = 2.2;
+  for (const [id, i] of bewohner) { const a = s.arbeiter.find((o) => o.id === id); if (!a || a.zustand === 'drin') continue; const d = Math.hypot(a.x - x, a.z - z); if (d < bd) { bd = d; const r = bewohnerRes(s, id); best = `<b style="color:${MUETZEN[i]}">${BEWOHNER[i]}</b>${r ? ` · ${t(TAETIGKEIT[r])}` : ''}`; } }
+  return best;
+}
 
 // ================= Prolog: Erzähler, Text und Kamerafahrt =================
 // Langfassung beim ersten neuen Spiel und über „Prolog“ im Menü, danach vor neuen Partien die Kurzfassung.
@@ -1163,6 +1246,7 @@ function zeigeEinstellungen(): void {
     ${grafikHtml()}
     <h3 style="margin:6px 0 0;font-family:var(--display);color:var(--ember)">${t('Spielstand speichern')}</h3>
     ${plaetze().map((pl, i) => `<button type="button" class="aktion" data-platz="${i}">${t('Platz {a}{b}', { a: i + 1, b: pl ? ` · ${t('überschreibt {a}', { a: t(pl.name) })}` : t(' · leer') })}</button>`).join('')}
+    <button type="button" class="aktion" id="e-datei">${t('Als Datei sichern')}</button>
     <button type="button" class="aktion" id="e-einf">${t('Einführung neu zeigen')}</button>
     <button type="button" class="aktion" id="e-menue">${t('Speichern und zum Menü')}</button>`;
   p.hidden = false;
@@ -1171,6 +1255,7 @@ function zeigeEinstellungen(): void {
   m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
   grafikVerbinden(p, zeigeEinstellungen);
   p.querySelectorAll<HTMLButtonElement>('[data-platz]').forEach((b) => { b.onclick = () => { if (platzSpeichern(Number(b.dataset.platz))) zeigeEinstellungen(); }; });
+  $('e-datei').onclick = () => { if (!spiel) return; if (koop?.gast) { melde(t('Im Mehrspieler speichert der Gastgeber.'), 'info'); return; } if (spiel.phase === 'nacht') { melde(t('In der Nacht lässt sich nicht speichern.'), 'schlecht'); return; } standAlsDatei(spiel.speichern()); };
   $('e-einf').onclick = () => { einfZu = false; einst.einfuehrung = true; einstSpeichern(); einfuehrungSchritt = 0; schliessePanel(); einfuehrung(); };
   $('e-menue').onclick = () => { speichern(); schliessePanel(); zeigeStart(); };
 }
@@ -1341,6 +1426,7 @@ renderer.setAnimationLoop(() => {
     }
     if (koop && !koop.gast) koop.senden(spiel);
     try { mitteSchritt(); } catch (err) { console.error(err); }
+    try { bewohnerSchritt(dt * (koop ? koop.tempo : tempo)); } catch (err) { console.error(err); }
     if (!spiel || !obj || !welt) return;
     mess.spiel += performance.now() - ts;
     // im Prolog nur Bild und Klang, keine Fenster, kein Speichern, kein Ende
@@ -1363,10 +1449,10 @@ renderer.setAnimationLoop(() => {
       if (e.art === 'abgeliefert') klang.spiele('abgeliefert', naehe(e.x, e.z) * 0.6);
       if (e.art === 'gebaut') klang.spiele('bau', naehe(e.geb.x, e.geb.z));
       if (e.art === 'weg' && e.zerstoert) klang.spiele('einsturz', naehe(e.geb.x, e.geb.z));
-      if (e.art === 'tod') klang.spiele('tod', Math.max(0.2, naehe(e.x, e.z)) * 0.8);
+      if (e.art === 'tod') { const tt = e.typ === 'troll' || e.typ === 'schildwaechter' || e.typ === 'steinwerfer' ? 'tod_schwer' : e.typ === 'drachling' || e.typ === 'rochen' ? 'tod_flieger' : e.typ === 'aschegeist' || e.typ === 'schamane' ? 'tod_geist' : e.typ === 'rissfuerst' ? 'tod_boss' : 'tod'; klang.spiele(tt, Math.max(0.2, naehe(e.x, e.z)) * (tt === 'tod_boss' ? 1.2 : 0.8)); }
       if (e.art === 'reparatur') klang.spiele(e.fertig ? 'glocke' : 'reparatur', naehe(e.geb.x, e.geb.z) * (e.fertig ? 0.3 : 0.8));
       if (e.art === 'phase' && e.phase === 'nacht') klang.spiele('horn');
-      if (e.art === 'phase' && e.phase === 'morgen') klang.spiele('glocke', 0.8);
+      if (e.art === 'phase' && e.phase === 'morgen') { klang.spiele('glocke', 0.8); if (!prolog) bewohnerNacht(); }
       if (e.art === 'erkundet') { welt.nebelAktualisieren(); zeichneKartenGrund(); }
       if (e.art === 'meldung') melde(e.text, e.ton);
       if (e.art === 'bericht') zeigeBericht(e.bericht);

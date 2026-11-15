@@ -1,3 +1,4 @@
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as THREE from 'three';
 import { GEBAEUDE, trockenerWeg, trocken, spalte, deko, Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
@@ -420,6 +421,9 @@ export class Objekte {
 
   /** Tiere um diesen Punkt (Blickpunkt der Kamera); Menge 0 = keine (niedrige Grafik) */
   tierZiel: THREE.Vector3 | null = null; tierMenge = 1; private tiere: Tierwelt;
+  /** benannte Bewohner: Arbeiter-ID → Mützenfarbe (die Oberfläche legt fest, wer heute wer ist) */
+  benannt = new Map<number, string>();
+  private kappen: THREE.InstancedMesh;
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
     this.tiere = new Tierwelt(scene, spiel);
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
@@ -443,6 +447,13 @@ export class Objekte {
       stahl: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f2a2a', kleid: '#7a3a2a', haut: '#d9a77c', haar: '#2e2620', schuerze: '#3a3030', werkzeug: 'hacke' })), 0.125, 80, scene, true, MENSCH),
       balken: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#6b8a4a', haut: '#e0b48c', haar: '#8a5a2a', werkzeug: 'axt' })), 0.125, 80, scene, true, MENSCH),
       linsen: new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#5a6a9a', haut: '#e8c09a', haar: '#d9c27a', brille: true })), 0.125, 80, scene, true, MENSCH) };
+    { // Mütze: flache Kappe mit Zipfel nach hinten
+      const kappe = new THREE.BoxGeometry(0.72, 0.16, 0.62), schirm = new THREE.BoxGeometry(0.5, 0.06, 0.22), zipfel = new THREE.BoxGeometry(0.3, 0.2, 0.3); kappe.translate(0, 0, -0.06); schirm.translate(0, -0.05, 0.32); zipfel.translate(0, 0.17, -0.12);
+      const geo = mergeGeometries([kappe, schirm, zipfel]) ?? kappe;
+      this.kappen = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 }), 8);
+      this.kappen.count = 0; this.kappen.frustumCulled = false; this.kappen.castShadow = true;
+      this.kappen.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(8 * 3), 3); scene.add(this.kappen);
+    }
     this.buergerSchar = [
       new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#3d3328', kleid: '#9c5f6a', haut: '#e8c09a', haar: '#3a2a1e', schuerze: '#d4c4a0' })), 0.125, 60, scene, true, MENSCH),
       new Schar(mk((g) => figur8(g, 0, 0, 0, 0, { hose: '#2f3a4a', kleid: '#4f6b8a', haut: '#d9a77c', haar: '#8a5a2a' })), 0.125, 60, scene, true, MENSCH),
@@ -635,6 +646,7 @@ export class Objekte {
     this.feuer.ende(); this.panzer.ende();
     // ---- Arbeiter (Tag) und Baumeister bei Reparaturen ----
     for (const s of Object.values(this.arbeiter)) s.beginn();
+    const kp = this.kappen; kp.count = 0;
     for (const m of Object.values(this.traglast)) m.count = 0;
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), eins = new THREE.Vector3(1, 1, 1);
     for (const a of S.arbeiter) {
@@ -644,6 +656,11 @@ export class Objekte {
       const geht = a.zustand === 'hin' || a.zustand === 'zurueck' || a.zustand === 'heim';
       const hub = a.zustand === 'arbeit' ? Math.max(0, Math.sin(t * 9 + a.id)) * 0.35 : 0;
       schar.setze(a.x, a.y + (geht ? Math.abs(Math.sin(t * 9 + a.id)) * 0.07 : 0), a.z, a.richtung, 0, hub * 0.25, 1, { phase: t * 9 + a.id, gang: geht ? 1 : 0, hieb: hub / 0.35 });
+      const farbe = this.benannt.get(a.id);
+      if (farbe && kp.count < 8) { // farbige Mütze mit Zipfel: erkennbar, ohne aufzufallen
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a.richtung); v.set(a.x, a.y + 2.2 + (geht ? Math.abs(Math.sin(t * 9 + a.id)) * 0.07 : 0), a.z);
+        mtx.compose(v, q, eins); kp.setMatrixAt(kp.count, mtx); kp.setColorAt(kp.count, new THREE.Color(farbe)); kp.count++;
+      }
       if (a.traegt) {
         const tl = this.traglast[a.traegt];
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a.richtung + (a.traegt === 'holz' ? Math.PI / 2 : 0));
@@ -651,6 +668,7 @@ export class Objekte {
       }
     }
     for (const s of Object.values(this.arbeiter)) s.ende();
+    kp.instanceMatrix.needsUpdate = true; if (kp.instanceColor) kp.instanceColor.needsUpdate = true;
     for (const m of Object.values(this.traglast)) m.instanceMatrix.needsUpdate = true;
     this.bewegeBuerger(dt, t);
     if (this.tierZiel) this.tiere.bild(dt, t, this.tierZiel, this.tierMenge);

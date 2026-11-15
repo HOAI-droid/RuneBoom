@@ -1,3 +1,15 @@
+## runeBOOM 0.9.12 · Bewohner mit Namen
+
+- **Lara, Marie, Tom, Ben, Luana und Leo** leben jetzt in der Feste. Man erkennt sie an ihrer farbigen Mütze; antippen oder anklicken
+  zeigt Namen und Arbeit. Wer was macht, wechselt mit jeder Partie und jedem Tag. Ab und zu erzählt das Spiel von ihnen,
+  und nach mancher Nacht hört man, wer die Fackeln gehütet oder Alarm gegeben hat.
+- **Spielstand als Datei:** im Spiel über ☰ „Als Datei sichern“, im Hauptmenü unter „Spielstände“ sichern und „Datei laden“,
+  etwa um auf einem anderen Gerät weiterzuspielen.
+- **Feinschliff:** eigene Todeslaute für schwere Wesen, Flieger, Geister und den Rissfürsten; passende Erfinderskizzen für Sprengpulver,
+  Glutkern und Sternenstaub; Übersetzungen durchgesehen; Konzeptbuch auf dem neuen Stand.
+
+---
+
 ## runeBOOM 0.9.11 · Die Nacht des Prologs
 
 - **Der Prolog zeigt jetzt einen Angriff:** Zuerst ein belebtes Dorf am Tag mit Arbeitern, Bürgern und Tieren. Dann reißt die Erde auf,

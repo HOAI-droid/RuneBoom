@@ -23,7 +23,7 @@ export function alleTexte(): string[] {
   for (const g of D.BAUGRUPPEN) add(g.name);
   for (const r of RISSE) add(r.name);
   for (const v of Object.values(SEITEN_NAME)) add(v);
-  const re = /\b(?:t|tr)\('((?:\\'|[^'])*)'/g;
+  const re = /\b(?:t|tr|tx)\('((?:\\'|[^'])*)'/g;
   for (const f of ['apps/web/src/main.ts', 'apps/web/src/mehrspieler.ts', 'packages/core/src/spiel.ts']) for (const m of readFileSync(f, 'utf8').matchAll(re)) add(m[1].replace(/\\'/g, "'"));
   // statische Texte aus index.html (nur der Körper, ohne Stil)
   const html = readFileSync('apps/web/index.html', 'utf8').split('<body>')[1].split('<script')[0];

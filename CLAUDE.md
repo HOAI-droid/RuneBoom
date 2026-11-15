@@ -182,5 +182,9 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   Seit 0.9.11 läuft der Prolog auf einer Bühne: `schauFeste(code, volk)` (auch Menü-Hintergrund) ersetzt Spiel/Objekte für die Dauer, `prologAuftritt()`
   läutet die Nacht ein und lässt Wesen über `Spiel.zeigeWesen()` je Absatz dort auftauchen, wohin die Kamera blickt; danach echte Partie zurück, Tag dämmert.
   **Neue oder geänderte Prolog-Texte: Aufnahmen neu erzeugen** (`node --experimental-strip-types tools/prolog_sprechen.ts [sprache] [lang|kurz]`).
+- [x] 0.9.12 Bewohner mit Namen (`BEWOHNER` in main.ts: Lara, Marie, Tom, Ben, Luana, Leo; **keine festen Rollen**: `bewohnerVerteilen()` mischt je
+  Weltcode und Tag, Mütze über `Objekte.benannt`/`kappen`, Namensschild über `bewohnerAn()`, Meldungen `ERZAEHLT`/`NACHT_ERZAEHLT`, Texte mit `tx()`
+  markiert, damit `texte_sammeln.ts` sie findet), Spielstand als Datei (`standAlsDatei()`, `dateiLaden()`, Endung `.runeboom`), Todeslaute je Art
+  (`tod_schwer`, `tod_flieger`, `tod_geist`, `tod_boss`), Skizzen-Ersatz `EIGEN` in `erfGebaeude()`.
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
