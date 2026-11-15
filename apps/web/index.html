@@ -543,6 +543,44 @@
   body.kompakt .einfuehrung * { font-size: inherit; }
   body.kompakt .panel { top: calc(max(6px, env(safe-area-inset-top)) + 44px); bottom: 58px; left: auto; right: max(8px, env(safe-area-inset-right)); width: min(330px, 42vw); max-height: none; overflow-y: auto; }
   body.kompakt #meldungen { top: 44px; }
+  /* nie mehrere Tafeln übereinander: Fenster und Bericht verdrängen Einführung und Hinweise */
+  .einfuehrung .schritt { display: flex; justify-content: space-between; align-items: center; }
+  #einf-zu { display: none; }
+  body.kompakt #einf-zu { display: block; background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 2px; text-decoration: none; }
+  body.kompakt .einfuehrung.zu { width: auto; padding: 0; border-left: 0; background: none; box-shadow: none; }
+  body.kompakt #einf-auf { background: #1b2130; border: 1px solid var(--rune); color: var(--rune); border-radius: 999px; padding: 4px 11px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-decoration: none; }
+  body.kompakt.panel-offen .einfuehrung, body.kompakt.bericht-offen .einfuehrung, body.kompakt:has(.oben-links.offen) .einfuehrung { display: none; }
+  body.kompakt.panel-offen .tipp, body.kompakt.bericht-offen .tipp { display: none; }
+  body.kompakt .tipp { font-size: 12px; padding: 5px 10px; max-width: min(420px, 60vw); }
+  body.kompakt .panel { font-size: 12.5px; padding: 8px 10px; gap: 5px; width: min(300px, 38vw); align-content: start; }
+  body.kompakt .volk-wahl button small:not(.staerken) { display: none; }
+  body.kompakt .panel h2 { font-size: 15px; margin: 0; } body.kompakt .panel h3 { font-size: 13px; }
+  body.kompakt .panel .zeile, body.kompakt .panel p { font-size: 12.5px; }
+  body.kompakt .panel .akt { min-height: 0; padding: 4px 7px; } body.kompakt .panel .akt b { font-size: 12.5px; } body.kompakt .panel .akt small { font-size: 10.5px; }
+  body.kompakt .panel .aktion { min-height: 0; padding: 5px 8px; font-size: 12.5px; }
+  body.kompakt .panel .schliessen { font-size: 22px; padding: 0 6px; }
+  body.kompakt .bericht { top: calc(max(6px, env(safe-area-inset-top)) + 44px); width: min(340px, 46vw); padding: 8px 12px; gap: 3px; max-height: calc(100vh - 110px); }
+  body.kompakt .bericht h2 { font-size: 15px; } body.kompakt .bericht .zeile, body.kompakt .bericht ol { font-size: 12.5px; }
+  body.kompakt .bericht button { min-height: 0; padding: 4px 12px; font-size: 13px; }
+  /* Hauptmenü auf dem Handy: schmale Spalte links, Seite rechts daneben, nichts ragt hinaus */
+  body.kompakt .menue { gap: 12px; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); overflow: hidden; }
+  body.kompakt .menue-spalte { width: 230px; flex: none; gap: 10px; justify-content: center; }
+  body.kompakt .titel { font-size: 38px; } body.kompakt .untertitel { font-size: 10px; margin-top: 4px; letter-spacing: .12em; }
+  body.kompakt .menue-liste { gap: 5px; }
+  body.kompakt .menue-knopf { min-height: 0; padding: 6px 12px 6px 14px; }
+  body.kompakt .menue-knopf span { font-size: 14.5px; } body.kompakt .menue-knopf small { display: none; }
+  body.kompakt .menue-knopf.haupt small { display: block; font-size: 10.5px; }
+  body.kompakt .menue-knopf::before { top: 5px; bottom: 5px; }
+  body.kompakt .menue-fuss { font-size: 10px; }
+  body.kompakt .menue-seite { flex: 1 1 auto; min-width: 0; width: auto; max-width: 560px; align-self: stretch; max-height: none; margin: 0; padding: 10px 14px; gap: 7px; overflow-y: auto; }
+  body.kompakt .menue-seite h2 { font-size: 17px; } body.kompakt .menue-seite h3 { font-size: 14px; margin: 4px 0 0; }
+  body.kompakt .menue-seite p { font-size: 12.5px; line-height: 1.4; }
+  body.kompakt .menue-seite .feld input { font-size: 14px; padding: 5px 8px; } body.kompakt .menue-seite .feld button, body.kompakt .menue-seite .knopf { min-height: 0; padding: 5px 10px; font-size: 13px; }
+  body.kompakt .stufen-wahl { gap: 5px; }
+  body.kompakt .stufen-wahl button { min-height: 0; padding: 5px 8px; gap: 1px; }
+  body.kompakt .stufen-wahl button b { font-size: 13px; } body.kompakt .stufen-wahl button small { font-size: 10.5px; line-height: 1.25; }
+  body.kompakt .menue-seite .platz { padding: 6px 9px; } body.kompakt .menue-seite .platz button { min-height: 0; }
+  body.kompakt .menue-seite .hilfe { font-size: 12px; } body.kompakt .menue-seite .wahl button { padding: 4px 9px; min-height: 0; }
 </style>
 </head>
 <body>
