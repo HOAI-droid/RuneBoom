@@ -1,3 +1,10 @@
+## runeBOOM 0.9.4 · Bündig
+
+- Auf dem Handy übernimmt das Gebäudefenster Breite und linke Kante direkt von der Tempo-Leiste darüber, auch bei Geräten mit
+  Kamera-Aussparung am Rand. Beides wirkt wie ein Stück.
+
+---
+
 ## runeBOOM 0.9.3 · Noch kleiner auf dem Handy
 
 - Auf dem Handy ist alles eine Stufe kleiner: Gebäudefenster, Einstellungen, Nachtbericht, Einführung, Rohstoffe, Uhr,
