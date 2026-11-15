@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import {
   Spiel, t, setzeSprache, sprache, systemSprache, registriereSprache, SPRACHEN, type Sprache, DT, B, WR, CH, EBNEN_STEIN, BAUGRUPPEN, VOELKER, LEITSAETZE, OMEN, AKTE, ENDE_NACHT, RISSE, HAUPT_STUFEN, RES_NAMEN, STUFE_NAME, SCHWIERIGKEIT, runenkraft, WISSEN_NAME, TAG_DAUER as TAGD, FAEHIGKEIT_NAME, VERSCHMELZUNGEN, ZEITALTER_NAME, hoeheGeaendert, GEBAEUDE, BAULEISTE, ERFINDUNGEN, BAUSTEIN_NAME, GEGNER, TAG_DAUER, hoehe, neuerWeltcode,
-  type GebTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME
+  type GebTyp, type GegTyp, type Geb, type Ruine, type Res, type Schwierigkeit, type Wissen, type Volk, type Baustein, type ErfId, type Spielstand, type Befehl, SEITEN_NAME
 } from '@runeboom/core';
 import { neuerRenderer, jahreszeitSetzen, FABRIK, Beleuchtung, WeltAnsicht, Objekte, lichtkarteSetzen, ZEIT } from '@runeboom/render';
 import { Klang } from './klang.ts';
@@ -14,7 +14,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.10';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.11';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -127,7 +127,7 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   welt.hoehen = (cx, cz) => { const out: [number, number, number][] = []; for (let x = cx * CH - 2; x < cx * CH + CH + 2; x++) for (let z = cz * CH - 2; z < cz * CH + CH + 2; z++) { const h = hoeheGeaendert(x, z); if (h !== undefined) out.push([x, z, h]); } return out; };
   welt.onUebersicht = () => { zeichneKartenGrund(); for (const k of [...sp.gefaellt.keys(), ...sp.abgebaut.keys()]) { const x = Math.floor(k / 2048) - 600, z = (k % 2048) - 600; wa.grobDeko(x, z, !sp.dekoZustand(x, z)); } };
   einfuehrungSchritt = einst.einfuehrung && !stand ? 0 : -1; spaeherGeschickt = false;
-  obj = new Objekte(scene, spiel); obj.tierZiel = controls.target; obj.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0; obj.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25;
+  obj = neueObjekte(spiel);
   lichtkarteSetzen(spiel.lichtquellen());
   const ziel = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
   controls.target.copy(ziel); camera.position.copy(ziel).add(new THREE.Vector3(56, 70, 74));
@@ -142,8 +142,12 @@ function starte(code: string, stand?: Spielstand, schwierigkeit: Schwierigkeit =
   if (!stand && einst.prolog && !koop) { const art = einst.prologGesehen ? 'kurz' : 'lang'; einst.prologGesehen = true; einstSpeichern(); prologStarten(art); }
   melde(stand ? `${t('Willkommen zurück. Tag {a}.', { a: spiel.nacht })}` : t('Tag 1. Baue Türme vor dem Tor, bevor die Nacht kommt. Der Pfad zeigt, woher die Wesen kommen.'), 'info');
 }
+function neueObjekte(s: Spiel): Objekte {
+  const o = new Objekte(scene, s); o.tierZiel = controls.target; o.tierMenge = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.6 : 0;
+  o.buergerMax = einst.grafik === 'hoch' ? 150 : einst.grafik === 'mittel' ? 70 : 25; if (imMenue) o.zeigePfeile = false; return o;
+}
 function aufraeumen(): void { prologBeenden(false); berichtPause = false; $('bericht').hidden = true; $('hilfe').hidden = true; obj?.ende(); welt?.ende(); obj = null; welt = null; spiel = null; imMenue = false; imAbspann = false; }
-function speichern(): void { if (koop?.gast || !spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
+function speichern(): void { if (prolog || koop?.gast || !spiel || imMenue || spiel.phase === 'verloren' || spiel.phase === 'nacht') return; try { localStorage.setItem(SPEICHER, JSON.stringify(spiel.speichern())); } catch { /* Speicher nicht verfügbar */ } }
 interface Platz { name: string; datum: number; stand: Spielstand }
 function plaetze(): (Platz | null)[] { try { const p = JSON.parse(localStorage.getItem(PLAETZE) || '[]'); return [0, 1, 2].map((i) => p[i] || null); } catch { return [null, null, null]; } }
 function platzSpeichern(i: number): boolean {
@@ -160,9 +164,9 @@ function geladen(): Spielstand | null { try { const s = localStorage.getItem(SPE
 // ================= Hauptmenü mit lebender Welt =================
 let imMenue = false, imAbspann = false, menueZeit = 0, neuSchwer: Schwierigkeit = 'normal', neuVolk: Volk = 'glutborn', neuCode = neuerWeltcode();
 /** Feste für den Hintergrund des Menüs: echte Welt, ausgebaut, voller Leben */
-function baueMenueWelt(): void {
-  const code = 'NEBELKRAKE-4127';
-  const s = new Spiel(code, undefined, { schwierigkeit: 'leicht', volk: 'sturmweber' });
+/** ausgebaute, belebte Feste (Hintergrund des Menüs und Bühne des Prologs) */
+function schauFeste(code: string, volk: Volk): Spiel {
+  const s = new Spiel(code, undefined, { schwierigkeit: 'leicht', volk });
   s.res.holz = s.res.stein = s.res.kristall = 99999; s.res.nahrung = 9999;
   for (const id of ['steinmetz', 'sprengpulver', 'leuchtfeuer', 'meisterbau'] as ErfId[]) s.erfindungen.add(id);
   s.aufdecken(B.x, B.z, 140);
@@ -173,6 +177,11 @@ function baueMenueWelt(): void {
   const h = s.haupt!; h.stufe = 4;
   s.einwohner = 70; s.verteileArbeiter();
   s.ereignisse.length = 0;
+  return s;
+}
+function baueMenueWelt(): void {
+  const code = 'NEBELKRAKE-4127';
+  const s = schauFeste(code, 'sturmweber');
   spiel = s;
   welt = new WeltAnsicht(scene, s.seed, s.erkundet); welt.nebelLagen = einst.grafik === 'hoch' ? 5 : 3; welt.detail = einst.grafik === 'hoch' ? 1 : einst.grafik === 'mittel' ? 0.8 : 0.6;
   const wa = welt;
@@ -766,7 +775,8 @@ canvas.addEventListener('pointerup', (e) => {
 // Langfassung beim ersten neuen Spiel und über „Prolog“ im Menü, danach vor neuen Partien die Kurzfassung.
 // Zeitgeber ist die Aufnahme; fehlt sie (blockiert, offline ohne Zwischenspeicher), läuft die Uhr allein weiter.
 interface Prolog { art: 'lang' | 'kurz'; text: string[][]; zeiten: ProlZeiten | null; ton: HTMLAudioElement; t: number; laeuft: boolean; vonTon: boolean; ende: () => void; zuende: boolean;
-  zielPos: THREE.Vector3; zielBlick: THREE.Vector3; absatz: number }
+  zielPos: THREE.Vector3; zielBlick: THREE.Vector3; absatz: number;
+  /** die eigentliche Partie ruht, solange die Schau-Feste gezeigt wird */ echt: Spiel | null; schau: Spiel | null; menue: boolean; auftritt: number }
 let prolog: Prolog | null = null;
 function prologSprache(): ProlSprache { const s = sprache(); return (['de', 'en', 'fr', 'es'] as const).includes(s as ProlSprache) ? s as ProlSprache : 'en'; }
 function prologStarten(art: 'lang' | 'kurz', danach: () => void = () => {}): void {
@@ -774,8 +784,17 @@ function prologStarten(art: 'lang' | 'kurz', danach: () => void = () => {}): voi
   const sp = prologSprache();
   const ton = new Audio(`prolog/${sp}-${art}.mp3`); ton.preload = 'auto'; ton.volume = Math.min(1, 0.4 + einst.effekte * 0.8);
   const p: Prolog = { art, text: PROLOG[sp][art], zeiten: null, ton, t: 0, laeuft: true, vonTon: false, ende: danach, zuende: false,
-    zielPos: camera.position.clone(), zielBlick: controls.target.clone(), absatz: -1 };
+    zielPos: camera.position.clone(), zielBlick: controls.target.clone(), absatz: -1, echt: null, schau: null, menue: imMenue, auftritt: -1 };
   prolog = p;
+  // Bühne: eine ausgebaute, belebte Feste derselben Welt (Arbeiter, Bürger, Tiere), die dann in der Nacht angegriffen wird
+  if (spiel && obj) {
+    try {
+      p.echt = spiel; const sch = schauFeste(spiel.code, spiel.volk);
+      sch.aufdecken(RISSE[0].x, RISSE[0].z, 60); p.schau = sch;
+      obj.ende(); spiel = sch; obj = neueObjekte(sch); lichtkarteSetzen(sch.lichtquellen()); welt?.nebelAktualisieren();
+      imMenue = false;
+    } catch (err) { console.error(err); }
+  }
   fetch(`prolog/${sp}-${art}.json`).then((r) => r.json()).then((z: ProlZeiten) => { if (prolog === p) p.zeiten = z; }).catch(() => { /* Zeiten geschätzt */ });
   ton.play().then(() => { p.vonTon = true; }).catch(() => { p.vonTon = false; }); // im Klick gestartet, damit iOS es erlaubt
   ton.onended = () => { if (prolog === p) prologBeenden(true); };
@@ -794,10 +813,11 @@ function prologZeiten(p: Prolog): ProlZeiten {
 function prologBeenden(weiter: boolean): void {
   const p = prolog; if (!p) return;
   prolog = null; p.ton.pause(); p.ton.src = '';
+  if (p.echt) { obj?.ende(); spiel = p.echt; obj = neueObjekte(p.echt); lichtkarteSetzen(p.echt.lichtquellen()); welt?.nebelAktualisieren(); imMenue = p.menue; }
   klang.setzeLautstaerke(einst.musik, einst.effekte);
   const el = $('prolog'); el.classList.add('aus'); setTimeout(() => { if (!prolog) { el.hidden = true; el.innerHTML = ''; } }, 900);
   document.body.classList.remove('im-prolog');
-  if (!imMenue) { controls.target.copy(p.zielBlick); camera.position.copy(p.zielPos); controls.update(); }
+  if (!imMenue) { controls.target.copy(p.zielBlick); camera.position.copy(p.zielPos); controls.update(); anzeigeDunkel = 0.75; } // dann dämmert der Tag
   if (weiter) p.ende();
 }
 const sanft = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
@@ -815,12 +835,13 @@ function prologSchritt(dt: number): number {
     const absEnde = z.zeilen[a][z.zeilen[a].length - 1][1], naechster = z.zeilen[a + 1]?.[0][0];
     el.classList.toggle('weg', naechster !== undefined && p.t > absEnde + 0.25 && p.t < naechster - 0.3);
   }
+  prologAuftritt(p, a);
   // Kamera: Absätze als Stationen zwischen Riss und Feste
   const R = new THREE.Vector3(RISSE[0].x, 4, RISSE[0].z), F = new THREE.Vector3(B.x + 0.5, 7, B.z + 16);
   const n = z.zeilen.length, stationen: { blick: THREE.Vector3; weg: THREE.Vector3 }[] = p.art === 'kurz'
     ? [{ blick: R.clone().lerp(F, 0.25), weg: new THREE.Vector3(-70, 85, 60) }, { blick: F.clone(), weg: p.zielPos.clone().sub(p.zielBlick) }]
     : [
-      { blick: F.clone().add(new THREE.Vector3(0, 0, 30)), weg: new THREE.Vector3(160, 190, -120) }, // stille Welt, hoch und weit
+      { blick: F.clone().add(new THREE.Vector3(-4, 0, -8)), weg: new THREE.Vector3(36, 40, 46) },      // stille Welt: Dorf am Tag, Menschen und Tiere
       { blick: R.clone(), weg: new THREE.Vector3(-60, 95, -70) },                                     // die Erde reißt auf
       { blick: R.clone().lerp(F, 0.25), weg: new THREE.Vector3(55, 45, 50) },                          // die Wildnis kriecht heraus
       { blick: R.clone().lerp(F, 0.65), weg: new THREE.Vector3(-95, 80, 60) },                         // die Völker bleiben
@@ -830,7 +851,9 @@ function prologSchritt(dt: number): number {
     ];
   const start = (i: number) => (i < n ? z.zeilen[i][0][0] : z.dauer);
   let i = 0; while (i < stationen.length - 1 && p.t >= start(i + 1)) i++;
-  const j = Math.min(i + 1, stationen.length - 1), f = j === i ? 1 : sanft((p.t - start(i)) / Math.max(0.1, start(j) - start(i)));
+  // an jeder Station erst verweilen (ruhig kreisen), dann im letzten Drittel zur nächsten fliegen
+  const j = Math.min(i + 1, stationen.length - 1), dauer = Math.max(0.1, start(j) - start(i)), halt = dauer * (i === 0 ? 0.75 : 0.6);
+  const f = j === i ? 1 : sanft((p.t - start(i) - halt) / Math.max(0.1, dauer - halt));
   const blick = stationen[i].blick.clone().lerp(stationen[j].blick, f), weg = stationen[i].weg.clone().lerp(stationen[j].weg, f);
   const dreh = p.art === 'lang' && i < stationen.length - 1 ? p.t * 0.012 : 0; // langsames Kreisen
   weg.applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh * (1 - (i === stationen.length - 2 ? f : 0)));
@@ -838,6 +861,23 @@ function prologSchritt(dt: number): number {
   // Licht: goldene Stille, dann Nacht, zuletzt Abendrot
   const dunkel = p.art === 'kurz' ? 0.85 - 0.6 * sanft(p.t / z.dauer) : a === 0 ? 0.15 + 0.85 * sanft((p.t - (z.zeilen[1]?.[0][0] ?? 9) + 2) / 2.5) : a >= n - 1 ? 0.55 : 1;
   return dunkel;
+}
+/** Die Wildnis greift an: Nacht einläuten und Wesen dort auftauchen lassen, wohin die Kamera gerade blickt */
+function prologAuftritt(p: Prolog, a: number): void {
+  const s = p.schau; if (!s || a === p.auftritt) return; p.auftritt = a;
+  const R = { x: RISSE[0].x, z: RISSE[0].z }, F = { x: B.x, z: B.z + 14 };
+  const bei = (f: number) => ({ x: R.x + (F.x - R.x) * f, z: R.z + (F.z - R.z) * f });
+  const schar = (o: { x: number; z: number }, typen: [GegTyp, number][], streu = 9) => { for (const [typ, n] of typen) for (let i = 0; i < n; i++) { const w = i * 2.4 + typ.length, r = 2 + (i * 3.7) % streu; try { s.zeigeWesen(typ, o.x + Math.cos(w) * r, o.z + Math.sin(w) * r); } catch { /* Platz ungeeignet */ } } };
+  const nacht = () => { if (s.phase === 'tag') s.befehl({ art: 'nacht' }); };
+  if (p.art === 'kurz') {
+    if (a === 0) { nacht(); schar(bei(0.55), [['moorwicht', 7], ['troll', 2], ['wolf', 3]]); schar(bei(0.75), [['drachling', 3]], 14); }
+    return;
+  }
+  if (a === 1) { nacht(); schar(bei(0.12), [['moorwicht', 5], ['wolf', 2]]); }
+  if (a === 2) { schar(bei(0.28), [['moorwicht', 8], ['troll', 2], ['wolf', 4]]); schar(bei(0.4), [['drachling', 3], ['rochen', 1]], 14); }
+  if (a === 3) { schar(bei(0.6), [['moorwicht', 6], ['troll', 2], ['wolf', 2]]); schar(bei(0.8), [['drachling', 2]], 14); }
+  if (a === 4) schar(bei(0.72), [['troll', 2], ['moorwicht', 6], ['drachling', 2]]);
+  if (a === 5) { schar(bei(0.5), [['moorwicht', 8], ['troll', 3], ['wolf', 3]], 14); schar(bei(0.7), [['drachling', 4], ['rochen', 1]], 18); }
 }
 addEventListener('keydown', (e) => { if (prolog && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); e.stopPropagation(); prologBeenden(true); } }, true);
 
@@ -1268,7 +1308,7 @@ renderer.setAnimationLoop(() => {
   ZEIT.value += dt;
   if (spiel && welt && obj) {
     enthuellungSchritt(dt);
-    if (imMenue) { // Menü: die Feste lebt, Tag und Nacht wechseln langsam, keine Wellen
+    if (imMenue && !prolog) { // Menü: die Feste lebt, Tag und Nacht wechseln langsam, keine Wellen
       if (spiel.phase !== 'tag' || spiel.zeit > TAGD - 12) { spiel.phase = 'tag'; spiel.zeit = 5; }
       try { spiel.schritt(); } catch (err) { console.error(err); }
       obj.ereignisse(spiel.ereignisse.splice(0).filter((e) => e.art !== 'meldung'));
@@ -1286,7 +1326,7 @@ renderer.setAnimationLoop(() => {
     }
     jahreszeit(Math.min(3.999, (spiel.nacht - 1 + (spiel.phase === 'tag' ? spiel.zeit / TAGD : 1)) / 10));
     koop?.wunsch(hochkant ? 0 : tempo, berichtPause);
-    const tp = prolog ? 0 : koop ? koop.tempo : berichtPause ? 0 : tempo;
+    const tp = prolog ? (prolog.schau ? 1 : 0) : koop ? koop.tempo : berichtPause ? 0 : tempo;
     akku += (enth.aktiv && enth.phase === 0) || hochkant ? 0 : dt * tp; let n = 0; const ts = performance.now();
     // Ein Fehler in einem Takt darf nie das ganze Spiel anhalten: melden, weiterlaufen
     const fehler = (err: unknown) => { console.error(err); if (performance.now() - fehlerGemeldet > 10000) { fehlerGemeldet = performance.now(); melde(t('Ein Fehler im Spielablauf wurde abgefangen. Das Spiel läuft weiter.'), 'schlecht'); } };
@@ -1303,7 +1343,8 @@ renderer.setAnimationLoop(() => {
     try { mitteSchritt(); } catch (err) { console.error(err); }
     if (!spiel || !obj || !welt) return;
     mess.spiel += performance.now() - ts;
-    const ev = spiel.ereignisse.splice(0);
+    // im Prolog nur Bild und Klang, keine Fenster, kein Speichern, kein Ende
+    const ev = spiel.ereignisse.splice(0).filter((e) => !prolog || !(e.art === 'meldung' || e.art === 'bericht' || e.art === 'akt' || e.art === 'leitsatz' || (e.art === 'phase' && e.phase !== 'nacht')));
     let lichtNeu = false;
     for (const e of ev) {
       if (e.art === 'gebaut' || e.art === 'weg' || e.art === 'umgebaut') lichtNeu = true;

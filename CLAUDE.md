@@ -179,6 +179,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
   `eleven_multilingual_v2`, Schlüssel über den Netz-Proxy der Umgebung; Antworten zwischengespeichert). In main.ts `prologStarten()`/`prologSchritt()`
   (Zeit aus der Aufnahme, sonst geschätzt; Kamera über Stationen Riss ↔ Feste, Licht Tag → Nacht → Abendrot), Spiel ruht währenddessen.
   Lang beim ersten neuen Spiel (`einst.prologGesehen`), danach kurz; Menüknopf „Prolog“, Einstellung `einst.prolog`. Service Worker lässt die mp3 durch.
+  Seit 0.9.11 läuft der Prolog auf einer Bühne: `schauFeste(code, volk)` (auch Menü-Hintergrund) ersetzt Spiel/Objekte für die Dauer, `prologAuftritt()`
+  läutet die Nacht ein und lässt Wesen über `Spiel.zeigeWesen()` je Absatz dort auftauchen, wohin die Kamera blickt; danach echte Partie zurück, Tag dämmert.
   **Neue oder geänderte Prolog-Texte: Aufnahmen neu erzeugen** (`node --experimental-strip-types tools/prolog_sprechen.ts [sprache] [lang|kurz]`).
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)

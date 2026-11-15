@@ -801,6 +801,8 @@ export class Spiel {
     this.stat.maxEinwohner = Math.max(this.stat.maxEinwohner, this.einwohner);
     this.verteileArbeiter();
   }
+  /** nur für Vorführungen (Prolog): ein Wesen an einer Stelle auftauchen lassen */
+  zeigeWesen(typ: GegTyp, x: number, z: number): void { this.erzeuge(typ, { x, z }); }
   private erzeuge(typ: GegTyp, riss: { x: number; z: number }): void {
     const omen = this.omenFuer(this.nacht), d = GEGNER[typ], s = staerke(this.nacht, SCHWIERIGKEIT[this.schwierigkeit].wachstum) * (omen === 'blutmond' ? 1.25 : 1);
     const a = this.r() * Math.PI * 2; let x = riss.x + mcos(a) * 3, z = riss.z + msin(a) * 3;

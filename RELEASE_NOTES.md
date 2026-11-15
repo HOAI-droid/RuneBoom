@@ -1,3 +1,12 @@
+## runeBOOM 0.9.11 · Die Nacht des Prologs
+
+- **Der Prolog zeigt jetzt einen Angriff:** Zuerst ein belebtes Dorf am Tag mit Arbeitern, Bürgern und Tieren. Dann reißt die Erde auf,
+  es wird Nacht, und die Wildnis greift an: Moorwichte, Steintrolle, Schattenwölfe mit glühenden Augen, Drachlinge und Nebelrochen,
+  während Türme, Feuertöpfe und Leuchtfeuer die Feste verteidigen. Am Ende dämmert der Tag, und die eigene Partie beginnt.
+- Der Angriff spielt auf einer eigenen Bühne; die eigene Feste bleibt davon unberührt.
+
+---
+
 ## runeBOOM 0.9.10 · Der Prolog
 
 - **Prolog mit Erzähler:** Vor der ersten Partie erzählt eine tiefe Erzählerstimme die Geschichte der Feste: wie die Erde aufriss,
