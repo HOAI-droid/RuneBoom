@@ -6,6 +6,8 @@ ziel="$1"
 npm install --no-save @capacitor/cli@8.6.0 @capacitor/core@8.6.0 "@capacitor/$ziel@8.6.0"
 [ -d "$ziel" ] || npx cap add "$ziel"
 npx cap sync "$ziel"
+# App-Symbol aus resources/ (icon.png, icon-foreground.png, icon-background.png); scheitert es, bleibt das Standardsymbol
+npx --yes @capacitor/assets@3.0.5 generate --"$ziel" --iconBackgroundColor '#3a2f4a' --iconBackgroundColorDark '#3a2f4a' || echo "Hinweis: App-Symbol nicht erzeugt"
 if [ "$ziel" = android ]; then
   m=android/app/src/main/AndroidManifest.xml
   grep -q 'screenOrientation' "$m" || sed -i.bak 's|<activity|<activity android:screenOrientation="sensorLandscape"|' "$m"
