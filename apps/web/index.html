@@ -626,6 +626,25 @@
   body.kompakt .baum-reiter button { min-height: 0; padding: 3px 9px; font-size: 12px; }
   body.kompakt .baum .schliessen { font-size: 22px; padding: 0 6px; top: 0; }
   body.kompakt .baum-detail { font-size: 12px; }
+  /* alle fünf Zeitalter auf einer Seite: Wissensgebiete nur als Zeichen, Einträge schmal */
+  body.kompakt .baum-za-reiter { display: none !important; }
+  body.kompakt .baum-gitter { grid-template-columns: 26px repeat(5, minmax(0, 1fr)) !important; gap: 3px 4px; align-content: start; }
+  body.kompakt .baum-gitter .wkopf { display: grid; place-items: center; padding: 2px 0; }
+  body.kompakt .baum-gitter .wkopf span { display: none; }
+  body.kompakt .baum-gitter .wkopf svg { width: 18px; height: 18px; }
+  body.kompakt .baum-gitter .zkopf { font-size: 11.5px; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.kompakt .baum-gitter .zkopf small, body.kompakt .baum-gitter .zkopf svg { display: none; }
+  body.kompakt .baum-gitter .zkopf .za-nr { width: 18px; height: 18px; font-size: 10px; line-height: 16px; margin-right: 4px; flex: none; display: inline-grid; place-items: center; }
+  body.kompakt .baum-gitter .zkopf .balken, body.kompakt .baum-gitter .zkopf .fortschritt { display: none; }
+  body.kompakt .baum-gitter .zelle { gap: 2px; padding: 1px; }
+  body.kompakt .ekarte { padding: 2px 5px; font-size: 11px; } body.kompakt .ekarte b { font-size: 11px; } body.kompakt .ekarte .zut { font-size: 9.5px; gap: 3px; }
+  body.kompakt .ekarte .zut i { width: 6px; height: 6px; }
+  body.kompakt .baum-gitter .ekarte { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 2px 5px 3px; line-height: 1.2; }
+  body.kompakt .baum-gitter .ekarte b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.kompakt .baum-gitter .ekarte .zut { justify-content: flex-start; }
+  body.kompakt .baum-gitter .ekarte svg, body.kompakt .baum-gitter .ekarte .schloss { display: none; }
+  body.kompakt .baum-gitter .zkopf .za-nr { display: none; }
+  body.kompakt .baum-gitter .zkopf { font-size: 10.5px; padding: 3px 5px; letter-spacing: 0; white-space: normal; overflow: visible; line-height: 1.15; }
   /* Rezeptbuch und Bausteine auf dem Handy: kleinere Karten, zwei nebeneinander */
   body.kompakt .buch { gap: 10px; } body.kompakt .buch-teil h3, body.kompakt .beute h3 { font-size: 14px; }
   body.kompakt .buch-teil > p, body.kompakt .beute p { font-size: 11.5px; margin-bottom: 5px; }
