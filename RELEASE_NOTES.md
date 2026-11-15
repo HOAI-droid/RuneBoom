@@ -1,3 +1,12 @@
+## runeBOOM 0.9.5 · Handy: Erfindungsbaum und Menü
+
+- **iPhone:** Safari vergrößerte im Querformat die Schrift eigenmächtig. Das ist abgeschaltet, dadurch passen Menü und Fenster wie vorgesehen.
+- **Erfindungsbaum auf dem Handy:** Kopf in zwei schmalen Zeilen, Bausteine nebeneinander statt untereinander, kleinere Einträge.
+- **Rezeptbuch und Bausteine auf dem Handy:** kleinere Karten, je zwei nebeneinander.
+- Am Rechner bleibt alles wie bisher.
+
+---
+
 ## runeBOOM 0.9.4 · Bündig
 
 - Auf dem Handy übernimmt das Gebäudefenster Breite und linke Kante direkt von der Tempo-Leiste darüber, auch bei Geräten mit
