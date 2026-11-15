@@ -11,6 +11,13 @@
 [Android (APK)](https://github.com/HOAI-droid/RuneBoom/releases/latest/download/runeBOOM-android.apk) ·
 [alle Dateien · all files](https://github.com/HOAI-droid/RuneBoom/releases/latest)
 
+> **macOS:** Meldet macOS „runeBOOM ist beschädigt“, die App in „Programme“ ziehen und im Terminal eingeben ·
+> *If macOS says “runeBOOM is damaged”, move it to Applications and run in Terminal:*
+>
+> ```bash
+> xattr -cr /Applications/runeBOOM.app
+> ```
+
 <p align="center"><img src="docs/bilder/runeboom-titel-quer.jpg" width="900" alt="runeBOOM – Die Feste der Erfinder: die Feste am goldenen Tag und in der Nacht, während Leuchttürme, Türme und Kristall-Laser die Welle abwehren"></p>
 
 <p align="center">
