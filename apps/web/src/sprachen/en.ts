@@ -774,5 +774,11 @@ export const EN: Record<string, string> = {
  "Oberfläche": "Interface",
  "Kompakt": "Compact",
  "Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.": "Compact: slim bars for phones in landscape. Automatic picks it when the screen is short.",
- "Einklappen": "Collapse"
+ "Einklappen": "Collapse",
+ "Erste Ecke in die Mitte schieben, dann ✓.": "Move the first corner to the centre, then ✓.",
+ "Ecke setzen": "Set corner",
+ "Anfang setzen": "Set start",
+ "Bauen": "Build",
+ "✓ Bauen": "✓ Build",
+ "Abbrechen": "Cancel"
 };

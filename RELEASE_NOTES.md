@@ -1,3 +1,13 @@
+## runeBOOM 0.9.8 · Bauen mit dem Finger
+
+- **Platzieren über die Bildmitte:** Wer mit dem Finger spielt, sieht das gewählte Gebäude als Vorschau in der Bildmitte
+  (grün = geht, rot = geht nicht, mit Grund). Wischen verschiebt die Karte darunter, ein Tipp holt eine Stelle in die Mitte.
+  Gebaut wird erst mit **✓ Bauen**, **✕** bricht ab. Kein Raten mehr, die Auswahl geht nicht verloren.
+- **Mauern, Dornenfelder, Ölgräben und Ebnen:** erstes ✓ setzt den Anfang, dann zum Ende schieben (der Verlauf ist auf dem Boden zu sehen), zweites ✓ baut.
+- Gelingt es nicht, vibriert das Handy kurz und die Auswahl bleibt. Mit Maus und Gamepad bleibt alles wie bisher.
+
+---
+
 ## runeBOOM 0.9.7 · Neues Logo
 
 - **Neues App-Symbol:** eine kleine Voxel-Feste mit Ecktürmen im Abendrot, darüber eine leuchtende Schutzrune.

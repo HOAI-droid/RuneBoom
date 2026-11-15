@@ -189,7 +189,7 @@
   .platz b { font-family: var(--display); } .platz small { color: var(--muted); grid-column: 1; }
   .platz .knoepfe2 { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 6px; }
   .platz button { background: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; font-size: 14px; }
-  .platz button.haupt { background: var(--ember); color: #1a1208; border-color: var(--ember); }
+  .platzieren button.haupt { background: var(--ember); color: #1a1208; border-color: var(--ember); }
   .platz button:disabled { opacity: .4; cursor: default; }
   .menue-seite .regler { display: grid; gap: 4px; color: var(--muted); }
   .menue-seite .regler input { accent-color: var(--ember); }
@@ -478,7 +478,13 @@
   .wesen-karte strong { font-family: var(--display); color: var(--parch); font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
   /* Gamepad: Fadenkreuz in der Bildmitte, sichtbarer Fokus */
   .fadenkreuz { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; pointer-events: none; z-index: 4; display: none; }
-  body.pad .fadenkreuz { display: block; }
+  body.pad .fadenkreuz, body.mitte .fadenkreuz { display: block; }
+  .platzieren { position: fixed; left: 50%; top: calc(50% + 44px); transform: translateX(-50%); display: flex; gap: 8px; z-index: 4; }
+  .platzieren button { background: var(--stone); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+  .platzieren button.haupt { background: var(--ember); color: #1a1208; border-color: var(--ember); font-weight: 600; }
+  .platzieren button.haupt.geht-nicht { background: #6a5a4a; color: #d8cbb8; border-color: #8a6a4a; }
+  body.kompakt .platzieren button { padding: 5px 13px; font-size: 13px; }
+  body.mitte .tipp { top: calc(max(6px, env(safe-area-inset-top)) + 46px); bottom: auto !important; }
   .fadenkreuz::before, .fadenkreuz::after { content: ""; position: absolute; background: rgba(255,240,210,.9); box-shadow: 0 0 3px rgba(0,0,0,.8); }
   .fadenkreuz::before { left: 12px; top: 2px; width: 2px; height: 22px; } .fadenkreuz::after { top: 12px; left: 2px; height: 2px; width: 22px; }
   .pad-fokus { outline: 3px solid var(--ember) !important; outline-offset: 2px; }
@@ -700,6 +706,7 @@
   <div class="einfuehrung tafel" id="einfuehrung" data-dynamisch hidden></div>
   <div class="tipp tafel" id="tipp" data-dynamisch hidden></div>
   <div class="fadenkreuz" aria-hidden="true"></div>
+  <div class="platzieren" id="platz" hidden><button type="button" id="platz-ok" class="haupt">✓ Bauen</button><button type="button" id="platz-ab" aria-label="Abbrechen">✕</button></div>
   <div class="unten tafel" id="leiste" data-dynamisch></div>
 </div>
 

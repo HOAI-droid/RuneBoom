@@ -13,7 +13,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.7';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.8';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -416,7 +416,7 @@ function leisteAktualisieren(): void {
   }
 }
 function werkzeugSetzen(w: typeof werkzeug): void {
-  obj?.zeigeLinie(null);
+  obj?.zeigeLinie(null); mitteStart = null; mitteLetzt = '';
   werkzeug = w;
   if (w?.art === 'bau' && spiel && !spiel.freigeschaltet(w.typ)) { melde(`${t('{a} braucht erst die Erfindung {b}.', { a: t(GEBAEUDE[w.typ].name), b: t(ERFINDUNGEN[GEBAEUDE[w.typ].braucht!].name) })}`, 'schlecht'); werkzeug = null; }
   if (!werkzeug || werkzeug.art !== 'bau') obj?.zeigeVorschau(null);
@@ -431,7 +431,7 @@ function werkzeugSetzen(w: typeof werkzeug): void {
 function zeigeTipp(html: string | null): void {
   const t = $('tipp'); clearTimeout(tippUhr); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false;
   // auf dem Handy (kein Mauszeiger, der wieder weggeht) verschwindet der Hinweis von selbst
-  if (document.body.classList.contains('kompakt')) tippUhr = window.setTimeout(() => { if (werkzeug?.art !== 'bau') t.hidden = true; }, 2500);
+  if (document.body.classList.contains('kompakt')) tippUhr = window.setTimeout(() => { if (werkzeug?.art !== 'bau' && !mitteModus()) t.hidden = true; }, 2500);
   // immer über der Bauleiste (auch wenn eine Gruppe aufgeklappt ist), nie dahinter
   const l = $('leiste'); if (!l.hidden) t.style.bottom = `${Math.max(84, innerHeight - l.getBoundingClientRect().top + 8)}px`;
 }
@@ -699,12 +699,14 @@ canvas.addEventListener('pointerdown', (e) => {
   unten = { x: e.clientX, y: e.clientY, t: performance.now() };
   // langer Druck mit dem Finger öffnet das Gebäude (auch wenn die Karte verschoben würde)
   if (e.pointerType === 'touch' && !werkzeug) { clearTimeout(langDruck); const u0 = unten; langDruck = window.setTimeout(() => { if (unten !== u0 || !spiel) return; const p = bodenPunkt(u0.x, u0.y); if (p) { const g = spiel.gebAn(p.x, p.z); if (g) { waehle(g); navigator.vibrate?.(15); unten = null; } } }, 520); }
+  if (mitteModus()) return; // Finger: Wischen verschiebt die Karte unter dem Gebäude
   if (e.button === 0 && werkzeug?.art === 'bau' && GEBAEUDE[werkzeug.typ].w === 1) {
     const p = bodenPunkt(e.clientX, e.clientY); if (p) { unten.mauer = [Math.floor(p.x), Math.floor(p.z)]; controls.enabled = false; }
   }
   if (e.button === 0 && werkzeug?.art === 'ebnen') { const p = bodenPunkt(e.clientX, e.clientY); if (p) { unten.ebene = [Math.floor(p.x), Math.floor(p.z)]; mauerZiel = unten.ebene; controls.enabled = false; } }
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (mitteModus()) return;
   if (spiel && werkzeug?.art === 'ebnen') {
     const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
     const a: [number, number] = unten?.ebene || [Math.floor(p.x), Math.floor(p.z)], b: [number, number] = [Math.floor(p.x), Math.floor(p.z)];
@@ -738,6 +740,10 @@ canvas.addEventListener('pointerup', (e) => {
   }
   if (Math.hypot(e.clientX - u.x, e.clientY - u.y) > 6 || performance.now() - u.t > 600) return;
   const p = bodenPunkt(e.clientX, e.clientY); if (!p) return;
+  if (mitteModus()) { // Tipp holt die Stelle in die Bildmitte, gebaut wird erst mit ✓
+    const m = bodenPunkt(innerWidth / 2, innerHeight / 2); if (m) { const d = new THREE.Vector3(p.x - m.x, 0, p.z - m.z); controls.target.add(d); camera.position.add(d); controls.update(); }
+    return;
+  }
   if (werkzeug?.art === 'bau') { const [x0, z0] = GEBAEUDE[werkzeug.typ].w === 1 ? [Math.floor(p.x), Math.floor(p.z)] : ecke(werkzeug.typ, p); if (befehl({ art: 'bauen', typ: werkzeug.typ, x: x0, z: z0 }) && !e.shiftKey) werkzeugSetzen(null); return; }
   if (werkzeug?.art === 'spaeher') { if (spiel.erkundetAn(p.x, p.z)) melde(t('Hier ist schon erkundet. Klick in den Nebel.'), 'info'); else if (befehl({ art: 'spaeher', x: p.x, z: p.z })) { spaeherGeschickt = true; werkzeugSetzen(null); } return; }
   if (werkzeug?.art === 'feuerregen') { if (befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
@@ -749,6 +755,73 @@ canvas.addEventListener('pointerup', (e) => {
   }
   waehle(g || null);
 });
+
+// ================= Platzieren über die Bildmitte (Finger) =================
+// Mit dem Finger gibt es keinen Mauszeiger: Das Gebäude steht als Vorschau in der Bildmitte, Wischen verschiebt die Karte darunter,
+// gebaut wird mit ✓. Mauern, Dornenfelder, Ölgräben und Ebnen: erstes ✓ setzt den Anfang, zweites ✓ baut.
+let fingerZuletzt = matchMedia('(pointer: coarse)').matches, mitteStart: [number, number] | null = null, mitteLetzt = '';
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') fingerZuletzt = true; else if (e.pointerType === 'mouse') fingerZuletzt = false; }, true);
+const LINIE = new Set<GebTyp>(['mauer', 'dornenfeld', 'oelgraben']);
+function mitteModus(): boolean { return !!werkzeug && (werkzeug.art === 'bau' || werkzeug.art === 'ebnen') && fingerZuletzt && !document.body.classList.contains('pad') && !imMenue; }
+function mitteZiel(): [number, number] | null {
+  const p = bodenPunkt(innerWidth / 2, innerHeight / 2); if (!p || !werkzeug) return null;
+  return werkzeug.art === 'bau' && GEBAEUDE[werkzeug.typ].w > 1 ? ecke(werkzeug.typ, p) : [Math.floor(p.x), Math.floor(p.z)];
+}
+function mitteSchritt(): void {
+  const an = mitteModus(), el = $('platz'); document.body.classList.toggle('mitte', an);
+  if (!an || !spiel || !werkzeug) { el.hidden = true; mitteStart = null; mitteLetzt = ''; return; }
+  el.hidden = false;
+  const z = mitteZiel(); if (!z) return;
+  const w = werkzeug, schluessel = `${w.art}:${w.art === 'bau' ? w.typ : ''}:${z}:${mitteStart}:${Math.floor(spiel.takt / 10)}`;
+  if (schluessel === mitteLetzt) return; mitteLetzt = schluessel;
+  const ok = $('platz-ok'); let geht = true;
+  if (w.art === 'ebnen') {
+    const a = mitteStart || z, pr = spiel.ebnenPruefen(a[0], a[1], z[0], z[1]); geht = pr.ok || !mitteStart;
+    obj?.zeigeFlaeche(a[0], a[1], z[0], z[1], pr.ziel + 1, pr.ok);
+    zeigeTipp(mitteStart ? `<b>${t('Ebnen')}</b> · ${t('{a} × {b} Blöcke auf Höhe {c}{d}{e}', { a: Math.abs(z[0] - a[0]) + 1, b: Math.abs(z[1] - a[1]) + 1, c: pr.ziel, d: pr.stein ? ` · ${t('{a} Stein', { a: pr.stein })}` : '', e: !pr.ok && pr.grund ? `<br><span class="grund">${pr.grund}</span>` : '' })}` : `<b>${t('Ebnen')}</b> · ${t('Erste Ecke in die Mitte schieben, dann ✓.')}`);
+    ok.textContent = mitteStart ? `✓ ${t('Ebnen')}` : `✓ ${t('Ecke setzen')}`;
+  } else {
+    if (w.art !== 'bau') return;
+    const typ = w.typ, pr = spiel.pruefe(typ, z[0], z[1]), bezahlbar = spiel.kannBezahlen(GEBAEUDE[typ].kosten);
+    geht = pr.ok && bezahlbar;
+    obj?.zeigeVorschau(typ, z[0], z[1], geht, pr.ok ? pr.y : hoehe(z[0] + 0.5, z[1] + 0.5));
+    const linieAn = LINIE.has(typ);
+    if (linieAn && mitteStart) {
+      const zug = linie(mitteStart, z);
+      obj?.zeigeLinie(zug.map(([x, zz]) => { const q = spiel!.pruefe(typ, x, zz); return [x, q.ok ? q.y : hoehe(x + 0.5, zz + 0.5), zz, q.ok] as [number, number, number, boolean]; }));
+      geht = zug.some(([x, zz]) => spiel!.pruefe(typ, x, zz).ok);
+      zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${t('{a} Blöcke · {b}', { a: zug.length, b: kostenHtml(Object.fromEntries(Object.entries(GEBAEUDE[typ].kosten).map(([k, v]) => [k, (v as number) * zug.length]))) })}`);
+    } else {
+      obj?.zeigeLinie(null);
+      zeigeTipp(`<b>${t(GEBAEUDE[typ].name)}</b> · ${kostenHtml(GEBAEUDE[typ].kosten)}${!pr.ok ? `<br><span class="grund">${pr.grund}</span>` : !bezahlbar ? t('<br><span class="grund">Nicht genug Rohstoffe.</span>') : ''}`);
+    }
+    ok.textContent = linieAn && !mitteStart ? `✓ ${t('Anfang setzen')}` : `✓ ${t('Bauen')}`;
+    if (linieAn && !mitteStart) geht = pr.ok;
+  }
+  ok.classList.toggle('geht-nicht', !geht);
+}
+function mitteBauen(): void {
+  const z = mitteZiel(); if (!z || !spiel || !werkzeug) return;
+  const nein = () => navigator.vibrate?.(40);
+  mitteLetzt = '';
+  if (werkzeug.art === 'ebnen') {
+    if (!mitteStart) { mitteStart = z; return; }
+    if (befehl({ art: 'ebnen', x0: mitteStart[0], z0: mitteStart[1], x1: z[0], z1: z[1] })) { klang.spiele('hieb_stein'); werkzeugSetzen(null); } else nein();
+    mitteStart = null; return;
+  }
+  if (werkzeug.art !== 'bau') return;
+  const typ = werkzeug.typ;
+  if (LINIE.has(typ)) {
+    if (!mitteStart) { if (spiel.pruefe(typ, z[0], z[1]).ok) mitteStart = z; else { melde(spiel.pruefe(typ, z[0], z[1]).grund || t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) }), 'schlecht'); nein(); } return; }
+    let n = 0; for (const [x, zz] of linie(mitteStart, z)) if (befehl({ art: 'bauen', typ, x, z: zz, still: true })) n++;
+    mitteStart = null; obj?.zeigeLinie(null);
+    if (n) { klang.spiele('bau', 0.8); werkzeugSetzen(null); } else { melde(t('Hier lässt sich {a} nicht bauen.', { a: t(GEBAEUDE[typ].name) }), 'schlecht'); nein(); }
+    return;
+  }
+  if (befehl({ art: 'bauen', typ, x: z[0], z: z[1] })) werkzeugSetzen(null); else nein();
+}
+$('platz-ok').onclick = mitteBauen;
+$('platz-ab').onclick = () => { if (mitteStart) { mitteStart = null; mitteLetzt = ''; obj?.zeigeLinie(null); } else werkzeugSetzen(null); };
 
 // ================= Tastatur =================
 const tasten = new Set<string>();
@@ -1141,6 +1214,7 @@ renderer.setAnimationLoop(() => {
       if (n >= 12) akku = 0;
     }
     if (koop && !koop.gast) koop.senden(spiel);
+    try { mitteSchritt(); } catch (err) { console.error(err); }
     if (!spiel || !obj || !welt) return;
     mess.spiel += performance.now() - ts;
     const ev = spiel.ereignisse.splice(0);
