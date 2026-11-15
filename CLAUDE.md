@@ -171,5 +171,8 @@ apps/web/      index.html (Oberfläche, Stil wie Konzeptbuch), src/main.ts (Haup
 - [x] 0.9.7 Logo „Feste im Abendrot“: Quelle `resources/logo.svg` bzw. `resources/icon.png` (1024²), erzeugt mit `tools/logo/logos.py`
   (Voxel → SVG, `voxel.py`), Web-Symbole in `apps/web/public/symbole/`, Desktop über `tauri icon resources/icon.png -o src-tauri/icons`,
   Android/iOS über `@capacitor/assets` in `tools/handy_vorbereiten.sh` (icon-foreground/-background). Service-Worker-Speicher `runeboom-v2`.
+- [x] 0.9.8 Bauen mit dem Finger: `mitteModus()` (Werkzeug bau/ebnen, letzter Zeiger war Touch, kein Gamepad), Vorschau an der Bildmitte
+  (`mitteSchritt()` je Bild, `mitteZiel()`), Knöpfe `#platz-ok`/`#platz-ab`, Linienbau für `LINIE` (Mauer, Dornenfeld, Ölgraben) und Ebnen
+  über `mitteStart`; Tipp auf die Karte holt die Stelle in die Mitte, Wischen verschiebt die Karte.
 - [ ] später: Steam · Weltreise · 1.0 Veröffentlichung
 - Titelbilder: `docs/bilder/runeboom-titel-quer.jpg` (README, GitHub) und `runeboom-titel-hoch.jpg` (später Apps/Stores)
