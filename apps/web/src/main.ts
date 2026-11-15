@@ -1234,6 +1234,12 @@ karteSetzen(einst.karte); lagePruefen();
 const kompaktMq = matchMedia('(max-height: 520px)');
 const kompaktSetzen = () => document.body.classList.toggle('kompakt', einst.oberflaeche === 'kompakt' || (einst.oberflaeche === 'auto' && kompaktMq.matches));
 kompaktMq.addEventListener('change', kompaktSetzen); kompaktSetzen();
+// das Fenster rechts übernimmt Breite und Unterkante der Tempo-Leiste (kompakte Oberfläche)
+{
+  const rechts = document.querySelector<HTMLElement>('.oben-rechts')!, kn = rechts.querySelector<HTMLElement>('.knoepfe')!;
+  const mass = () => { const r = rechts.getBoundingClientRect(), k = kn.getBoundingClientRect(); const st = document.documentElement.style; st.setProperty('--rechts-breite', `${Math.round(k.width)}px`); st.setProperty('--rechts-unten', `${Math.round(r.bottom)}px`); };
+  new ResizeObserver(mass).observe(rechts); addEventListener('resize', mass); mass();
+}
 document.querySelector('.oben-links')!.addEventListener('click', () => { if (document.body.classList.contains('kompakt')) document.querySelector('.oben-links')!.classList.toggle('offen'); });
 $('fps').hidden = !einst.fps;
 uebersetzeStatisch();

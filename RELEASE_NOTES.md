@@ -2,6 +2,7 @@
 
 - Auf dem Handy ist alles eine Stufe kleiner: Gebäudefenster, Einstellungen, Nachtbericht, Einführung, Rohstoffe, Uhr,
   Tempo-Knöpfe und Bauleiste. Mehr Platz für die Welt. Am Rechner bleibt alles wie bisher.
+- Gebäudefenster und Einstellungen sitzen auf dem Handy genau unter der Tempo-Leiste, gleich breit und bündig, und sind nur so hoch wie ihr Inhalt.
 
 ---
 
