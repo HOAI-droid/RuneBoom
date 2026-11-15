@@ -1,3 +1,15 @@
+## runeBOOM 0.9.2 · Freier Blick auf dem Handy
+
+- **Nichts liegt mehr übereinander:** Gebäudefenster und Nachtbericht verdrängen Einführung und Hinweise, solange sie offen sind.
+  Hinweise beim Antippen verschwinden nach kurzer Zeit von selbst.
+- **Wegtippen:** Ein Tipp in die freie Welt schließt offene Fenster, aufgeklappte Bauleiste und Rohstoff-Einzelheiten und klappt die Einführung ein.
+- **Einführung einklappbar** (×) zu einem kleinen „? Einführung“-Knopf.
+- **Kleinere Fenster:** Gebäudefenster, Nachtbericht und Einstellungen schmaler und mit kleinerer Schrift.
+- **Hauptmenü auf dem Handy:** schmale Knopfspalte links, die gewählte Seite daneben, scrollbar, ohne über den Rand zu ragen.
+- Am Rechner bleibt alles wie bisher.
+
+---
+
 ## runeBOOM 0.9.1 · Handlich
 
 - **Kompakte Oberfläche für Handys im Querformat:** Rohstoffe in einer Zeile (Tippen klappt Bausteine, Einwohner, Arbeiter und Türme auf,

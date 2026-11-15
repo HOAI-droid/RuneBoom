@@ -13,7 +13,7 @@ import { FR } from './sprachen/fr.ts';
 import { ES } from './sprachen/es.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.1';
+const SPEICHER = 'runeboom-spielstand-3', PLAETZE = 'runeboom-plaetze-1', VERSION = '0.9.2';
 const RES_NAME: Record<Res, string> = RES_NAMEN;
 const MEHRZAHL: Record<string, string> = { moorwicht: t('Moorwichte'), wolf: t('Schattenwölfe'), troll: t('Steintrolle'), drachling: t('Drachlinge'), rochen: t('Nebelrochen'), aschegeist: t('Aschegeister'), steinwerfer: t('Steinwerfer'), schamane: t('Moorschamanen'), schildwaechter: t('Borkenwächter'), rissfuerst: t('Rissfürsten') };
 const kostenHtml = (k: Partial<Record<Res, number>>) => Object.entries(k).map(([r, n]) => `${Math.ceil(n as number)} ${t(RES_NAME[r as Res])}`).join(' · ');
@@ -82,7 +82,8 @@ let anzeigeDunkel = 0, akku = 0, planZeit = 0, uiZeit = 0;
 let panelArt: 'geb' | 'werkstatt' | 'einst' | 'ruine' | null = null;
 /** Panel nur neu schreiben, wenn sich der Inhalt ändert (sonst gehen Klicks verloren) */
 function panelSetzen(html: string): boolean { const p = $('panel'); if (p.dataset.html === html && !p.hidden) return false; p.dataset.html = html; p.innerHTML = html; p.hidden = false; return true; }
-let einfuehrungSchritt = -1, spaeherGeschickt = false;
+let einfuehrungSchritt = -1, spaeherGeschickt = false, einfZu = false;
+let tippUhr = 0;
 // ================= Mehrspieler =================
 let koop: Koop | null = null, koopZustand = '';
 /** jede Aktion des Spielers läuft hierüber: allein direkt, im Mehrspieler über den Gastgeber */
@@ -428,7 +429,9 @@ function werkzeugSetzen(w: typeof werkzeug): void {
   leisteAktualisieren();
 }
 function zeigeTipp(html: string | null): void {
-  const t = $('tipp'); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false;
+  const t = $('tipp'); clearTimeout(tippUhr); if (!html) { t.hidden = true; return; } t.innerHTML = html; t.hidden = false;
+  // auf dem Handy (kein Mauszeiger, der wieder weggeht) verschwindet der Hinweis von selbst
+  if (document.body.classList.contains('kompakt')) tippUhr = window.setTimeout(() => { if (werkzeug?.art !== 'bau') t.hidden = true; }, 2500);
   // immer über der Bauleiste (auch wenn eine Gruppe aufgeklappt ist), nie dahinter
   const l = $('leiste'); if (!l.hidden) t.style.bottom = `${Math.max(84, innerHeight - l.getBoundingClientRect().top + 8)}px`;
 }
@@ -739,6 +742,10 @@ canvas.addEventListener('pointerup', (e) => {
   if (werkzeug?.art === 'feuerregen') { if (befehl({ art: 'faehigkeit', name: 'feuerregen', x: p.x, z: p.z })) klang.spiele('horn', 0.6); werkzeugSetzen(null); return; }
   const g = spiel.gebAn(p.x, p.z);
   if (!g) { const ru = spiel.ruineAn(p.x, p.z); if (ru) { waehle(null); ruineGew = ru; panelArt = 'ruine'; $('panel').dataset.html = ''; panelRuine(); return; } }
+  if (!g && document.body.classList.contains('kompakt')) { // Tipp ins Leere: alles Offene weg, Blick frei
+    gruppeZeigen(null); schliessePanel(); zeigeTipp(null); document.querySelector('.oben-links')!.classList.remove('offen');
+    if (einfuehrungSchritt >= 0) { einfZu = true; einfuehrung(); }
+  }
   waehle(g || null);
 });
 
@@ -912,6 +919,7 @@ function anzeige(): void {
   } else if (s.phase === 'morgen') u.dataset.html = '', u.innerHTML = `<div class="titel">${t('Morgen')}</div><div class="unter">${t('Die Nacht ist überstanden')}</div>`;
   leisteAktualisieren(); einfuehrung();
   document.body.classList.toggle('panel-offen', !$('panel').hidden);
+  document.body.classList.toggle('bericht-offen', !$('bericht').hidden);
   if (s.leitsatzOffen && $('leitsatz').hidden && s.phase === 'tag' && !document.getElementById('leit-hinweis')) $('meldungen').insertAdjacentHTML('afterbegin', t('<button type="button" class="meldung tafel info" id="leit-hinweis">Ein Leitsatz wartet auf deine Wahl. Hier klicken.</button>'));
   const lh = document.getElementById('leit-hinweis'); if (lh) { if (!s.leitsatzOffen) lh.remove(); else lh.onclick = () => { lh.remove(); zeigeLeitsatz(); }; }
   if (panelArt === 'geb' && gewaehlt) { if (!s.gebaeude.includes(gewaehlt)) waehle(null); else panelGeb(); }
@@ -937,7 +945,14 @@ function einfuehrung(): void {
   if (einfuehrungSchritt >= SCHRITTE.length) { einfuehrungSchritt = -1; el.hidden = true; return; }
   if (einfuehrungSchritt >= 6 && spiel.nacht < 2) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<div class="schritt">${t('Einführung {a} / {b}', { a: einfuehrungSchritt + 1, b: SCHRITTE.length })}</div><p>${SCHRITTE[einfuehrungSchritt].text()}</p><button type="button" id="ueberspringen">${t('Einführung ausblenden')}</button>`;
+  const kopf = t('Einführung {a} / {b}', { a: einfuehrungSchritt + 1, b: SCHRITTE.length });
+  const zu = einfZu && document.body.classList.contains('kompakt');
+  el.classList.toggle('zu', zu);
+  const html = zu ? `<button type="button" id="einf-auf">? ${kopf}</button>` : `<div class="schritt">${kopf}<button type="button" id="einf-zu" aria-label="${t('Einklappen')}">×</button></div><p>${SCHRITTE[einfuehrungSchritt].text()}</p><button type="button" id="ueberspringen">${t('Einführung ausblenden')}</button>`;
+  if (el.dataset.html === html) return;
+  el.dataset.html = html; el.innerHTML = html;
+  if (zu) { $('einf-auf').onclick = () => { einfZu = false; einfuehrung(); }; return; }
+  $('einf-zu').onclick = () => { einfZu = true; einfuehrung(); };
   $('ueberspringen').onclick = () => { einfuehrungSchritt = -1; einst.einfuehrung = false; einstSpeichern(); el.hidden = true; };
 }
 // ================= Einstellungen =================
@@ -957,7 +972,7 @@ function zeigeEinstellungen(): void {
   m.oninput = f.oninput = () => { einst.musik = Number(m.value); einst.effekte = Number(f.value); klang.setzeLautstaerke(einst.musik, einst.effekte); einstSpeichern(); };
   grafikVerbinden(p, zeigeEinstellungen);
   p.querySelectorAll<HTMLButtonElement>('[data-platz]').forEach((b) => { b.onclick = () => { if (platzSpeichern(Number(b.dataset.platz))) zeigeEinstellungen(); }; });
-  $('e-einf').onclick = () => { einst.einfuehrung = true; einstSpeichern(); einfuehrungSchritt = 0; schliessePanel(); einfuehrung(); };
+  $('e-einf').onclick = () => { einfZu = false; einst.einfuehrung = true; einstSpeichern(); einfuehrungSchritt = 0; schliessePanel(); einfuehrung(); };
   $('e-menue').onclick = () => { speichern(); schliessePanel(); zeigeStart(); };
 }
 

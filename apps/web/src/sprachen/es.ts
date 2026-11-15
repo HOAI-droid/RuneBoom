@@ -773,5 +773,6 @@ export const ES: Record<string, string> = {
  "Norden": "norte",
  "Oberfläche": "Interfaz",
  "Kompakt": "Compacta",
- "Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.": "Compacta: barras finas para móviles en horizontal. Automático la elige cuando la pantalla es baja."
+ "Kompakt: schmale Leisten für Handys im Querformat. Automatisch wählt sie bei wenig Bildschirmhöhe.": "Compacta: barras finas para móviles en horizontal. Automático la elige cuando la pantalla es baja.",
+ "Einklappen": "Contraer"
 };
