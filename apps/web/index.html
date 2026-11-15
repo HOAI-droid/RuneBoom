@@ -28,6 +28,8 @@
   /* ---------- Anzeige im Spiel ---------- */
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #hud > * { pointer-events: auto; }
+  /* iOS vergrößert Schrift im Querformat sonst eigenmächtig */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .tafel { background: var(--stone); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
   .oben-links { position: absolute; left: max(12px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); display: grid; gap: 6px; padding: 8px 12px; }
   .marke { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: .03em; }
@@ -611,6 +613,42 @@
   body.kompakt .knoepfe button { min-width: 32px; }
   body.kompakt .einfuehrung { top: calc(max(6px, env(safe-area-inset-top)) + 32px); }
   body.kompakt .bericht { top: calc(max(6px, env(safe-area-inset-top)) + 36px); }
+  /* Erfindungsbaum auf dem Handy: Kopf in zwei schmalen Zeilen, Bausteine nebeneinander */
+  body.kompakt .baum { padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); gap: 6px; }
+  body.kompakt .baum-kopf { flex-wrap: wrap; gap: 4px 10px; padding-right: 30px; }
+  body.kompakt .baum-kopf h2 { font-size: 16px; } body.kompakt .baum-za { font-size: 11px; }
+  body.kompakt .baum-bst { order: 9; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; gap: 12px; font-size: 11px; scrollbar-width: none; }
+  body.kompakt .baum-bst span { white-space: nowrap; flex: none; }
+  body.kompakt .baum-bst i { width: 7px; height: 7px; }
+  body.kompakt .baum-za-reiter { display: flex; flex-wrap: nowrap; gap: 3px; }
+  body.kompakt .baum-za-reiter button { min-height: 0; padding: 2px 8px; font-size: 11.5px; }
+  body.kompakt .baum-reiter { gap: 4px; }
+  body.kompakt .baum-reiter button { min-height: 0; padding: 3px 9px; font-size: 12px; }
+  body.kompakt .baum .schliessen { font-size: 22px; padding: 0 6px; top: 0; }
+  body.kompakt .baum-detail { font-size: 12px; }
+  /* Rezeptbuch und Bausteine auf dem Handy: kleinere Karten, zwei nebeneinander */
+  body.kompakt .buch { gap: 10px; } body.kompakt .buch-teil h3, body.kompakt .beute h3 { font-size: 14px; }
+  body.kompakt .buch-teil > p, body.kompakt .beute p { font-size: 11.5px; margin-bottom: 5px; }
+  body.kompakt .buch-gitter { grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 6px; }
+  body.kompakt .rezept { padding: 5px 8px; gap: 8px; }
+  body.kompakt .sk-klein { width: 40px; } body.kompakt .rezept-formel b { font-size: 15px; } body.kompakt .rezept-formel { gap: 2px; }
+  body.kompakt .rezept-text { font-size: 11.5px; } body.kompakt .rezept-text strong { font-size: 13px; }
+  body.kompakt .buch-galerie { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+  body.kompakt .buch-liste .zeile { padding: 4px 8px; font-size: 11.5px; }
+  body.kompakt .beute { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  body.kompakt .bst-karte { grid-template-columns: 22px minmax(0, 1fr); gap: 7px; padding: 6px 8px; margin-bottom: 5px; }
+  body.kompakt .bst-karte svg { width: 22px; height: 22px; }
+  body.kompakt .bst-karte strong, body.kompakt .bst-karte.sk-papier strong, body.kompakt .wesen-karte.sk-papier strong { font-size: 13px; }
+  body.kompakt .bst-karte small { font-size: 11px; margin-bottom: 3px; }
+  body.kompakt .chip { font-size: 10.5px; padding: 1px 6px; } body.kompakt .chips { gap: 3px; }
+  body.kompakt .wesen-karte { grid-template-columns: minmax(0, 1fr) 56px; padding: 6px 8px; gap: 3px; font-size: 11.5px; }
+  body.kompakt .rezept-text * { font-size: 11.5px; } body.kompakt .rezept-text strong { font-size: 13px; }
+  body.kompakt .wesen-karte * , body.kompakt .wesen-karte.sk-papier > span:not(.wesen-bild) { font-size: 12px; } body.kompakt .wesen-karte strong { font-size: 13px; }
+  body.kompakt .buch-galerie * { font-size: 12px; }
+  body.kompakt .bst-karte > :first-child { width: 22px; height: 22px; }
+  body.kompakt .baum-gitter .wkopf { font-size: 12px; padding: 4px 2px; }
+  body.kompakt .baum-gitter .zkopf { font-size: 13px; padding: 4px 8px; } body.kompakt .baum-gitter .zkopf small { font-size: 10.5px; }
+  body.kompakt .ekarte { font-size: 12px; padding: 3px 8px; min-height: 0; } body.kompakt .ekarte b { font-size: 12px; } body.kompakt .ekarte .zut { font-size: 11px; }
 </style>
 </head>
 <body>
