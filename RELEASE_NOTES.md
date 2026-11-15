@@ -1,3 +1,10 @@
+## runeBOOM 0.9.3 · Noch kleiner auf dem Handy
+
+- Auf dem Handy ist alles eine Stufe kleiner: Gebäudefenster, Einstellungen, Nachtbericht, Einführung, Rohstoffe, Uhr,
+  Tempo-Knöpfe und Bauleiste. Mehr Platz für die Welt. Am Rechner bleibt alles wie bisher.
+
+---
+
 ## runeBOOM 0.9.2 · Freier Blick auf dem Handy
 
 - **Nichts liegt mehr übereinander:** Gebäudefenster und Nachtbericht verdrängen Einführung und Hinweise, solange sie offen sind.
