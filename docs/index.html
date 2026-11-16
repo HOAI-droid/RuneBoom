@@ -31,10 +31,12 @@
   .sprache { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
   .sprache button { background: none; border: 0; color: var(--muted); font: 600 13px var(--mono); padding: 5px 10px; cursor: pointer; }
   .sprache button[aria-pressed="true"] { background: var(--ember); color: #1a1208; }
-  .held { position: relative; min-height: min(86vh, 760px); display: grid; align-items: end; overflow: hidden; }
-  .held img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .held::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,25,0) 45%, rgba(14,18,25,.92) 92%); }
-  .held-text { position: relative; z-index: 1; padding: 0 max(16px, calc((100vw - 1120px) / 2)) 56px; display: grid; gap: 16px; max-width: 1120px; }
+  .held { position: relative; min-height: max(min(86vh, 760px), min(56.25vw, 92vh)); display: grid; align-items: end; overflow: hidden; }
+  .held img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0%; }
+  .held::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,25,0) 50%, rgba(14,18,25,.75) 72%, rgba(14,18,25,.95) 94%); }
+  @media (max-width: 700px), (max-height: 640px) { .held { min-height: 0; } .held img { position: relative; height: auto; aspect-ratio: 16 / 9; } .held { display: block; } .held::after { display: none; } .held-text { padding-top: 18px; padding-bottom: 28px; } .knopf { padding: 10px 16px; font-size: 16px; } }
+  .held-text { position: relative; z-index: 1; box-sizing: border-box; width: 100%; padding: 0 max(16px, calc((100vw - 1120px) / 2)) 56px; display: grid; gap: 16px; }
+  .held-text .knoepfe { max-width: 1120px; }
   .held-text p { margin: 0; font-size: clamp(18px, 2.2vw, 23px); max-width: 720px; text-shadow: 0 2px 12px rgba(0,0,0,.8); }
   .knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
   .knopf { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 18px; border: 1px solid var(--line); background: rgba(32,40,56,.85); color: var(--parch); }
