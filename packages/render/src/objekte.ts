@@ -428,6 +428,8 @@ export class Objekte {
   /** benannte Bewohner: Arbeiter-ID → Mützenfarbe (die Oberfläche legt fest, wer heute wer ist) */
   benannt = new Map<number, string>();
   private kappen: THREE.InstancedMesh;
+  /** Lichtsäule über jedem offenen Riss: nachts weithin sichtbar, hell und pulsierend, solange Wesen herauskommen */
+  private rissSaeulen: { name: string; x: number; z: number; huelle: THREE.Mesh; kern: THREE.Mesh; aktiv: number }[] = [];
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
     this.tiere = new Tierwelt(scene, spiel);
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
@@ -489,6 +491,14 @@ export class Objekte {
     this.feuer = new Schar(mk((g) => drachenFeuer(g)), 0.3, 60, scene, false);
     this.panzer = new Schar(mk((g) => trollPanzer(g)), 0.3, 60, scene, false);
     const strahlGeo = new THREE.BoxGeometry(0.16, 0.16, 1); strahlGeo.translate(0, 0, 0.5);
+    for (const q of RISSE) {
+      const y0 = hoehe(q.x, q.z), mk = (r: number, farbe: string) => {
+        const geo = new THREE.CylinderGeometry(r * 0.55, r, 160, 20, 1, true); geo.translate(0, 80, 0);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(farbe), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false }));
+        m.position.set(q.x + 0.5, y0 + 4, q.z + 0.5); m.frustumCulled = false; m.renderOrder = 15; m.visible = false; scene.add(m); return m;
+      };
+      this.rissSaeulen.push({ name: q.name, x: q.x, z: q.z, huelle: mk(3.2, '#8a5cff'), kern: mk(1.1, '#efe2ff'), aktiv: 0 });
+    }
     this.strahlen = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(1.5), toneMapped: false }), 120);
     this.strahlen.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(120 * 3), 3);
     this.blitzMesh = new THREE.InstancedMesh(strahlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#c9c0ff').multiplyScalar(1.7), toneMapped: false }), 400);
@@ -631,6 +641,20 @@ export class Objekte {
     const S = this.spiel, t = this.zeit;
     if (this.gangBild % 300 === 0) { const lebend = new Set(S.gegner.map((e) => e.id)); for (const id of this.gaenge.keys()) if (!lebend.has(id)) this.gaenge.delete(id); }
     this.balken.beginn(kamera);
+    // ---- Lichtsäulen über den Rissen ----
+    { const offen = new Set(S.offeneRisse().map((q) => q.name));
+      for (const r of this.rissSaeulen) {
+        const an = offen.has(r.name) && !S.versiegelt.has(r.name);
+        let neu = 0; if (an) for (const e of S.gegner) if (!e.tot && e.seit < 4 && Math.abs(e.x - r.x) < 14 && Math.abs(e.z - r.z) < 14) neu++;
+        r.aktiv += ((neu ? Math.min(1, 0.45 + neu * 0.08) : 0) - r.aktiv) * Math.min(1, dt * (neu ? 3 : 0.6));
+        const puls = 0.8 + 0.2 * Math.sin(t * (2 + r.aktiv * 5)), grund = nacht ? 0.28 : 0.07;
+        const a = an ? (grund + r.aktiv * (nacht ? 0.75 : 0.4)) * puls : 0;
+        for (const [m, f] of [[r.huelle, 1], [r.kern, 1.6]] as [THREE.Mesh, number][]) {
+          (m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, a * f); m.visible = a > 0.005;
+          const b = 1 + r.aktiv * 0.5; m.scale.set(b, 1, b);
+        }
+      }
+    }
     // ---- Wesen ----
     for (const s of Object.values(this.wesen)) s.beginn();
     this.feuer.beginn(); this.panzer.beginn();
@@ -851,6 +875,7 @@ export class Objekte {
     for (const m of this.gebaeude.values()) this.scene.remove(m);
     for (const m of this.ruinen.values()) this.scene.remove(m);
     for (const k of this.kegel) weg(k); weg(this.schild);
+    for (const r of this.rissSaeulen) { weg(r.huelle); weg(r.kern); }
     const alle: THREE.Object3D[] = [];
     this.scene.traverse((o) => { if ((o as THREE.InstancedMesh).isInstancedMesh) alle.push(o); });
     for (const o of alle) weg(o);
