@@ -1,3 +1,10 @@
+## runeBOOM 0.10.1 · Lichtsäulen über den Rissen
+
+- Über jedem offenen Riss steht nachts eine violette Lichtsäule, weithin sichtbar. Kommen Wesen heraus, wird sie hell und pulsiert,
+  so sieht man auch aus der Ferne, wo gerade eine Welle anrückt. Versiegelte Risse leuchten nicht mehr. Am Tag nur ein Hauch.
+
+---
+
 ## runeBOOM 0.10 · Großbauten der Völker
 
 Neben den Türmen hat jetzt jedes Volk drei eigene Angriffsbauten. Sie kämpfen selbst; ab Stufe III bekommt jeder eine Fähigkeit,
