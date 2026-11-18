@@ -13,6 +13,7 @@ import {
 } from './modelle.ts';
 import { RISSE } from '@runeboom/core';
 import { rng, type Ruine } from '@runeboom/core';
+import { glatteBurg, GLATT } from './glatt.ts';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
@@ -80,7 +81,7 @@ function gebModell(typ: GebTyp, stahl: boolean, zweigId?: string, stufe = 1, sch
       const gr = new Grid(); geruest(gr, def.w, def.d);
       for (const [k, v] of gr.m) if (!g.m.has(k) && v.y <= grenze + 3) g.m.set(k, v);
     }
-    m = gridZuGruppe(g, 0.5);
+    m = (typ === 'haupt' && !schicht && GLATT.an) ? glatteBurg(stufe) : gridZuGruppe(g, 0.5);
     modellCache.set(key, m);
   }
   return m;
