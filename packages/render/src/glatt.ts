@@ -7,8 +7,7 @@ import { FABRIK } from './grafik.ts';
  * Maße in Blöcken (1 Block ≈ 1 m), Mitte der Burg bei 0, Boden bei y = 0.
  */
 
-/** Schalter: glatte Modelle statt Voxel (Branch foto-look: standardmäßig an) */
-export const GLATT = { an: true };
+export { GLATT } from './schalter.ts';
 
 // ---------- Texturen aus Rauschen (einmal erzeugt) ----------
 function rauschZahl(x: number, y: number, s: number): number { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); }

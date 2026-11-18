@@ -1,8 +1,11 @@
 import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
+import { GLATT } from './schalter.ts';
 
-export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array }
+const NAT_ART: Record<string, number> = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5 };
+
+export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array; natur: Float32Array }
 
 /** Eine Kachel (32 × 32 Blöcke) bauen: Boden, Becken, Pflanzen, Kristallfelder, Risse. Läuft im Hintergrund-Rechner. */
 /**
@@ -15,7 +18,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   const g = new Grid(), F = new Grid(); g.o = [-ox, 0, -oz, 0]; F.o = [-2 * ox, 0, -2 * oz, 0];
   const cache = new Map<number, Spalte | null>();
   const S = (x: number, z: number) => { const k = x * 4096 + z; let v = cache.get(k); if (v === undefined) { v = spalte(x, z); cache.set(k, v); } return v; };
-  const wasser: number[] = [], lava: number[] = [];
+  const wasser: number[] = [], lava: number[] = [], natur: number[] = [];
   for (let x = ox - 1; x <= ox + CH; x++) for (let z = oz - 1; z <= oz + CH; z++) {
     const s = S(x, z); if (!s) continue;
     const asch = s.a === 'asche' || s.a === 'l', innen = x >= ox && x < ox + CH && z >= oz && z < oz + CH;
@@ -38,6 +41,14 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     const zu = aend.get(x * 4096 + z);
     if (zu === 'weg' && dk.art !== 'gras') continue;
     if (dk.art === 'baum' && zu) { if (zu === 'stumpf') stumpf(F, X, Y, Z, dk.typ); else setzling(F, X, Y, Z, r, dk.typ); continue; }
+    if (GLATT.an && (dk.art !== 'gras' || stufe >= 3)) { // glatte Natur: nur Zahlen für die Darstellung (siehe natur.ts)
+      const lx = x - ox + 0.5, ly = s.h + 1, lz = z - oz + 0.5, dreh = r() * 6.283, v = Math.floor(r() * 3), asche = s.a === 'asche' ? 1 : 0;
+      if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly, lz, dreh, 0.85 + r() * 0.4, v, 0);
+      else if (dk.art === 'fels') natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche);
+      else if (r() < 0.75) { natur.push(7, lx - 0.25, ly, lz - 0.2, dreh, 0.8 + r() * 0.6, v, 0); if (r() > 0.4) natur.push(7, lx + 0.3, ly, lz + 0.25, dreh + 2, 0.7 + r() * 0.5, v + 1, 0); }
+      else natur.push(8, lx, ly, lz, dreh, 0.9 + r() * 0.3, v, 0);
+      continue;
+    }
     if (dk.art === 'baum') baum(F, X, Y, Z, r, dk.typ);
     else if (dk.art === 'fels') fels(F, X, Y, Z, 1.6 + r() * 1.6, r, s.a === 'asche' ? '#3a383c' : '#8c867f');
     else {
@@ -64,10 +75,10 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
       if (!alt || (v.e !== 0 && alt.e === 0) || (v.y > alt.y * 2 + 1 && v.e === alt.e)) G.m.set(k, { ...v, x, y, z });
     }
     const mittel = meshVoxels(G, G.m.values());
-    return { grob: grob.map((a, k) => vereine(a, mittel[k], 1)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
+    return { grob: grob.map((a, k) => vereine(a, mittel[k], 1)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur) };
   }
   const feinM = meshVoxels(F, F.m.values());
-  return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava) };
+  return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur) };
 }
 
 /** zwei Netze zu einem; das zweite wird dabei um sb verkleinert (halbe Voxel) */

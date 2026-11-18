@@ -111,7 +111,7 @@ export function zuGruppe(meshes: (MeshDaten | null)[], scale = 1): THREE.Group {
   return grp;
 }
 export const gridZuGruppe = (g: Grid, scale = 1) => zuGruppe(meshVoxels(g, g.m.values()), scale);
-export function weg(obj: THREE.Object3D): void { obj.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); }); obj.parent?.remove(obj); }
+export function weg(obj: THREE.Object3D): void { obj.traverse((o) => { if ((o as THREE.Mesh).isMesh && !o.userData.geteilt) (o as THREE.Mesh).geometry.dispose(); }); obj.parent?.remove(obj); }
 
 // ================= Wasser und Lava =================
 export const ZEIT = { value: 0 };

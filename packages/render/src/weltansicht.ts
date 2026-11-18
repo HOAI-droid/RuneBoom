@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CH, WR, NZ, NN, h3 } from '@runeboom/core';
 import { zuGruppe, becken, weg, WASSER, LAVA, ZEIT, FABRIK } from './grafik.ts';
+import { baueNatur } from './natur.ts';
 import { bauChunk, uebersicht, type ChunkDaten, type UebersichtDaten } from './chunk.ts';
 import WeltRechner from './welt.worker.ts?worker&inline';
 
@@ -68,6 +69,7 @@ export class WeltAnsicht {
     if (this.neuBauen.has(k)) { this.neuBauen.delete(k); setTimeout(() => this.kachelNeu(cx, cz), 0); }
     const grp = new THREE.Group(); grp.position.set(cx * CH, 0, cz * CH);
     const netz = zuGruppe(r.grob, 1); if (stufe < 3) netz.traverse((o) => { o.castShadow = false; }); grp.add(netz);
+    if (r.natur.length) for (const o of baueNatur(r.natur, stufe >= 3)) grp.add(o);
     const extra: THREE.Object3D[] = [];
     if (r.wasser.length) extra.push(becken(r.wasser, WASSER)); if (r.lava.length) extra.push(becken(r.lava, LAVA));
     for (const e of extra) this.gruppe.add(e);
